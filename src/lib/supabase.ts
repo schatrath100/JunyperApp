@@ -1,0 +1,35 @@
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase environment variables');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    flowType: 'pkce'
+  },
+  global: {
+    headers: {
+      'x-application-name': 'accounting-app'
+    }
+  }
+});
+
+// Set up auth state change listener
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+    // Clear any cached data
+    localStorage.removeItem('supabase.auth.token');
+  } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+    // Ensure we have the latest session
+    if (session) {
+      localStorage.setItem('supabase.auth.token', session.access_token);
+    }
+  }
+});
