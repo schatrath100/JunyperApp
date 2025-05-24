@@ -602,15 +602,26 @@ const Settings: React.FC = () => {
         </div>
 
         <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-          <Button
-            type="submit"
-            variant="primary"
-            className="w-full bg-black hover:bg-black/90 text-white"
-            icon={<Save className="w-4 h-4" />}
-            disabled={saving}
-          >
-            {saving ? 'Saving...' : 'Save Settings'}
-          </Button>
+          <div className="flex justify-end space-x-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-24"
+              onClick={() => navigate('/dashboard')}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-32 bg-black hover:bg-black/90 text-white"
+              icon={<Save className="w-4 h-4" />}
+              disabled={saving}
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
         </div>
       </form>
     </div>
