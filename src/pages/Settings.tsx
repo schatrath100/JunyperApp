@@ -403,6 +403,7 @@ const Settings: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
 
           {/* Chart of Accounts */}
           <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
