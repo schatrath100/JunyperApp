@@ -328,261 +328,274 @@ const Settings: React.FC = () => {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* General Accounting Settings */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">General Accounting Settings</h2>
-          </div>
-          <div className="p-4 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Company Legal Name
-              </label>
-              <input
-                type="text"
-                value={settings.company_legal_name}
-                onChange={(e) => setSettings({ ...settings, company_legal_name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                placeholder="Enter company legal name"
-              />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* General Accounting Settings */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">General Accounting Settings</h2>
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Base Currency
-              </label>
-              <select
-                value={settings.base_currency}
-                onChange={(e) => setSettings({ ...settings, base_currency: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-              >
-                {CURRENCIES.map((currency) => (
-                  <option key={currency.value} value={currency.value}>
-                    {currency.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Accounting Method
-              </label>
-              <div className="space-y-2">
-                {ACCOUNTING_METHODS.map((method) => (
-                  <label key={method.value} className="flex items-center">
-                    <input
-                      type="radio"
-                      value={method.value}
-                      checked={settings.accounting_method === method.value}
-                      onChange={(e) => setSettings({ ...settings, accounting_method: e.target.value })}
-                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                    />
-                    <span className="ml-2 text-gray-700 dark:text-gray-300">{method.label}</span>
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Company Legal Name
                   </label>
-                ))}
+                  <input
+                    type="text"
+                    value={settings.company_legal_name}
+                    onChange={(e) => setSettings({ ...settings, company_legal_name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                    placeholder="Enter name"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Base Currency
+                  </label>
+                  <select
+                    value={settings.base_currency}
+                    onChange={(e) => setSettings({ ...settings, base_currency: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                  >
+                    {CURRENCIES.map((currency) => (
+                      <option key={currency.value} value={currency.value}>
+                        {currency.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Time Zone
+                  </label>
+                  <select
+                    value={settings.time_zone}
+                    onChange={(e) => setSettings({ ...settings, time_zone: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                  >
+                    {TIME_ZONES.map((zone) => (
+                      <option key={zone.value} value={zone.value}>
+                        {zone.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Accounting Method
+                  </label>
+                  <select
+                    value={settings.accounting_method}
+                    onChange={(e) => setSettings({ ...settings, accounting_method: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                  >
+                    {ACCOUNTING_METHODS.map((method) => (
+                      <option key={method.value} value={method.value}>
+                        {method.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Time Zone
-              </label>
-              <select
-                value={settings.time_zone}
-                onChange={(e) => setSettings({ ...settings, time_zone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-              >
-                {TIME_ZONES.map((zone) => (
-                  <option key={zone.value} value={zone.value}>
-                    {zone.label}
-                  </option>
-                ))}
-              </select>
+          {/* Chart of Accounts */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Chart of Accounts</h2>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Sales Revenue Account *
+                  </label>
+                  <select
+                    value={settings.sales_revenue_account || ''}
+                    onChange={(e) => handleAccountChange('sales_revenue_account', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                  >
+                    <option value="">Select account</option>
+                    {accountsByType['Revenue']?.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.account_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Purchases Account *
+                  </label>
+                  <select
+                    value={settings.purchases_account || ''}
+                    onChange={(e) => handleAccountChange('purchases_account', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                  >
+                    <option value="">Select account</option>
+                    {accountsByType['Expense']?.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.account_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Accounts Receivable *
+                  </label>
+                  <select
+                    value={settings.accounts_receivable_account || ''}
+                    onChange={(e) => handleAccountChange('accounts_receivable_account', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                  >
+                    <option value="">Select account</option>
+                    {accountsByType['Asset']?.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.account_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Accounts Payable *
+                  </label>
+                  <select
+                    value={settings.accounts_payable_account || ''}
+                    onChange={(e) => handleAccountChange('accounts_payable_account', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                  >
+                    <option value="">Select account</option>
+                    {accountsByType['Liability']?.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.account_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Chart of Accounts */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Chart of Accounts</h2>
-          </div>
-          <div className="p-4 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
-                Sales Revenue Account *
-              </div>
-              <div>
-                <select
-                  value={settings.sales_revenue_account || ''}
-                  onChange={(e) => handleAccountChange('sales_revenue_account', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                >
-                  <option value="">Select account</option>
-                  {accountsByType['Revenue']?.length > 0 && accountsByType['Revenue']
-                    .map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.account_name}
-                      </option>
-                    ))}
-                </select>
-              </div>
+          {/* Default Bank Account */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Default Bank Account</h2>
+            </div>
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Bank Name
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.bank_name}
+                    onChange={(e) => setSettings({ ...settings, bank_name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                    placeholder="Enter bank name"
+                  />
+                </div>
 
-              <div className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
-                Purchases Account *
-              </div>
-              <div>
-                <select
-                  value={settings.purchases_account || ''}
-                  onChange={(e) => handleAccountChange('purchases_account', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                >
-                  <option value="">Select account</option>
-                  {accountsByType['Expense']?.length > 0 && accountsByType['Expense']
-                    .map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.account_name}
-                      </option>
-                    ))}
-                </select>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Branch Name
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.branch_name}
+                    onChange={(e) => setSettings({ ...settings, branch_name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                    placeholder="Enter branch name"
+                  />
+                </div>
               </div>
 
-              <div className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
-                Accounts Receivable *
-              </div>
-              <div>
-                <select
-                  value={settings.accounts_receivable_account || ''}
-                  onChange={(e) => handleAccountChange('accounts_receivable_account', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                >
-                  <option value="">Select account</option>
-                  {accountsByType['Asset']?.length > 0 && accountsByType['Asset']
-                    .map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.account_name}
-                      </option>
-                    ))}
-                </select>
-              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Account Number
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.account_number}
+                    onChange={(e) => setSettings({ ...settings, account_number: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                    placeholder="Enter account number"
+                  />
+                </div>
 
-              <div className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
-                Accounts Payable *
-              </div>
-              <div>
-                <select
-                  value={settings.accounts_payable_account || ''}
-                  onChange={(e) => handleAccountChange('accounts_payable_account', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                >
-                  <option value="">Select account</option>
-                  {accountsByType['Liability']?.length > 0 && accountsByType['Liability']
-                    .map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.account_name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <div className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
-                Taxes Payable *
-              </div>
-              <div>
-                <select
-                  value={settings.taxes_payable_account || ''}
-                  onChange={(e) => handleAccountChange('taxes_payable_account', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                >
-                  <option value="">Select account</option>
-                  {accountsByType['Liability']?.length > 0 && accountsByType['Liability']
-                    .map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.account_name}
-                      </option>
-                    ))}
-                </select>
-              </div>
-
-              <div className="flex items-center text-sm font-medium text-gray-700 dark:text-gray-300">
-                Retained Earnings *
-              </div>
-              <div>
-                <select
-                  value={settings.retained_earnings_account || ''}
-                  onChange={(e) => handleAccountChange('retained_earnings_account', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                >
-                  <option value="">Select account</option>
-                  {accountsByType['Equity']?.length > 0 && accountsByType['Equity']
-                    .map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.account_name}
-                      </option>
-                    ))}
-                </select>
+                <div className="flex items-center">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={settings.is_default_bank}
+                      onChange={(e) => setSettings({ ...settings, is_default_bank: e.target.checked })}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      Default Bank Account
+                    </span>
+                  </label>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Default Bank Account */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-          <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Default Bank Account</h2>
-          </div>
-          <div className="p-4 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Bank Name
-              </label>
-              <input
-                type="text"
-                value={settings.bank_name}
-                onChange={(e) => setSettings({ ...settings, bank_name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                placeholder="Enter bank name"
-              />
+          {/* Additional Accounts */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Additional Accounts</h2>
             </div>
+            <div className="p-4 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Taxes Payable *
+                  </label>
+                  <select
+                    value={settings.taxes_payable_account || ''}
+                    onChange={(e) => handleAccountChange('taxes_payable_account', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                  >
+                    <option value="">Select account</option>
+                    {accountsByType['Liability']?.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.account_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Branch Name
-              </label>
-              <input
-                type="text"
-                value={settings.branch_name}
-                onChange={(e) => setSettings({ ...settings, branch_name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                placeholder="Enter branch name"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                IBAN / Account Number
-              </label>
-              <input
-                type="text"
-                value={settings.account_number}
-                onChange={(e) => setSettings({ ...settings, account_number: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                placeholder="Enter account number"
-              />
-            </div>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="isDefaultBank"
-                checked={settings.is_default_bank}
-                onChange={(e) => setSettings({ ...settings, is_default_bank: e.target.checked })}
-                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              />
-              <label htmlFor="isDefaultBank" className="ml-2 text-sm text-gray-700 dark:text-gray-300">
-                Mark as Default Bank Account
-              </label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Retained Earnings *
+                  </label>
+                  <select
+                    value={settings.retained_earnings_account || ''}
+                    onChange={(e) => handleAccountChange('retained_earnings_account', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                  >
+                    <option value="">Select account</option>
+                    {accountsByType['Equity']?.map((account) => (
+                      <option key={account.id} value={account.id}>
+                        {account.account_name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
         </div>
