@@ -601,11 +601,11 @@ const Settings: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
           <Button
             type="submit"
             variant="primary"
-            className="w-full sm:w-auto"
+            className="w-full bg-black hover:bg-black/90 text-white"
             icon={<Save className="w-4 h-4" />}
             disabled={saving}
           >
