@@ -326,16 +326,6 @@ const Sidebar: React.FC<{
                 >
                   <span>Account</span>
                 </DropdownMenu.Item>
-                <DropdownMenu.Item
-                  className={cn(
-                    "relative flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 outline-none cursor-pointer",
-                    "hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors",
-                    "focus:bg-gray-100 dark:focus:bg-gray-700"
-                  )}
-                  onClick={() => navigate('/settings')}
-                >
-                  <span>Settings</span>
-                </DropdownMenu.Item>
                 <DropdownMenu.Separator className="h-px my-1 bg-gray-200 dark:bg-gray-700" />
                 <DropdownMenu.Item
                   className={cn(
