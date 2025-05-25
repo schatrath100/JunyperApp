@@ -29,7 +29,7 @@ const NavItem: React.FC<{
       onClick={onClick}
       title={typeof label === 'string' ? label : "I'm Sydney—ask me anything about your books!"}
     >
-      <div className="flex items-center space-x-3">
+      <div className={`flex items-center ${collapsed ? 'justify-center w-8 h-8' : 'space-x-3'}`}>
         {icon}
         {!collapsed && <span className="font-medium">{label}</span>}
       </div>
