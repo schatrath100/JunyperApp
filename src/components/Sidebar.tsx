@@ -17,7 +17,14 @@ const NavItem: React.FC<{
   rightIcon?: React.ReactNode;
   className?: string;
   collapsed?: boolean;
-}> = ({ icon, label, active, onClick, rightIcon, children, className = '', collapsed }) => (
+}> = ({ icon, label, active, onClick, rightIcon, children, className = '', collapsed }) => {
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onClick?.();
+  };
+
+  return (
   <div>
     <button 
       className={`
@@ -26,10 +33,7 @@ const NavItem: React.FC<{
         transition-colors duration-150
         ${className}
       `}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick?.();
-      }}
+      onClick={handleClick}
       title={typeof label === 'string' ? label : "I'm Sydney—ask me anything about your books!"}
     >
       <div className={`flex items-center ${collapsed ? 'justify-center w-8 h-8' : 'space-x-3'}`}>
@@ -40,7 +44,8 @@ const NavItem: React.FC<{
     </button>
     {children}
   </div>
-);
+  );
+};
 
 const Sidebar: React.FC<{
   onToggleShortcuts: () => void;
@@ -183,7 +188,10 @@ const Sidebar: React.FC<{
                       w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm
                       ${location.pathname === '/sales/customers' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
                     `}
-                    onClick={() => navigate('/sales/customers')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/sales/customers');
+                    }}
                   >
                     <Users className="w-4 h-4" />
                     <span>Customers</span>
@@ -193,7 +201,10 @@ const Sidebar: React.FC<{
                       w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm
                       ${location.pathname === '/sales/invoices' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
                     `}
-                    onClick={() => navigate('/sales/invoices')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/sales/invoices');
+                    }}
                   >
                     <FileText className="w-4 h-4" />
                     <span>Invoices</span>
@@ -203,7 +214,10 @@ const Sidebar: React.FC<{
                       w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm
                       ${location.pathname === '/sales/items' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
                     `}
-                    onClick={() => navigate('/sales/items')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/sales/items');
+                    }}
                   >
                     <Package className="w-4 h-4" />
                     <span>Sale Items</span>
@@ -228,7 +242,10 @@ const Sidebar: React.FC<{
                       w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm
                       ${location.pathname === '/purchases/vendors' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
                     `}
-                    onClick={() => navigate('/purchases/vendors')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/purchases/vendors');
+                    }}
                   >
                     <Building2 className="w-4 h-4" />
                     <span>Vendors</span>
@@ -238,7 +255,10 @@ const Sidebar: React.FC<{
                       w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm
                       ${location.pathname === '/purchases/bills' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
                     `}
-                    onClick={() => navigate('/purchases/bills')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/purchases/bills');
+                    }}
                   >
                     <ScrollText className="w-4 h-4" />
                     <span>Bills</span>
@@ -248,7 +268,10 @@ const Sidebar: React.FC<{
                       w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm
                       ${location.pathname === '/purchases/items' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
                     `}
-                    onClick={() => navigate('/purchases/items')}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/purchases/items');
+                    }}
                   >
                     <Boxes className="w-4 h-4" />
                     <span>Purchase Items</span>
