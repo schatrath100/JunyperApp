@@ -29,8 +29,10 @@ const NavItem: React.FC<{
       onClick={onClick}
       title={typeof label === 'string' ? label : "I'm Sydney—ask me anything about your books!"}
     >
-      <div className={`flex items-center ${collapsed ? 'justify-center w-8 h-8' : 'space-x-3'}`}>
-        {icon}
+      <div className={`flex items-center min-h-[32px] ${collapsed ? 'justify-center w-8' : 'space-x-3'}`}>
+        <div className="w-5 h-5 flex items-center justify-center">
+          {icon}
+        </div>
         {!collapsed && <span className="font-medium">{label}</span>}
       </div>
       {rightIcon}
@@ -141,7 +143,7 @@ const Sidebar: React.FC<{
             <div className="mb-1">
               <NavItem
                 icon={<Sparkles className={`w-5 h-5 transition-colors duration-150 ${showShortcuts ? 'text-green-600 dark:text-green-400' : ''}`} />}
-                label={collapsed ? "" : "Shortcuts"}
+                label="Shortcuts"
                 active={false}
                 onClick={onToggleShortcuts}
                 className="w-full"
@@ -150,7 +152,7 @@ const Sidebar: React.FC<{
             </div>
             <NavItem 
               icon={<LayoutDashboard className="w-5 h-5" />} 
-              label={collapsed ? "" : "Dashboard"}
+              label="Dashboard"
               active={location.pathname === '/dashboard'}
               onClick={(e) => {
                 e.preventDefault();
@@ -169,14 +171,14 @@ const Sidebar: React.FC<{
             </NavItem>
             <NavItem 
               icon={<BookOpen className="w-5 h-5" />} 
-              label={collapsed ? "" : "Accounts"}
+              label="Accounts"
               active={location.pathname === '/accounts'} 
               onClick={() => navigate('/accounts')}
               collapsed={collapsed}
             />
             <NavItem 
               icon={<ShoppingCart className="w-5 h-5" />} 
-              label={collapsed ? "" : "Sales"}
+              label="Sales"
               active={location.pathname.startsWith('/sales')}
               onClick={() => setSalesOpen(!salesOpen)}
               rightIcon={!collapsed && (
@@ -221,7 +223,7 @@ const Sidebar: React.FC<{
             </NavItem>
             <NavItem 
               icon={<Receipt className="w-5 h-5" />} 
-              label={collapsed ? "" : "Purchases"}
+              label="Purchases"
               active={location.pathname.startsWith('/purchases')}
               onClick={() => setPurchasesOpen(!purchasesOpen)}
               rightIcon={!collapsed && (
@@ -279,21 +281,21 @@ const Sidebar: React.FC<{
             />
             <NavItem 
               icon={<BookOpenCheck className="w-5 h-5" />} 
-              label={collapsed ? "" : "Journals"}
+              label="Journals"
               active={location.pathname === '/journals'} 
               onClick={() => navigate('/journals')}
               collapsed={collapsed}
             />
             <NavItem 
               icon={<Wallet className="w-5 h-5" />} 
-              label={collapsed ? "" : "Banking"}
+              label="Banking"
               active={location.pathname === '/bank-transactions'}
               onClick={() => navigate('/bank-transactions')} 
               collapsed={collapsed}
             />
             <NavItem 
               icon={<LogOut className="w-5 h-5" />} 
-              label={collapsed ? "" : "Logout"}
+              label="Logout"
               onClick={async () => {
                 await supabase.auth.signOut();
                 navigate('/auth');
