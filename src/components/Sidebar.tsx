@@ -26,7 +26,10 @@ const NavItem: React.FC<{
         transition-colors duration-150
         ${className}
       `}
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.();
+      }}
       title={typeof label === 'string' ? label : "I'm Sydney—ask me anything about your books!"}
     >
       <div className={`flex items-center ${collapsed ? 'justify-center w-8 h-8' : 'space-x-3'}`}>
@@ -152,21 +155,10 @@ const Sidebar: React.FC<{
               icon={<LayoutDashboard className="w-5 h-5" />} 
               label={collapsed ? "" : "Dashboard"}
               active={location.pathname === '/dashboard'}
-              onClick={(e) => {
-                e.preventDefault();
-                if (e.target === e.currentTarget) {
-                  navigate('/dashboard');
-                }
-              }}
-              className="cursor-pointer group"
+              onClick={() => navigate('/dashboard')}
+              className="cursor-pointer"
               collapsed={collapsed}
-            >
-              <button
-                onClick={onToggleCollapse}
-                className="absolute inset-0 w-full h-full opacity-0 group-hover:opacity-100"
-                title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-              />
-            </NavItem>
+            />
             <NavItem 
               icon={<BookOpen className="w-5 h-5" />} 
               label={collapsed ? "" : "Accounts"}
