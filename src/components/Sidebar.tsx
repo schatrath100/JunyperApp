@@ -12,29 +12,45 @@ interface AccountingSettings {
 const NavItem: React.FC<{
   icon: React.ReactNode;
   label: string;
+  onToggleCollapse?: () => void;
   active?: boolean;
   onClick?: () => void;
   rightIcon?: React.ReactNode;
   className?: string;
-}> = ({ icon, label, active, onClick, rightIcon, children, className = '' }) => (
+}> = ({ icon, label, active, onClick, onToggleCollapse, rightIcon, children, className = '' }) => (
   <div>
-  <button 
-    className={`
-      w-full flex items-center justify-between px-3 py-2 rounded-lg
-      ${active ? 'bg-green-50 dark:bg-green-900/50 text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
-      transition-colors duration-150
-      ${className}
-    `}
-    onClick={onClick}
-    title={typeof label === 'string' ? label : "I'm Sydney—ask me anything about your books!"}
-  >
-    <div className="flex items-center space-x-3">
-      {icon}
-      <span className="font-medium">{label}</span>
-    </div>
-    {rightIcon}
-  </button>
-  {children}
+    <button 
+      className={`
+        w-full flex items-center justify-between px-3 py-2 rounded-lg
+        ${active ? 'bg-green-50 dark:bg-green-900/50 text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
+        transition-colors duration-150
+        ${className}
+      `}
+      onClick={onClick}
+      title={typeof label === 'string' ? label : "I'm Sydney—ask me anything about your books!"}
+    >
+      <div className="flex items-center space-x-3">
+        {icon}
+        <span className="font-medium">{label}</span>
+        {onToggleCollapse && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleCollapse();
+            }}
+            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
+          >
+            {collapsed ? (
+              <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            ) : (
+              <ChevronLeft className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+            )}
+          </button>
+        )}
+      </div>
+      {rightIcon}
+    </button>
+    {children}
   </div>
 );
 
@@ -149,6 +165,7 @@ const Sidebar: React.FC<{
             <NavItem 
               icon={<LayoutDashboard className="w-5 h-5" />} 
               label={collapsed ? "" : "Dashboard"}
+              onToggleCollapse={onToggleCollapse}
               active={location.pathname === '/dashboard'} 
               onClick={() => navigate('/dashboard')}
             />
@@ -330,30 +347,6 @@ const Sidebar: React.FC<{
           </DropdownMenu.Root>
         </div>
       )}
-      
-      {/* Collapse Toggle Button */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-        <button
-          onClick={onToggleCollapse}
-          className={`
-            w-full h-8
-            bg-gray-100 dark:bg-gray-800 
-            border border-gray-200 dark:border-gray-700 
-            rounded-lg
-            flex items-center justify-center 
-            hover:bg-gray-200 dark:hover:bg-gray-700
-            transition-all duration-200
-            group
-          `}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? (
-            <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors" />
-          ) : (
-            <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors" />
-          )}
-        </button>
-      </div>
     </aside>
   );
 };
