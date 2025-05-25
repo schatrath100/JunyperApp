@@ -137,12 +137,36 @@ const Sidebar: React.FC<{
       <div className="flex flex-col h-full overflow-hidden">
         <div className="flex-1 p-4 overflow-y-auto">
           <div className="space-y-1">
-            <NavItem
-              icon={<Sparkles className={`w-5 h-5 transition-colors duration-150 ${showShortcuts ? 'text-green-600 dark:text-green-400' : ''}`} />}
-              label={collapsed ? "" : "Shortcuts"}
-              active={false}
-              onClick={onToggleShortcuts}
-            />
+            <div className="flex items-center justify-between mb-1">
+              <NavItem
+                icon={<Sparkles className={`w-5 h-5 transition-colors duration-150 ${showShortcuts ? 'text-green-600 dark:text-green-400' : ''}`} />}
+                label={collapsed ? "" : "Shortcuts"}
+                active={false}
+                onClick={onToggleShortcuts}
+                className="flex-1 mr-2"
+              />
+              <button
+                onClick={onToggleCollapse}
+                className={`
+                  w-8 h-8 
+                  bg-white dark:bg-gray-800 
+                  border border-gray-200 dark:border-gray-700 
+                  rounded-lg
+                  flex items-center justify-center 
+                  hover:bg-gray-50 dark:hover:bg-gray-700
+                  transition-all duration-200
+                  hover:scale-105
+                  group
+                `}
+                title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {collapsed ? (
+                  <ChevronRight className="w-4 h-4 text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors" />
+                ) : (
+                  <ChevronLeft className="w-4 h-4 text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors" />
+                )}
+              </button>
+            </div>
             <NavItem 
               icon={<LayoutDashboard className="w-5 h-5" />} 
               label={collapsed ? "" : "Dashboard"}
@@ -278,31 +302,6 @@ const Sidebar: React.FC<{
             />
           </div>
         </div>
-      </div>
-      
-      {/* Collapse Toggle Button */}
-      <div className="absolute bottom-20 left-1/2 transform -translate-x-1/2">
-        <button
-          onClick={onToggleCollapse}
-          className={`
-            w-10 h-10 bg-white dark:bg-gray-800 
-            shadow-lg dark:shadow-gray-900/50
-            border border-gray-200 dark:border-gray-700 
-            rounded-full 
-            flex items-center justify-center 
-            hover:bg-gray-50 dark:hover:bg-gray-700
-            transition-all duration-200
-            hover:scale-110
-            group
-          `}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? (
-            <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors" />
-          ) : (
-            <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-gray-200 transition-colors" />
-          )}
-        </button>
       </div>
       
       {/* Footer */}
