@@ -12,13 +12,12 @@ interface AccountingSettings {
 const NavItem: React.FC<{
   icon: React.ReactNode;
   label: string;
-  onToggleCollapse?: () => void;
   active?: boolean;
   onClick?: () => void;
   rightIcon?: React.ReactNode;
   className?: string;
   collapsed?: boolean;
-}> = ({ icon, label, active, onClick, onToggleCollapse, rightIcon, children, className = '', collapsed }) => (
+}> = ({ icon, label, active, onClick, rightIcon, children, className = '', collapsed }) => (
   <div>
     <button 
       className={`
@@ -32,22 +31,7 @@ const NavItem: React.FC<{
     >
       <div className="flex items-center space-x-3">
         {icon}
-        <span className="font-medium">{label}</span>
-        {onToggleCollapse && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleCollapse();
-            }}
-            className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
-          >
-            {collapsed ? (
-              <ChevronRight className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            ) : (
-              <ChevronLeft className="w-4 h-4 text-gray-500 dark:text-gray-400" />
-            )}
-          </button>
-        )}
+        {!collapsed && <span className="font-medium">{label}</span>}
       </div>
       {rightIcon}
     </button>
@@ -167,11 +151,22 @@ const Sidebar: React.FC<{
             <NavItem 
               icon={<LayoutDashboard className="w-5 h-5" />} 
               label={collapsed ? "" : "Dashboard"}
-              onToggleCollapse={onToggleCollapse}
-              active={location.pathname === '/dashboard'} 
-              onClick={() => navigate('/dashboard')}
+              active={location.pathname === '/dashboard'}
+              onClick={(e) => {
+                e.preventDefault();
+                if (e.target === e.currentTarget) {
+                  navigate('/dashboard');
+                }
+              }}
+              className="cursor-pointer group"
               collapsed={collapsed}
-            />
+            >
+              <button
+                onClick={onToggleCollapse}
+                className="absolute inset-0 w-full h-full opacity-0 group-hover:opacity-100"
+                title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              />
+            </NavItem>
             <NavItem 
               icon={<BookOpen className="w-5 h-5" />} 
               label={collapsed ? "" : "Accounts"}
