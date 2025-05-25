@@ -17,7 +17,8 @@ const NavItem: React.FC<{
   onClick?: () => void;
   rightIcon?: React.ReactNode;
   className?: string;
-}> = ({ icon, label, active, onClick, onToggleCollapse, rightIcon, children, className = '' }) => (
+  collapsed?: boolean;
+}> = ({ icon, label, active, onClick, onToggleCollapse, rightIcon, children, className = '', collapsed }) => (
   <div>
     <button 
       className={`
@@ -160,6 +161,7 @@ const Sidebar: React.FC<{
                 active={false}
                 onClick={onToggleShortcuts}
                 className={`${collapsed ? 'w-10 px-2' : 'w-full'}`}
+                collapsed={collapsed}
               />
             </div>
             <NavItem 
@@ -168,12 +170,14 @@ const Sidebar: React.FC<{
               onToggleCollapse={onToggleCollapse}
               active={location.pathname === '/dashboard'} 
               onClick={() => navigate('/dashboard')}
+              collapsed={collapsed}
             />
             <NavItem 
               icon={<BookOpen className="w-5 h-5" />} 
               label={collapsed ? "" : "Accounts"}
               active={location.pathname === '/accounts'} 
               onClick={() => navigate('/accounts')}
+              collapsed={collapsed}
             />
             <NavItem 
               icon={<ShoppingCart className="w-5 h-5" />} 
@@ -183,6 +187,7 @@ const Sidebar: React.FC<{
               rightIcon={!collapsed && (
                 <ChevronDown className={`w-4 h-4 transition-transform ${salesOpen ? 'transform rotate-180' : ''}`} />
               )}
+              collapsed={collapsed}
             >
               {salesOpen && !collapsed && (
                 <div className="ml-6 space-y-1 mt-1">
@@ -227,6 +232,7 @@ const Sidebar: React.FC<{
               rightIcon={!collapsed && (
                 <ChevronDown className={`w-4 h-4 transition-transform ${purchasesOpen ? 'transform rotate-180' : ''}`} />
               )}
+              collapsed={collapsed}
             >
               {purchasesOpen && !collapsed && (
                 <div className="ml-6 space-y-1 mt-1">
@@ -274,18 +280,21 @@ const Sidebar: React.FC<{
               active={location.pathname === '/sydney-ai'}
               onClick={() => navigate('/sydney-ai')}
               className="group hover:scale-105 transition-transform [&>button>div>*:first-child]:text-teal-600 dark:[&>button>div>*:first-child]:text-teal-400"
+              collapsed={collapsed}
             />
             <NavItem 
               icon={<BookOpenCheck className="w-5 h-5" />} 
               label={collapsed ? "" : "Journals"}
               active={location.pathname === '/journals'} 
               onClick={() => navigate('/journals')}
+              collapsed={collapsed}
             />
             <NavItem 
               icon={<Wallet className="w-5 h-5" />} 
               label={collapsed ? "" : "Banking"}
               active={location.pathname === '/bank-transactions'}
               onClick={() => navigate('/bank-transactions')} 
+              collapsed={collapsed}
             />
             <NavItem 
               icon={<LogOut className="w-5 h-5" />} 
@@ -295,6 +304,7 @@ const Sidebar: React.FC<{
                 navigate('/auth');
               }}
               className="mt-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+              collapsed={collapsed}
             />
           </div>
         </div>
