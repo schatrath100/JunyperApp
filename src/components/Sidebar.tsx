@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, BookOpen, ShoppingCart, Receipt, Bot, Settings, LogOut, Sparkles, ChevronDown, Users, FileText, Building2, ScrollText, Package, Boxes, BookOpenCheck, Wallet, Check, User2 } from 'lucide-react';
+import { LayoutDashboard, BookOpen, ShoppingCart, Receipt, Bot, Settings, LogOut, Sparkles, ChevronDown, Users, FileText, Building2, ScrollText, Package, Boxes, BookOpenCheck, Wallet, Check, User2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -134,24 +134,6 @@ const Sidebar: React.FC<{
         </div>
       )}
       
-      <button
-        onClick={onToggleCollapse}
-        className="absolute -right-3 top-3 w-6 h-6 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-full flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors z-10 group"
-      >
-        <div className="flex items-center justify-center">
-          {collapsed ? (
-            <div className="flex">
-              <div className="w-1.5 h-1.5 border-t-2 border-r-2 border-gray-600 dark:border-gray-400 group-hover:border-gray-800 dark:group-hover:border-gray-200 transform -rotate-45 mr-0.5" />
-              <div className="w-1.5 h-1.5 border-t-2 border-r-2 border-gray-600 dark:border-gray-400 group-hover:border-gray-800 dark:group-hover:border-gray-200 transform -rotate-45" />
-            </div>
-          ) : (
-            <div className="flex">
-              <div className="w-1.5 h-1.5 border-t-2 border-r-2 border-gray-600 dark:border-gray-400 group-hover:border-gray-800 dark:group-hover:border-gray-200 transform rotate-135 mr-0.5" />
-              <div className="w-1.5 h-1.5 border-t-2 border-r-2 border-gray-600 dark:border-gray-400 group-hover:border-gray-800 dark:group-hover:border-gray-200 transform rotate-135" />
-            </div>
-          )}
-        </div>
-      </button>
       <div className="flex flex-col h-full overflow-hidden">
         <div className="flex-1 p-4 overflow-y-auto">
           <div className="space-y-1">
@@ -297,6 +279,19 @@ const Sidebar: React.FC<{
           </div>
         </div>
       </div>
+      
+      {/* Collapse Toggle Button */}
+      <button
+        onClick={onToggleCollapse}
+        className="absolute bottom-4 left-4 w-8 h-8 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        {collapsed ? (
+          <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+        ) : (
+          <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+        )}
+      </button>
       
       {/* Footer */}
       {!collapsed && (
