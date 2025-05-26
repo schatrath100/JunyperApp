@@ -5,11 +5,18 @@ import { supabase } from '../lib/supabase';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { cn } from '../lib/utils';
 
+interface SidebarProps {
+  onToggleShortcuts: () => void;
+  showShortcuts: boolean;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+}
+
 interface AccountingSettings {
   company_legal_name: string;
 }
 
-const NavItem: React.FC<{
+interface NavItemProps {
   icon: React.ReactNode;
   label: string;
   active?: boolean;
@@ -17,10 +24,26 @@ const NavItem: React.FC<{
   rightIcon?: React.ReactNode;
   className?: string;
   collapsed?: boolean;
-}> = ({ icon, label, active, onClick, rightIcon, children, className = '', collapsed }) => {
+  isDashboard?: boolean;
+}
+
+const NavItem: React.FC<NavItemProps> = ({ 
+  icon, 
+  label, 
+  active, 
+  onClick, 
+  rightIcon, 
+  children, 
+  className = '', 
+  collapsed,
+  isDashboard 
+}) => {
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (isDashboard || !onClick) {
+      e.currentTarget.blur();
+    }
     onClick?.();
   };
 
@@ -159,10 +182,17 @@ const Sidebar: React.FC<{
             <NavItem 
               icon={<LayoutDashboard className="w-5 h-5" />} 
               label={collapsed ? "" : "Dashboard"}
-              active={location.pathname === '/dashboard'}
-              onClick={() => navigate('/dashboard')}
+              active={location.pathname === '/dashboard'} 
+              onClick={() => {
+                if (location.pathname === '/dashboard') {
+                  onToggleCollapse();
+                } else {
+                  navigate('/dashboard');
+                }
+              }}
               className="cursor-pointer"
               collapsed={collapsed}
+              isDashboard={true}
             />
             <NavItem 
               icon={<BookOpen className="w-5 h-5" />} 
