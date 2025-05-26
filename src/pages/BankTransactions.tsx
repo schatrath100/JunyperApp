@@ -104,21 +104,16 @@ const BankTransactions: React.FC = () => {
       setDeleteLoading(true);
       setError(null);
 
-      // Get the user for verification
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('You must be logged in to delete transactions');
-
       // Delete the transaction
       const { error: deleteError } = await supabase
         .from('bank_transactions')
         .delete()
-        .eq('id', selectedTransaction.id)
-        .eq('user_id', user.id);
+        .eq('id', selectedTransaction.id);
 
       if (deleteError) throw deleteError;
 
       // Refresh the transactions list
-      await fetchTransactions();
+      setTransactions(prev => prev.filter(t => t.id !== selectedTransaction.id));
       setShowDeleteConfirm(false);
       setSelectedTransaction(null);
     } catch (err) {
