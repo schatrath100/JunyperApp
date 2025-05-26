@@ -98,25 +98,35 @@ const BankTransactions: React.FC = () => {
   };
 
   const handleDelete = async () => {
-    if (!selectedTransaction) return;
+    if (!selectedTransaction?.id) return;
 
     try {
       setDeleteLoading(true);
       setError(null);
 
-      const { error: deleteError } = await supabase
+      // Get the user for verification
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('You must be logged in to delete transactions');
+
+      // Delete the transaction
+      const { error: deleteError, count } = await supabase
         .from('bank_transactions')
         .delete()
-        .eq('id', selectedTransaction.id);
+        .eq('id', selectedTransaction.id)
+        .eq('user_id', user.id)
+        .select('count');
 
       if (deleteError) throw deleteError;
+      if (!count) throw new Error('Transaction not found or you do not have permission to delete it');
 
+      // Refresh the transactions list
       await fetchTransactions();
       setShowDeleteConfirm(false);
       setSelectedTransaction(null);
     } catch (err) {
       console.error('Error deleting transaction:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete transaction');
+      setShowDeleteConfirm(false);
     } finally {
       setDeleteLoading(false);
     }
