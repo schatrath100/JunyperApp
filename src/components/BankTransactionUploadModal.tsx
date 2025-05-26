@@ -11,12 +11,19 @@ interface BankTransactionUploadModalProps {
 }
 
 interface TransactionRow {
-  Date: string;
-  Amount: number;
-  'Account Number': string | number;
-  'Bank Name': string;
-  Description: string;
-  'Credit/Debit': string;
+  [key: string]: any;
+  date?: string;
+  Date?: string;
+  amount?: number;
+  Amount?: number;
+  account_number?: string | number;
+  'Account Number'?: string | number;
+  bank_name?: string;
+  'Bank Name'?: string;
+  description?: string;
+  Description?: string;
+  credit_debit_indicator?: string;
+  'Credit/Debit'?: string;
 }
 
 const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
@@ -28,6 +35,37 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<TransactionRow[]>([]);
+
+  const columnMappings = {
+    date: ['date', 'Date'],
+    amount: ['amount', 'Amount'],
+    account_number: ['account_number', 'Account Number'],
+    bank_name: ['bank_name', 'Bank Name'],
+    description: ['description', 'Description'],
+    credit_debit: ['credit_debit_indicator', 'Credit/Debit']
+  };
+
+  const findColumnValue = (row: TransactionRow, columnOptions: string[]): any => {
+    for (const option of columnOptions) {
+      if (row[option] !== undefined) {
+        return row[option];
+      }
+    }
+    return null;
+  };
+
+  const validateColumns = (headers: string[]): string[] => {
+    const missingColumns: string[] = [];
+    
+    Object.values(columnMappings).forEach(columnOptions => {
+      const hasColumn = columnOptions.some(col => headers.includes(col));
+      if (!hasColumn) {
+        missingColumns.push(columnOptions.join(' or '));
+      }
+    });
+
+    return missingColumns;
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -47,16 +85,15 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
         throw new Error('The file appears to be empty. Please check the file contents.');
       }
 
-      // Validate required columns
-      const requiredColumns = ['Date', 'Amount', 'Account Number', 'Bank Name', 'Description', 'Credit/Debit'];
+      // Validate columns
       const headers = Object.keys(jsonData[0] || {});
-      const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+      const missingColumns = validateColumns(headers);
 
       if (missingColumns.length > 0) {
         throw new Error(
           `Missing required columns: ${missingColumns.join(', ')}\n\n` +
           `Found columns: ${headers.join(', ')}\n\n` +
-          `Please ensure your file has all the required columns with exact names.`
+          `Please ensure your file has all the required columns.`
         );
       }
 
@@ -87,12 +124,12 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
 
       // Transform and validate data
       const transactions = jsonData.map(row => ({
-        date: new Date(row.Date).toISOString().split('T')[0],
-        amount: Math.abs(Number(row.Amount)),
-        account_number: Number(row['Account Number']),
-        bank_name: row['Bank Name'],
-        description: row.Description,
-        credit_debit_indicator: row['Credit/Debit'].toLowerCase() === 'credit' ? 'credit' : 'debit',
+        date: new Date(findColumnValue(row, columnMappings.date)).toISOString().split('T')[0],
+        amount: Math.abs(Number(findColumnValue(row, columnMappings.amount))),
+        account_number: Number(findColumnValue(row, columnMappings.account_number)),
+        bank_name: findColumnValue(row, columnMappings.bank_name),
+        description: findColumnValue(row, columnMappings.description),
+        credit_debit_indicator: findColumnValue(row, columnMappings.credit_debit).toLowerCase() === 'credit' ? 'credit' : 'debit',
         user_id: user.id
       }));
 
@@ -160,7 +197,7 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
                   CSV or Excel files only
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  Required columns: Date, Amount, Account Number, Bank Name, Description, Credit/Debit
+                  Required columns: date/Date, amount/Amount, account_number/Account Number, bank_name/Bank Name, description/Description, credit_debit_indicator/Credit/Debit
                 </p>
               </div>
             </div>
