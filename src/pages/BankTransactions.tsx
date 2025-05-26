@@ -5,6 +5,7 @@ import Button from '../components/Button';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '../components/ui/table';
 import FilterableTableHead from '../components/FilterableTableHead';
 import BankTransactionUploadModal from '../components/BankTransactionUploadModal';
+import BankTransactionEditModal from '../components/BankTransactionEditModal';
 
 interface BankTransaction {
   id: string;
@@ -30,6 +31,10 @@ const BankTransactions: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<BankTransaction | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: '',
     bankName: '',
@@ -85,6 +90,36 @@ const BankTransactions: React.FC = () => {
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleEdit = (transaction: BankTransaction) => {
+    setSelectedTransaction(transaction);
+    setShowEditModal(true);
+  };
+
+  const handleDelete = async () => {
+    if (!selectedTransaction) return;
+
+    try {
+      setDeleteLoading(true);
+      setError(null);
+
+      const { error: deleteError } = await supabase
+        .from('bank_transactions')
+        .delete()
+        .eq('id', selectedTransaction.id);
+
+      if (deleteError) throw deleteError;
+
+      await fetchTransactions();
+      setShowDeleteConfirm(false);
+      setSelectedTransaction(null);
+    } catch (err) {
+      console.error('Error deleting transaction:', err);
+      setError(err instanceof Error ? err.message : 'Failed to delete transaction');
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -205,10 +240,21 @@ const BankTransactions: React.FC = () => {
                 </TableCell>
                 <TableCell>
                   <div className="flex space-x-2">
-                    <button className="text-blue-600 hover:text-blue-800">
+                    <button
+                      onClick={() => handleEdit(transaction)}
+                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                      title="Edit transaction"
+                    >
                       <Pencil className="w-4 h-4" />
                     </button>
-                    <button className="text-red-600 hover:text-red-800">
+                    <button
+                      onClick={() => {
+                        setSelectedTransaction(transaction);
+                        setShowDeleteConfirm(true);
+                      }}
+                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                      title="Delete transaction"
+                    >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
@@ -224,6 +270,50 @@ const BankTransactions: React.FC = () => {
         onClose={() => setShowUploadModal(false)}
         onSuccess={fetchTransactions}
       />
+      
+      <BankTransactionEditModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setSelectedTransaction(null);
+        }}
+        transaction={selectedTransaction}
+        onSave={fetchTransactions}
+      />
+      
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Confirm Deletion
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Are you sure you want to delete this transaction? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setSelectedTransaction(null);
+                }}
+                disabled={deleteLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                className="!bg-red-500 hover:!bg-red-600"
+                onClick={handleDelete}
+                disabled={deleteLoading}
+              >
+                {deleteLoading ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
