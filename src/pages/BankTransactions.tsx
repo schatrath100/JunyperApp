@@ -109,15 +109,13 @@ const BankTransactions: React.FC = () => {
       if (!user) throw new Error('You must be logged in to delete transactions');
 
       // Delete the transaction
-      const { error: deleteError, count } = await supabase
+      const { error: deleteError } = await supabase
         .from('bank_transactions')
         .delete()
         .eq('id', selectedTransaction.id)
-        .eq('user_id', user.id)
-        .select('count');
+        .eq('user_id', user.id);
 
       if (deleteError) throw deleteError;
-      if (!count) throw new Error('Transaction not found or you do not have permission to delete it');
 
       // Refresh the transactions list
       await fetchTransactions();
