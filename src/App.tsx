@@ -78,9 +78,9 @@ function App() {
     <BrowserRouter>
       {!session ? (
         <Routes>
-          <Route path="/auth\" element={<Auth />} />
+          <Route path="/auth" element={<Auth />} />
           <Route path="/verify" element={<VerifyEmail />} />
-          <Route path="*" element={<Navigate to="/auth\" replace />} />
+          <Route path="*" element={<Navigate to="/auth" replace />} />
         </Routes>
       ) : (
         <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900">
@@ -113,13 +113,13 @@ function App() {
                   path="/profile" 
                   element={<Profile onAlert={addAlert} />} 
                 />
-                <Route path="*" element={<Navigate to="/dashboard\" replace />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </main>
-            {collapsed && (
+            {sidebarCollapsed && (
               <div className="w-16 flex-shrink-0 transition-all duration-300" />
             )}
-            {!collapsed && (
+            {!sidebarCollapsed && (
               <div className="w-56 flex-shrink-0 transition-all duration-300" />
             )}
             {showShortcuts && <ShortcutPanel />}
