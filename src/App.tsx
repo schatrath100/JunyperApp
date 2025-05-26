@@ -79,7 +79,7 @@ function App() {
       {!session ? (
         <Routes>
           <Route path="/auth\" element={<Auth />} />
-          <Route path="/verify" element={<VerifyEmail />} />
+          <Route path="/verify\" element={<VerifyEmail />} />
           <Route path="*" element={<Navigate to="/auth\" replace />} />
         </Routes>
       ) : (
