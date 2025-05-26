@@ -78,9 +78,9 @@ function App() {
     <BrowserRouter>
       {!session ? (
         <Routes>
-          <Route path="/auth\" element={<Auth />} />
-          <Route path="/verify\" element={<VerifyEmail />} />
-          <Route path="*" element={<Navigate to="/auth\" replace />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/verify" element={<VerifyEmail />} />
+          <Route path="*" element={<Navigate to="/auth" replace />} />
         </Routes>
       ) : (
         <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900">
@@ -94,7 +94,7 @@ function App() {
             />
             <main 
               ref={mainRef}
-              className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-800 transition-all duration-300"
+              className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-800"
               onClick={handleMainClick}
             >
               <Routes>
@@ -113,7 +113,7 @@ function App() {
                   path="/profile" 
                   element={<Profile onAlert={addAlert} />} 
                 />
-                <Route path="*" element={<Navigate to="/dashboard\" replace />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </main>
             {showShortcuts && <ShortcutPanel />}
