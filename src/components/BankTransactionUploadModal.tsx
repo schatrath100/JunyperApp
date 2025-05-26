@@ -43,13 +43,21 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       const jsonData = XLSX.utils.sheet_to_json<TransactionRow>(worksheet);
 
+      if (jsonData.length === 0) {
+        throw new Error('The file appears to be empty. Please check the file contents.');
+      }
+
       // Validate required columns
       const requiredColumns = ['Date', 'Amount', 'Account Number', 'Bank Name', 'Description', 'Credit/Debit'];
       const headers = Object.keys(jsonData[0] || {});
       const missingColumns = requiredColumns.filter(col => !headers.includes(col));
 
       if (missingColumns.length > 0) {
-        throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
+        throw new Error(
+          `Missing required columns: ${missingColumns.join(', ')}\n\n` +
+          `Found columns: ${headers.join(', ')}\n\n` +
+          `Please ensure your file has all the required columns with exact names.`
+        );
       }
 
       setPreview(jsonData.slice(0, 5)); // Show first 5 rows as preview
@@ -124,7 +132,7 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
 
         <div className="p-6">
           {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400">
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 whitespace-pre-line">
               {error}
             </div>
           )}
@@ -150,6 +158,9 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
                 </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   CSV or Excel files only
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  Required columns: Date, Amount, Account Number, Bank Name, Description, Credit/Debit
                 </p>
               </div>
             </div>
