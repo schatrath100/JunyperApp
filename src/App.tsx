@@ -94,7 +94,7 @@ function App() {
             />
             <main 
               ref={mainRef}
-              className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-800"
+              className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-800 ml-[14rem] transition-all duration-300"
               onClick={handleMainClick}
             >
               <Routes>
@@ -116,6 +116,12 @@ function App() {
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </main>
+            {collapsed && (
+              <div className="w-16 flex-shrink-0 transition-all duration-300" />
+            )}
+            {!collapsed && (
+              <div className="w-56 flex-shrink-0 transition-all duration-300" />
+            )}
             {showShortcuts && <ShortcutPanel />}
           </div>
         </div>
