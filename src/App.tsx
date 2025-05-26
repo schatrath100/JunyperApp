@@ -83,9 +83,9 @@ function App() {
           <Route path="*" element={<Navigate to="/auth" replace />} />
         </Routes>
       ) : (
-        <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900 overflow-hidden">
+        <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900">
           <Navbar alerts={alerts} onDismiss={(id) => setAlerts(prev => prev.filter(a => a.id !== id))} />
-          <div className="flex flex-1 overflow-hidden">
+          <div className="flex flex-1">
             <Sidebar 
               onToggleShortcuts={() => setShowShortcuts(!showShortcuts)} 
               showShortcuts={showShortcuts}
@@ -94,7 +94,7 @@ function App() {
             />
             <main 
               ref={mainRef}
-              className="flex-1 overflow-auto bg-gray-50 dark:bg-gray-800"
+              className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-800"
               onClick={handleMainClick}
             >
               <Routes>

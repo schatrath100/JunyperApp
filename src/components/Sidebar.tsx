@@ -109,7 +109,7 @@ const Sidebar: React.FC<{
   }, []);
 
   return (
-    <aside className={`hidden md:flex flex-col ${collapsed ? 'w-16' : 'w-56'} bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 relative h-full`}>
+    <aside className={`hidden md:flex flex-col ${collapsed ? 'w-16' : 'w-56'} bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 h-[calc(100vh-4rem)]`}>
       {/* Workspace Selector */}
       {!collapsed && (
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
