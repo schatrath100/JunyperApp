@@ -4,6 +4,7 @@ import { RefreshCw, Plus, Trash2, Pencil, Upload } from 'lucide-react';
 import Button from '../components/Button';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '../components/ui/table';
 import FilterableTableHead from '../components/FilterableTableHead';
+import BankTransactionUploadModal from '../components/BankTransactionUploadModal';
 
 interface BankTransaction {
   id: string;
@@ -28,6 +29,7 @@ const BankTransactions: React.FC = () => {
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: '',
     bankName: '',
@@ -107,7 +109,7 @@ const BankTransactions: React.FC = () => {
             variant="default"
             className="bg-black hover:bg-black/90 text-white"
             icon={<Upload className="w-4 h-4" />}
-            onClick={() => {/* TODO: Implement upload functionality */}}
+            onClick={() => setShowUploadModal(true)}
           >
             Upload Transactions
           </Button>
@@ -213,6 +215,12 @@ const BankTransactions: React.FC = () => {
           </TableBody>
         </Table>
       </div>
+      
+      <BankTransactionUploadModal
+        isOpen={showUploadModal}
+        onClose={() => setShowUploadModal(false)}
+        onSuccess={fetchTransactions}
+      />
     </div>
   );
 };
