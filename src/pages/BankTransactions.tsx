@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Trash2, Pencil, Upload } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, Pencil, Upload, PlusCircle } from 'lucide-react';
 import Button from '../components/Button';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '../components/ui/table';
 import FilterableTableHead from '../components/FilterableTableHead';
 import BankTransactionUploadModal from '../components/BankTransactionUploadModal';
 import BankTransactionEditModal from '../components/BankTransactionEditModal';
+import BankTransactionAddModal from '../components/BankTransactionAddModal';
 
 interface BankTransaction {
   id: string;
@@ -32,6 +33,7 @@ const BankTransactions: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<BankTransaction | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -138,8 +140,16 @@ const BankTransactions: React.FC = () => {
             onClick={fetchTransactions}
             className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
             disabled={loading}
+            title="Refresh"
           >
             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+            title="Add transaction"
+          >
+            <PlusCircle className="w-5 h-5" />
           </button>
         </div>
         <div className="flex items-center space-x-4">
@@ -281,6 +291,12 @@ const BankTransactions: React.FC = () => {
           setSelectedTransaction(null);
         }}
         transaction={selectedTransaction}
+        onSave={fetchTransactions}
+      />
+      
+      <BankTransactionAddModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
         onSave={fetchTransactions}
       />
       
