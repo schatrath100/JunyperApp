@@ -105,6 +105,9 @@ const BankTransactions: React.FC = () => {
           </button>
         </div>
         <div className="flex items-center space-x-4">
+          <span className="text-sm text-gray-600 dark:text-gray-400">
+            {transactions.length} transactions
+          </span>
           <Button
             variant="default"
             className="bg-black hover:bg-black/90 text-white"
