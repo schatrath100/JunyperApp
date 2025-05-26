@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Trash2, Pencil } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, Pencil, Upload } from 'lucide-react';
 import Button from '../components/Button';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '../components/ui/table';
 import FilterableTableHead from '../components/FilterableTableHead';
@@ -101,6 +101,16 @@ const BankTransactions: React.FC = () => {
           >
             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
           </button>
+        </div>
+        <div className="flex items-center space-x-4">
+          <Button
+            variant="default"
+            className="bg-black hover:bg-black/90 text-white"
+            icon={<Upload className="w-4 h-4" />}
+            onClick={() => {/* TODO: Implement upload functionality */}}
+          >
+            Upload Transactions
+          </Button>
         </div>
       </div>
 
