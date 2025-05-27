@@ -199,7 +199,7 @@ const BankTransactions: React.FC = () => {
         </div>
         <div className="flex items-center space-x-4">
           <span className="text-sm text-gray-600 dark:text-gray-400">
-            {transactions.length} transactions
+            Showing {transactions.length} of {totalCount} transactions
           </span>
           <Button
             variant="default"
@@ -321,6 +321,52 @@ const BankTransactions: React.FC = () => {
             ))}
           </TableBody>
         </Table>
+
+        {/* Pagination Controls */}
+        <div className="px-4 py-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
+              Page {currentPage} of {totalPages}
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => handlePageChange(1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm"
+              >
+                First
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="px-3 py-1 text-sm"
+              >
+                Previous
+              </Button>
+              <span className="px-3 py-1 text-sm text-gray-600 dark:text-gray-300">
+                {currentPage} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-sm"
+              >
+                Next
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => handlePageChange(totalPages)}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 text-sm"
+              >
+                Last
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
       
       <BankTransactionUploadModal
