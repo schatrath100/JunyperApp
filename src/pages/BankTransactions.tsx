@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Trash2, Pencil, Upload, PlusCircle } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, Pencil, Upload, PlusCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import Button from '../components/Button';
+import { cn } from '../lib/utils';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '../components/ui/table';
 import FilterableTableHead from '../components/FilterableTableHead';
 import BankTransactionUploadModal from '../components/BankTransactionUploadModal';
@@ -30,6 +31,10 @@ interface FilterState {
 const BankTransactions: React.FC = () => {
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalTransactions, setTotalTransactions] = useState(0);
+  const transactionsPerPage = 100;
+  const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -50,6 +55,19 @@ const BankTransactions: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
+      
+      // Calculate pagination range
+      const from = (currentPage - 1) * transactionsPerPage;
+      const to = from + transactionsPerPage - 1;
+
+      // First get total count
+      const { count: totalCount } = await supabase
+        .from('bank_transactions')
+        .select('*', { count: 'exact', head: true });
+
+      if (totalCount !== null) {
+        setTotalTransactions(totalCount);
+      }
 
       let query = supabase
         .from('bank_transactions')
@@ -75,8 +93,10 @@ const BankTransactions: React.FC = () => {
         query = query.eq('credit_debit_indicator', filters.type);
       }
 
-      // Add order by
-      query = query.order('date', { ascending: false });
+      // Add order by and pagination
+      query = query
+        .order('date', { ascending: false })
+        .range(from, to);
 
       const { data, error } = await query;
 
@@ -89,6 +109,14 @@ const BankTransactions: React.FC = () => {
       setLoading(false);
     }
   };
+
+  const handlePageChange = (newPage: number) => {
+    setCurrentPage(newPage);
+  };
+
+  const totalPages = Math.ceil(totalTransactions / transactionsPerPage);
+  const startRange = ((currentPage - 1) * transactionsPerPage) + 1;
+  const endRange = Math.min(currentPage * transactionsPerPage, totalTransactions);
 
   const handleFilterChange = (key: keyof FilterState, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
@@ -130,7 +158,7 @@ const BankTransactions: React.FC = () => {
 
   useEffect(() => {
     fetchTransactions();
-  }, [filters]);
+  }, [filters, currentPage]);
 
   return (
     <div className="p-6">
@@ -279,6 +307,41 @@ const BankTransactions: React.FC = () => {
         </Table>
       </div>
       
+      {/* Pagination Controls */}
+      <div className="mt-6 flex items-center justify-between">
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          Showing <span className="font-medium">{startRange}</span> to{' '}
+          <span className="font-medium">{endRange}</span> of{' '}
+          <span className="font-medium">{totalTransactions}</span> transactions
+        </div>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1 || loading}
+            icon={<ChevronLeft className="w-4 h-4" />}
+            className={cn(
+              "px-3",
+              currentPage === 1 && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage >= totalPages || loading}
+            icon={<ChevronRight className="w-4 h-4" />}
+            className={cn(
+              "px-3",
+              currentPage >= totalPages && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
+
       <BankTransactionUploadModal
         isOpen={showUploadModal}
         onClose={() => setShowUploadModal(false)}
