@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { RefreshCw, Plus, Trash2, Pencil, Upload, PlusCircle } from 'lucide-react';
 import Button from '../components/Button';
+import { cn } from '../lib/utils';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '../components/ui/table';
 import FilterableTableHead from '../components/FilterableTableHead';
 import BankTransactionUploadModal from '../components/BankTransactionUploadModal';
@@ -30,6 +31,9 @@ interface FilterState {
 const BankTransactions: React.FC = () => {
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [totalCount, setTotalCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(100);
   const [error, setError] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -51,36 +55,69 @@ const BankTransactions: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      let query = supabase
+      // Get total count first
+      let countQuery = supabase
+        .from('bank_transactions')
+        .select('*', { count: 'exact', head: true });
+
+      // Apply filters to count query
+      if (filters.dateFrom) {
+        countQuery = countQuery.gte('date', filters.dateFrom);
+      }
+      if (filters.bankName) {
+        countQuery = countQuery.ilike('bank_name', `%${filters.bankName}%`);
+      }
+      if (filters.description) {
+        countQuery = countQuery.ilike('description', `%${filters.description}%`);
+      }
+      if (filters.amountMin) {
+        countQuery = countQuery.gte('amount', parseFloat(filters.amountMin));
+      }
+      if (filters.accountNumber) {
+        countQuery = countQuery.eq('account_number', filters.accountNumber);
+      }
+      if (filters.type) {
+        countQuery = countQuery.eq('credit_debit_indicator', filters.type);
+      }
+
+      const { count, error: countError } = await countQuery;
+      
+      if (countError) throw countError;
+      setTotalCount(count || 0);
+
+      // Fetch paginated data
+      let dataQuery = supabase
         .from('bank_transactions')
         .select('*');
 
       // Apply filters
       if (filters.dateFrom) {
-        query = query.gte('date', filters.dateFrom);
+        dataQuery = dataQuery.gte('date', filters.dateFrom);
       }
       if (filters.bankName) {
-        query = query.ilike('bank_name', `%${filters.bankName}%`);
+        dataQuery = dataQuery.ilike('bank_name', `%${filters.bankName}%`);
       }
       if (filters.description) {
-        query = query.ilike('description', `%${filters.description}%`);
+        dataQuery = dataQuery.ilike('description', `%${filters.description}%`);
       }
       if (filters.amountMin) {
-        query = query.gte('amount', parseFloat(filters.amountMin));
+        dataQuery = dataQuery.gte('amount', parseFloat(filters.amountMin));
       }
       if (filters.accountNumber) {
-        query = query.eq('account_number', filters.accountNumber);
+        dataQuery = dataQuery.eq('account_number', filters.accountNumber);
       }
       if (filters.type) {
-        query = query.eq('credit_debit_indicator', filters.type);
+        dataQuery = dataQuery.eq('credit_debit_indicator', filters.type);
       }
 
-      // Add order by
-      query = query.order('date', { ascending: false });
+      // Add pagination and ordering
+      dataQuery = dataQuery
+        .order('date', { ascending: false })
+        .range((currentPage - 1) * pageSize, currentPage * pageSize - 1);
 
-      const { data, error } = await query;
+      const { data, error: dataError } = await dataQuery;
 
-      if (error) throw error;
+      if (dataError) throw dataError;
       setTransactions(data || []);
     } catch (err) {
       console.error('Error fetching transactions:', err);
@@ -130,7 +167,14 @@ const BankTransactions: React.FC = () => {
 
   useEffect(() => {
     fetchTransactions();
-  }, [filters]);
+  }, [filters, currentPage, pageSize]);
+
+  const totalPages = Math.ceil(totalCount / pageSize);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    setSelectedRows([]);
+  };
 
   return (
     <div className="p-6">
