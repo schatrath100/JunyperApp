@@ -339,5 +339,3 @@ const BankTransactions: React.FC = () => {
 };
 
 export default BankTransactions;
-
-export default BankTransactions
