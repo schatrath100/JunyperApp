@@ -173,7 +173,6 @@ const BankTransactions: React.FC = () => {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    setSelectedRows([]);
   };
 
   return (
