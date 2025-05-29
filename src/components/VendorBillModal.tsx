@@ -9,7 +9,6 @@ interface Vendor {
 
 interface VendorBill {
   id: number;
-  bill_no: string;
   Date: string;
   Vendor_name: string;
   Description?: string;
@@ -41,7 +40,6 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    billNo: '',
     billDate: new Date().toISOString().split('T')[0],
     vendorName: '',
     description: '',
@@ -73,7 +71,6 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
   useEffect(() => {
     if (bill) {
       setFormData({
-        billNo: bill.bill_no,
         billDate: bill.Date,
         vendorName: bill.Vendor_name,
         description: bill.Description || '',
@@ -82,7 +79,6 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
       });
     } else {
       setFormData({
-        billNo: '',
         billDate: new Date().toISOString().split('T')[0],
         vendorName: '',
         description: '',
@@ -96,7 +92,7 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
     e.preventDefault();
     setError(null);
 
-    if (!formData.billNo || !formData.billDate || !formData.vendorName || !formData.amount) {
+    if (!formData.billDate || !formData.vendorName || !formData.amount) {
       setError('Please fill in all required fields');
       return;
     }
@@ -105,7 +101,6 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
       setLoading(true);
 
       const billData = {
-        bill_no: formData.billNo,
         Date: formData.billDate,
         Vendor_name: formData.vendorName,
         Description: formData.description || null,
@@ -163,19 +158,6 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
           )}
 
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Bill No *
-              </label>
-              <input
-                type="text"
-                value={formData.billNo}
-                onChange={(e) => setFormData({ ...formData, billNo: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                required
-              />
-            </div>
-
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Bill Date *
