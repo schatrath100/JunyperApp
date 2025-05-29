@@ -79,7 +79,7 @@ function App() {
         <Routes>
           <Route path="/auth\" element={<Auth />} />
           <Route path="/verify\" element={<VerifyEmail />} />
-          <Route path="*" element={<Navigate to="/auth\" replace />} />
+          <Route path="*\" element={<Navigate to="/auth\" replace />} />
         </Routes>
       ) : (
         <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900">
