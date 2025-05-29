@@ -197,7 +197,7 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
                   CSV or Excel files only
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  Required columns: date/Date, amount/Amount, account_number/Account Number, bank_name/Bank Name, description/Description, credit_debit_indicator/Credit/Debit
+                  Required columns: Date, Amount, Account Number, Bank Name, Description, Credit/Debit
                 </p>
               </div>
             </div>
