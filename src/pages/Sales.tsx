@@ -174,14 +174,14 @@ const Sales: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <th className="w-12 px-6 py-3">
+                <TableHead className="w-12">
                   <input
                     type="checkbox"
                     className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
                     checked={selectedRows.length === invoices.length && invoices.length > 0}
                     onChange={handleSelectAll}
                   />
-                </th>
+                </TableHead>
                 <TableHead onClick={() => requestSort('id')} className="cursor-pointer">
                   Invoice No.
                 </TableHead>
