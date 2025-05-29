@@ -27,7 +27,11 @@ interface SalesInvoice {
   attachment_path?: string | null;
 }
 
-const Sales: React.FC = () => {
+interface SalesProps {
+  onAlert?: (message: string, type: Alert['type']) => void;
+}
+
+const Sales: React.FC<SalesProps> = ({ onAlert }) => {
   const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
@@ -98,6 +102,7 @@ const Sales: React.FC = () => {
 
       setSelectedRows([]);
       setShowDeleteConfirm(false);
+      onAlert?.('Invoices deleted successfully', 'success');
       await fetchInvoices();
     } catch (err) {
       console.error('Error deleting invoices:', err);
@@ -273,6 +278,7 @@ const Sales: React.FC = () => {
       <InvoiceModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
+        onAlert={onAlert}
         onSave={fetchInvoices}
       />
       
@@ -316,6 +322,7 @@ const Sales: React.FC = () => {
               setShowStatusModal(false);
               setSelectedInvoice(null);
             }}
+            onAlert={onAlert}
             invoice={selectedInvoice}
             onSave={fetchInvoices}
           />

@@ -26,6 +26,15 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const addAlert = (message: string, type: Alert['type'] = 'info') => {
+    const newAlert: Alert = {
+      id: Math.random().toString(36).substr(2, 9),
+      message,
+      type,
+      createdAt: new Date(),
+    };
+    setAlerts(prev => [newAlert, ...prev]);
+  };
 
   useEffect(() => {
     const handleShortcutSelected = () => setShowShortcuts(false);
@@ -102,11 +111,11 @@ function App() {
                 <Route path="/accounts" element={<Accounts />} />
                 <Route path="/journals" element={<Journals />} />
                 <Route path="/sales/customers" element={<Customers />} />
-                <Route path="/sales/invoices" element={<Sales />} />
+                <Route path="/sales/invoices" element={<Sales onAlert={addAlert} />} />
                 <Route path="/sales/items" element={<SalesItems />} />
                 <Route path="/purchases/vendors" element={<Vendors />} />
                 <Route path="/purchases/bills" element={<Sales />} />
-                <Route path="/bank-transactions" element={<BankTransactions />} />
+                <Route path="/bank-transactions" element={<BankTransactions onAlert={addAlert} />} />
                 <Route path="/purchases/items" element={<PurchaseItems />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route 
