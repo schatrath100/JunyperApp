@@ -175,6 +175,9 @@ const Journals: React.FC = () => {
                 <TableHead onClick={() => requestSort('description')} className="cursor-pointer">
                   Description
                 </TableHead>
+                <TableHead onClick={() => requestSort('Status')} className="cursor-pointer">
+                  Status
+                </TableHead>
                 <TableHead onClick={() => requestSort('debit_amount')} className="cursor-pointer text-right">
                   Debit
                 </TableHead>
@@ -199,6 +202,17 @@ const Journals: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     {transaction.description}
+                  </TableCell>
+                  <TableCell>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      transaction.Status === 'Paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
+                      transaction.Status === 'Overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' :
+                      transaction.Status === 'Cancelled' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400' :
+                      transaction.Status === 'Partially Paid' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' :
+                      'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+                    }`}>
+                      {transaction.Status || 'Pending'}
+                    </span>
                   </TableCell>
                   <TableCell className="text-right">
                     {transaction.debit_amount ? new Intl.NumberFormat('en-US', {
