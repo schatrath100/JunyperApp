@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, CheckCircle, AlertCircle, Info, AlertTriangle } from 'lucide-react';
+import { X, CheckCircle, AlertCircle, Info, AlertTriangle, Check } from 'lucide-react';
 
 export interface Alert {
   id: string;
