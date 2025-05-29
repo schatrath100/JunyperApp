@@ -46,6 +46,14 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
 
       if (updateError) throw updateError;
 
+      // Update status in related transactions
+      const { error: transactionError } = await supabase
+        .from('Transaction')
+        .update({ Status: status })
+        .eq('invoice_id', invoice.id);
+
+      if (transactionError) throw transactionError;
+
       onSave();
       onAlert?.(`Invoice status updated to ${status}`, status === 'Overdue' ? 'warning' : 'success');
       onClose();
