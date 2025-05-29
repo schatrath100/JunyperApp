@@ -9,7 +9,7 @@ interface Vendor {
 
 interface VendorBill {
   id: number;
-  BillNo: string;
+  bill_no: string;
   Date: string;
   Vendor_name: string;
   Description?: string;
@@ -73,7 +73,7 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
   useEffect(() => {
     if (bill) {
       setFormData({
-        billNo: bill.BillNo,
+        billNo: bill.bill_no,
         billDate: bill.Date,
         vendorName: bill.Vendor_name,
         description: bill.Description || '',
@@ -105,7 +105,7 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
       setLoading(true);
 
       const billData = {
-        BillNo: formData.billNo,
+        bill_no: formData.billNo,
         Date: formData.billDate,
         Vendor_name: formData.vendorName,
         Description: formData.description || null,

@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 
 interface VendorBill {
   id: number;
-  BillNo: string;
+  bill_no: string;
   Date: string;
   Vendor_name: string;
   Description?: string;
@@ -182,7 +182,7 @@ const VendorBills: React.FC = () => {
                     onChange={handleSelectAll}
                   />
                 </TableHead>
-                <TableHead onClick={() => requestSort('BillNo')} className="cursor-pointer">
+                <TableHead onClick={() => requestSort('bill_no')} className="cursor-pointer">
                   Bill No.
                 </TableHead>
                 <TableHead onClick={() => requestSort('Date')} className="cursor-pointer">
@@ -220,7 +220,7 @@ const VendorBills: React.FC = () => {
                     />
                   </TableCell>
                   <TableCell className="font-medium">
-                    {bill.BillNo}
+                    {bill.bill_no}
                   </TableCell>
                   <TableCell>
                     {new Date(bill.Date).toLocaleDateString()}
