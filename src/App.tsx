@@ -104,7 +104,7 @@ function App() {
                 <Route path="/sales/invoices" element={<Sales onAlert={addAlert} />} />
                 <Route path="/sales/items" element={<SalesItems />} />
                 <Route path="/purchases/vendors" element={<Vendors />} />
-                <Route path="/purchases/bills" element={<Sales />} />
+                <Route path="/purchases/bills" element={<VendorBills />} />
                 <Route path="/bank-transactions" element={<BankTransactions onAlert={addAlert} />} />
                 <Route path="/purchases/items" element={<PurchaseItems />} />
                 <Route path="/settings" element={<Settings />} />
