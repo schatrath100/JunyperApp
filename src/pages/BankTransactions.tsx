@@ -28,7 +28,11 @@ interface FilterState {
   type: string;
 }
 
-const BankTransactions: React.FC = () => {
+interface BankTransactionsProps {
+  onAlert?: (message: string, type: Alert['type']) => void;
+}
+
+const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
@@ -152,9 +156,10 @@ const BankTransactions: React.FC = () => {
 
       if (deleteError) throw deleteError;
 
-      // Refresh the transactions list
-      await fetchTransactions();
+      setSelectedRows([]);
       setShowDeleteConfirm(false);
+      onAlert?.('Transactions deleted successfully', 'success');
+      await fetchTransactions();
       setSelectedTransaction(null);
     } catch (err) {
       console.error('Error deleting transaction:', err);
@@ -371,7 +376,15 @@ const BankTransactions: React.FC = () => {
       <BankTransactionUploadModal
         isOpen={showUploadModal}
         onClose={() => setShowUploadModal(false)}
+        onAlert={onAlert}
         onSuccess={fetchTransactions}
+      />
+      
+      <BankTransactionAddModal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        onAlert={onAlert}
+        onSave={fetchTransactions}
       />
       
       <BankTransactionEditModal
@@ -380,13 +393,8 @@ const BankTransactions: React.FC = () => {
           setShowEditModal(false);
           setSelectedTransaction(null);
         }}
+        onAlert={onAlert}
         transaction={selectedTransaction}
-        onSave={fetchTransactions}
-      />
-      
-      <BankTransactionAddModal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
         onSave={fetchTransactions}
       />
       
