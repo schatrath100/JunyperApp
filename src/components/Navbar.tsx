@@ -15,7 +15,27 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showAlerts, setShowAlerts] = useState(false);
+  const [readAlerts, setReadAlerts] = useState<Set<string>>(new Set());
   const navigate = useNavigate();
+
+  const unreadCount = alerts.filter(alert => !readAlerts.has(alert.id)).length;
+
+  const handleMarkAllAsRead = () => {
+    const newReadAlerts = new Set(readAlerts);
+    alerts.forEach(alert => newReadAlerts.add(alert.id));
+    setReadAlerts(newReadAlerts);
+  };
+
+  // Auto-dismiss success alerts after 5 seconds
+  useEffect(() => {
+    const successAlerts = alerts.filter(alert => alert.type === 'success');
+    successAlerts.forEach(alert => {
+      const timer = setTimeout(() => {
+        onDismiss(alert.id);
+      }, 5000);
+      return () => clearTimeout(timer);
+    });
+  }, [alerts, onDismiss]);
 
   const handleLogout = async () => {
     try {
@@ -46,9 +66,9 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
             title="Notifications"
           >
             <Bell className="w-5 h-5 text-gray-700 dark:text-gray-200" />
-            {alerts.length > 0 && (
+            {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] text-xs font-medium text-white bg-red-500 rounded-full px-1">
-                {alerts.length}
+                {unreadCount}
               </span>
             )}
           </button>
@@ -57,7 +77,11 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
               <div className="p-4 border-b border-gray-200 dark:border-gray-700">
                 <h3 className="font-medium text-gray-900 dark:text-white">Notifications</h3>
               </div>
-              <AlertList alerts={alerts} onDismiss={onDismiss} />
+              <AlertList 
+                alerts={alerts.map(alert => ({ ...alert, read: readAlerts.has(alert.id) }))} 
+                onDismiss={onDismiss}
+                onMarkAllAsRead={handleMarkAllAsRead}
+              />
             </div>
           )}
         </div>
