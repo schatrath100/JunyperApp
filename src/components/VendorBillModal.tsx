@@ -100,7 +100,20 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
     try {
       setLoading(true);
 
+      // First, get the maximum ID from the VendorInvoice table
+      const { data: maxIdData, error: maxIdError } = await supabase
+        .from('VendorInvoice')
+        .select('id')
+        .order('id', { ascending: false })
+        .limit(1);
+
+      if (maxIdError) throw maxIdError;
+
+      // Calculate the next ID (start with 1 if no records exist)
+      const nextId = maxIdData && maxIdData.length > 0 ? maxIdData[0].id + 1 : 1;
+
       const billData = {
+        id: bill ? bill.id : nextId,
         Date: formData.billDate,
         Vendor_name: formData.vendorName,
         Description: formData.description || null,
