@@ -47,7 +47,9 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
           >
             <Bell className="w-5 h-5 text-gray-700 dark:text-gray-200" />
             {alerts.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full" />
+              <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] text-xs font-medium text-white bg-red-500 rounded-full px-1">
+                {alerts.length}
+              </span>
             )}
           </button>
           {showAlerts && (
