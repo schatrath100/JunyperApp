@@ -16,6 +16,7 @@ interface InvoiceStatusModalProps {
     OutstandingAmount?: number;
   };
   onSave: () => void;
+  onAlert?: (message: string, type: Alert['type']) => void;
 }
 
 const INVOICE_STATUS = [
@@ -26,7 +27,7 @@ const INVOICE_STATUS = [
   'Cancelled'
 ];
 
-const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose, invoice, onSave }) => {
+const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose, invoice, onSave, onAlert }) => {
   const [status, setStatus] = useState(invoice.Status);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,6 +47,7 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
       if (updateError) throw updateError;
 
       onSave();
+      onAlert?.(`Invoice status updated to ${status}`, status === 'Overdue' ? 'warning' : 'success');
       onClose();
     } catch (err) {
       console.error('Error updating invoice status:', err);

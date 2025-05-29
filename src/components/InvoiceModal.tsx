@@ -27,6 +27,7 @@ interface InvoiceModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: () => void;
+  onAlert?: (message: string, type: Alert['type']) => void;
 }
 
 const INVOICE_STATUS = [
@@ -37,7 +38,7 @@ const INVOICE_STATUS = [
   'Cancelled'
 ];
 
-const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave }) => {
+const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave, onAlert }) => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [items, setItems] = useState<SaleItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -210,6 +211,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave }) 
       if (transactionError) throw transactionError;
         
       if (formData.sendEmail && formData.customerEmail) {
+        onAlert?.('Sending invoice email...', 'info');
         await supabase.functions.invoke('send-invoice-email', {
           body: {
             to: formData.customerEmail,
@@ -219,9 +221,11 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave }) 
             attachmentPath: attachmentPath
           }
         });
+        onAlert?.('Invoice email sent successfully', 'success');
       }
 
       onSave();
+      onAlert?.('Invoice created successfully', 'success');
       onClose();
     } catch (err) {
       console.error('Error saving invoice:', err);
