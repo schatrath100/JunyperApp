@@ -191,14 +191,14 @@ const Customers: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <th className="w-12 px-6 py-3 bg-gray-50 dark:bg-gray-800">
+                <TableHead className="w-12">
                   <input
                     type="checkbox"
                     className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
                     checked={selectedRows.length === customers.length && customers.length > 0}
                     onChange={handleSelectAll}
                   />
-                </th>
+                </TableHead>
                 <TableHead onClick={() => requestSort('Customer_name')} className="cursor-pointer">
                   Name
                 </TableHead>
