@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 interface VendorBill {
   id: number;
   BillNo: string;
-  BillDate: string;
+  Date: string;
   Vendor_name: string;
   Description?: string;
   Amount: number;
@@ -35,7 +35,7 @@ const VendorBills: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState('Pending');
   const { sortedItems: sortedBills, sortConfig, requestSort } = useTableSort(
     bills.filter(bill => bill.Status === selectedStatus),
-    { key: 'BillDate', direction: 'desc' }
+    { key: 'Date', direction: 'desc' }
   );
 
   const fetchBills = async () => {
@@ -46,7 +46,7 @@ const VendorBills: React.FC = () => {
       const { data, error } = await supabase
         .from('VendorInvoice')
         .select('*')
-        .order('BillDate', { ascending: false });
+        .order('Date', { ascending: false });
 
       if (error) throw error;
       setBills(data || []);
@@ -185,7 +185,7 @@ const VendorBills: React.FC = () => {
                 <TableHead onClick={() => requestSort('BillNo')} className="cursor-pointer">
                   Bill No.
                 </TableHead>
-                <TableHead onClick={() => requestSort('BillDate')} className="cursor-pointer">
+                <TableHead onClick={() => requestSort('Date')} className="cursor-pointer">
                   Date
                 </TableHead>
                 <TableHead onClick={() => requestSort('Vendor_name')} className="cursor-pointer">
@@ -223,7 +223,7 @@ const VendorBills: React.FC = () => {
                     {bill.BillNo}
                   </TableCell>
                   <TableCell>
-                    {new Date(bill.BillDate).toLocaleDateString()}
+                    {new Date(bill.Date).toLocaleDateString()}
                   </TableCell>
                   <TableCell>
                     {bill.Vendor_name}
