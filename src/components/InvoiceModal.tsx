@@ -195,7 +195,8 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave, on
             credit_amount: 0,
             description: `Invoice #${invoiceId} - ${formData.customerName}`,
             invoice_id: invoiceId,
-            row_num: 1
+            row_num: 1,
+            Status: formData.status
           },
           {
             transaction_date: formData.invoiceDate,
@@ -204,7 +205,8 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave, on
             credit_amount: parseFloat(formData.invoiceAmount),
             description: `Invoice #${invoiceId} - ${formData.customerName}`,
             invoice_id: invoiceId,
-            row_num: 2
+            row_num: 2,
+            Status: formData.status
           }
         ]);
 
