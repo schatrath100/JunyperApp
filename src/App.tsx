@@ -50,16 +50,6 @@ function App() {
     }
   };
 
-  const addAlert = (message: string, type: Alert['type'] = 'info') => {
-    const newAlert: Alert = {
-      id: Math.random().toString(36).substr(2, 9),
-      message,
-      type,
-      createdAt: new Date(),
-    };
-    setAlerts(prev => [newAlert, ...prev]);
-  };
-
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(!!session);
