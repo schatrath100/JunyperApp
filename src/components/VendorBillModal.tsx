@@ -14,6 +14,7 @@ interface VendorBill {
   Description?: string;
   Amount: number;
   Status: string;
+  attachment_path?: string | null;
 }
 
 interface Alert {
@@ -51,7 +52,8 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
     description: '',
     amount: '',
     status: 'Pending',
-    attachment: undefined as File | undefined
+    attachment: undefined as File | undefined,
+    attachmentPath: ''
   });
 
   useEffect(() => {
@@ -83,7 +85,8 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
         description: bill.Description || '',
         amount: bill.Amount.toString(),
         status: bill.Status,
-        attachment: undefined
+        attachment: undefined,
+        attachmentPath: bill.attachment_path || ''
       });
     } else {
       setFormData({
@@ -92,7 +95,8 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
         description: '',
         amount: '',
         status: 'Pending',
-        attachment: undefined
+        attachment: undefined,
+        attachmentPath: ''
       });
     }
   }, [bill]);
@@ -303,6 +307,17 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
                 />
               )}
             </div>
+
+            {bill && bill.attachment_path && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Current Attachment
+                </label>
+                <div className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 font-mono text-sm">
+                  {bill.attachment_path.split('/').pop()}
+                </div>
+              </div>
+            )}
 
             {!bill && (
               <div>
