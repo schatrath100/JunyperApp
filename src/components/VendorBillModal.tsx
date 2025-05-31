@@ -16,6 +16,10 @@ interface VendorBill {
   Status: string;
 }
 
+interface Alert {
+  type: 'success' | 'error' | 'info' | 'warning';
+}
+
 interface VendorBillModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -35,7 +39,8 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
   isOpen,
   onClose,
   bill,
-  onSave
+  onSave,
+  onAlert
 }) => {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(false);
@@ -77,7 +82,8 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
         vendorName: bill.Vendor_name,
         description: bill.Description || '',
         amount: bill.Amount.toString(),
-        status: bill.Status
+        status: bill.Status,
+        attachment: undefined
       });
     } else {
       setFormData({
@@ -85,7 +91,8 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
         vendorName: '',
         description: '',
         amount: '',
-        status: 'Pending'
+        status: 'Pending',
+        attachment: undefined
       });
     }
   }, [bill]);
@@ -168,11 +175,16 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
       }
 
       onSave();
-      onAlert?.('Bill saved successfully', 'success');
+      if (onAlert) {
+        onAlert('Bill saved successfully', 'success');
+      }
       onClose();
     } catch (err) {
       console.error('Error saving bill:', err);
       setError(err instanceof Error ? err.message : 'Failed to save bill');
+      if (onAlert) {
+        onAlert('Failed to save bill', 'error');
+      }
     } finally {
       setLoading(false);
     }
