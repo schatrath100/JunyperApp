@@ -326,8 +326,8 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
                 Status *
               </label>
               <select
-                value={formData.billDate}
-                onChange={(e) => setFormData({ ...formData, billDate: e.target.value })}
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
                 required
               >
