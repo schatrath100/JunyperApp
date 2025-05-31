@@ -148,7 +148,7 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
         Vendor_name: formData.vendorName,
         Description: formData.description || null,
         Amount: parseFloat(formData.amount),
-        Status: formData.status
+        Status: formData.status,
         attachment_path: attachmentPath
       };
 
