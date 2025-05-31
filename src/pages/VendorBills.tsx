@@ -19,7 +19,7 @@ interface VendorBill {
 }
 
 interface VendorBillsProps {
-  onAlert?: (alert: Alert) => void;
+  onAlert?: (message: string, type: Alert['type']) => void;
 }
 
 const BILL_STATUS_FILTERS = [
