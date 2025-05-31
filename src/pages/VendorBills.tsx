@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Trash2, Pencil } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, Pencil, Paperclip } from 'lucide-react';
 import Button from '../components/Button';
 import VendorBillModal from '../components/VendorBillModal';
+import VendorBillPreviewModal from '../components/VendorBillPreviewModal';
 import { useTableSort } from '../hooks/useTableSort';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 
@@ -13,6 +14,7 @@ interface VendorBill {
   Description?: string;
   Amount: number;
   Status: string;
+  attachment_path?: string | null;
 }
 
 const BILL_STATUS_FILTERS = [
@@ -32,6 +34,7 @@ const VendorBills: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('Pending');
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const { sortedItems: sortedBills, sortConfig, requestSort } = useTableSort(
     bills.filter(bill => bill.Status === selectedStatus),
     { key: 'Date', direction: 'desc' }
@@ -247,13 +250,29 @@ const VendorBills: React.FC = () => {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <button
-                      onClick={() => handleEdit(bill)}
-                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                      title="Edit bill"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={() => handleEdit(bill)}
+                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                          title="Edit bill"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        {bill.attachment_path && (
+                          <button
+                            onClick={() => {
+                              setSelectedBill(bill);
+                              setShowPreviewModal(true);
+                            }}
+                            className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
+                            title="View attachment"
+                          >
+                            <Paperclip className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -277,7 +296,19 @@ const VendorBills: React.FC = () => {
         }}
         bill={editingBill}
         onSave={fetchBills}
+        onAlert={onAlert}
       />
+      
+      {selectedBill && (
+        <VendorBillPreviewModal
+          isOpen={showPreviewModal}
+          onClose={() => {
+            setShowPreviewModal(false);
+            setSelectedBill(null);
+          }}
+          bill={selectedBill}
+        />
+      )}
       
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
