@@ -156,9 +156,8 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
 
       if (deleteError) throw deleteError;
 
-      setSelectedRows([]);
       setShowDeleteConfirm(false);
-      onAlert?.('Transactions deleted successfully', 'success');
+      onAlert?.('Transaction deleted successfully', 'success');
       await fetchTransactions();
       setSelectedTransaction(null);
     } catch (err) {
