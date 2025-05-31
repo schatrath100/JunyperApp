@@ -6,6 +6,7 @@ import VendorBillModal from '../components/VendorBillModal';
 import VendorBillPreviewModal from '../components/VendorBillPreviewModal';
 import { useTableSort } from '../hooks/useTableSort';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import { Alert } from '../components/Alert';
 
 interface VendorBill {
   id: number;
@@ -17,6 +18,10 @@ interface VendorBill {
   attachment_path?: string | null;
 }
 
+interface VendorBillsProps {
+  onAlert?: (alert: Alert) => void;
+}
+
 const BILL_STATUS_FILTERS = [
   { value: 'Pending', color: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-400' },
   { value: 'Paid', color: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-400' },
@@ -24,7 +29,7 @@ const BILL_STATUS_FILTERS = [
   { value: 'Cancelled', color: 'bg-gray-100 dark:bg-gray-900/50 text-gray-800 dark:text-gray-400' }
 ];
 
-const VendorBills: React.FC = () => {
+const VendorBills: React.FC<VendorBillsProps> = ({ onAlert }) => {
   const [bills, setBills] = useState<VendorBill[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
@@ -35,6 +40,7 @@ const VendorBills: React.FC = () => {
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('Pending');
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [selectedBill, setSelectedBill] = useState<VendorBill | null>(null);
   const { sortedItems: sortedBills, sortConfig, requestSort } = useTableSort(
     bills.filter(bill => bill.Status === selectedStatus),
     { key: 'Date', direction: 'desc' }
