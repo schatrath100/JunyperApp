@@ -100,8 +100,15 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-
-    if (!formData.billDate || !formData.vendorName || !formData.amount) {
+    
+    // When editing, only validate status
+    if (bill && !formData.status) {
+      setError('Please select a status');
+      return;
+    }
+    
+    // For new bills, validate all required fields
+    if (!bill && (!formData.billDate || !formData.vendorName || !formData.amount)) {
       setError('Please fill in all required fields');
       return;
     }
@@ -109,8 +116,9 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
     try {
       setLoading(true);
 
-      // Validate file if one is selected
-      if (formData.attachment) {
+      // Only validate and handle file upload for new bills
+      let attachmentPath = null;
+      if (!bill && formData.attachment) {
         if (formData.attachment.size > 1024 * 1024) {
           throw new Error('File size must not exceed 1 MB');
         }
@@ -119,12 +127,8 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
         if (!allowedTypes.includes(formData.attachment.type)) {
           throw new Error('Only PDF, JPEG, and JPG files are allowed');
         }
-      }
-
-      let attachmentPath = null;
-
-      // Upload file if one is selected
-      if (formData.attachment) {
+        
+        // Upload new file
         const fileExt = formData.attachment.name.split('.').pop();
         const fileName = `${Date.now()}.${fileExt}`;
         const filePath = `${fileName}`;
@@ -137,36 +141,36 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
         attachmentPath = filePath;
       }
 
-      // First, get the maximum ID from the VendorInvoice table
-      const { data: maxIdData, error: maxIdError } = await supabase
-        .from('VendorInvoice')
-        .select('id')
-        .order('id', { ascending: false })
-        .limit(1);
-
-      if (maxIdError) throw maxIdError;
-
-      // Calculate the next ID (start with 1 if no records exist)
-      const nextId = maxIdData && maxIdData.length > 0 ? maxIdData[0].id + 1 : 1;
-
-      const billData = {
-        id: bill ? bill.id : nextId,
-        Date: formData.billDate,
-        Vendor_name: formData.vendorName,
-        Description: formData.description || null,
-        Amount: parseFloat(formData.amount),
-        Status: formData.status,
-        attachment_path: attachmentPath
-      };
-
       if (bill) {
+        // When editing, only update the status
         const { error: updateError } = await supabase
           .from('VendorInvoice')
-          .update(billData)
+          .update({ Status: formData.status })
           .eq('id', bill.id);
 
         if (updateError) throw updateError;
       } else {
+        // For new bills, handle full creation process
+        const { data: maxIdData, error: maxIdError } = await supabase
+          .from('VendorInvoice')
+          .select('id')
+          .order('id', { ascending: false })
+          .limit(1);
+
+        if (maxIdError) throw maxIdError;
+
+        const nextId = maxIdData && maxIdData.length > 0 ? maxIdData[0].id + 1 : 1;
+
+        const billData = {
+          id: nextId,
+          Date: formData.billDate,
+          Vendor_name: formData.vendorName,
+          Description: formData.description || null,
+          Amount: parseFloat(formData.amount),
+          Status: formData.status,
+          attachment_path: attachmentPath
+        };
+
         const { error: insertError } = await supabase
           .from('VendorInvoice')
           .insert([billData]);
@@ -219,82 +223,111 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Bill Date *
               </label>
-              <input
-                type="date"
-                value={formData.billDate}
-                onChange={(e) => setFormData({ ...formData, billDate: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                required
-              />
+              {bill ? (
+                <div className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300">
+                  {new Date(formData.billDate).toLocaleDateString()}
+                </div>
+              ) : (
+                <input
+                  type="date"
+                  value={formData.billDate}
+                  onChange={(e) => setFormData({ ...formData, billDate: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                  required
+                />
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Vendor *
               </label>
-              <select
-                value={formData.vendorName}
-                onChange={(e) => setFormData({ ...formData, vendorName: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                required
-              >
-                <option value="">Select vendor</option>
-                {vendors.map((vendor) => (
-                  <option key={vendor.vendor_name} value={vendor.vendor_name}>
-                    {vendor.vendor_name}
-                  </option>
-                ))}
-              </select>
+              {bill ? (
+                <div className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300">
+                  {formData.vendorName}
+                </div>
+              ) : (
+                <select
+                  value={formData.vendorName}
+                  onChange={(e) => setFormData({ ...formData, vendorName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                  required
+                >
+                  <option value="">Select vendor</option>
+                  {vendors.map((vendor) => (
+                    <option key={vendor.vendor_name} value={vendor.vendor_name}>
+                      {vendor.vendor_name}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Description
               </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-              />
+              {bill ? (
+                <div className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 min-h-[80px]">
+                  {formData.description || '-'}
+                </div>
+              ) : (
+                <textarea
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                />
+              )}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Amount *
               </label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                required
-              />
+              {bill ? (
+                <div className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300">
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD'
+                  }).format(parseFloat(formData.amount))}
+                </div>
+              ) : (
+                <input
+                  type="number"
+                  step="0.01"
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                  required
+                />
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Attachment (PDF, JPEG, JPG only, max 1MB)
-              </label>
-              <input
-                type="file"
-                accept=".pdf,.jpg,.jpeg"
-                onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  setFormData({ ...formData, attachment: file });
-                }}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              />
-            </div>
+            {!bill && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Attachment (PDF, JPEG, JPG only, max 1MB)
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,.jpg,.jpeg"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    setFormData({ ...formData, attachment: file });
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Status *
               </label>
               <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                value={formData.billDate}
+                onChange={(e) => setFormData({ ...formData, billDate: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
                 required
               >
@@ -314,7 +347,7 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
               className="flex-1"
               disabled={loading}
             >
-              {loading ? 'Saving...' : (bill ? 'Save Changes' : 'Save Bill')}
+              {loading ? 'Saving...' : (bill ? 'Update Status' : 'Save Bill')}
             </Button>
             <Button
               type="button"
