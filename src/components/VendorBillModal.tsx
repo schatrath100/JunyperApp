@@ -21,6 +21,7 @@ interface VendorBillModalProps {
   onClose: () => void;
   bill: VendorBill | null;
   onSave: () => void;
+  onAlert?: (message: string, type: Alert['type']) => void;
 }
 
 const BILL_STATUS = [
@@ -44,7 +45,8 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
     vendorName: '',
     description: '',
     amount: '',
-    status: 'Pending'
+    status: 'Pending',
+    attachment: undefined as File | undefined
   });
 
   useEffect(() => {
@@ -100,6 +102,34 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
     try {
       setLoading(true);
 
+      // Validate file if one is selected
+      if (formData.attachment) {
+        if (formData.attachment.size > 1024 * 1024) {
+          throw new Error('File size must not exceed 1 MB');
+        }
+        
+        const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg'];
+        if (!allowedTypes.includes(formData.attachment.type)) {
+          throw new Error('Only PDF, JPEG, and JPG files are allowed');
+        }
+      }
+
+      let attachmentPath = null;
+
+      // Upload file if one is selected
+      if (formData.attachment) {
+        const fileExt = formData.attachment.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('vendorbills')
+          .upload(filePath, formData.attachment);
+
+        if (uploadError) throw uploadError;
+        attachmentPath = filePath;
+      }
+
       // First, get the maximum ID from the VendorInvoice table
       const { data: maxIdData, error: maxIdError } = await supabase
         .from('VendorInvoice')
@@ -119,6 +149,7 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
         Description: formData.description || null,
         Amount: parseFloat(formData.amount),
         Status: formData.status
+        attachment_path: attachmentPath
       };
 
       if (bill) {
@@ -137,6 +168,7 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
       }
 
       onSave();
+      onAlert?.('Bill saved successfully', 'success');
       onClose();
     } catch (err) {
       console.error('Error saving bill:', err);
@@ -226,6 +258,21 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
                 onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
                 required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Attachment (PDF, JPEG, JPG only, max 1MB)
+              </label>
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  setFormData({ ...formData, attachment: file });
+                }}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               />
             </div>
 
