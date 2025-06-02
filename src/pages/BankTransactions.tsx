@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Trash2, Pencil, Upload, PlusCircle } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, Search, Upload, PlusCircle } from 'lucide-react';
 import Button from '../components/Button';
 import { cn } from '../lib/utils';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '../components/ui/table';
 import FilterableTableHead from '../components/FilterableTableHead';
 import BankTransactionUploadModal from '../components/BankTransactionUploadModal';
-import BankTransactionEditModal from '../components/BankTransactionEditModal';
+import BankTransactionViewModal from '../components/BankTransactionViewModal';
 import BankTransactionAddModal from '../components/BankTransactionAddModal';
 
 interface BankTransaction {
@@ -40,7 +40,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [pageSize] = useState(100);
   const [error, setError] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<BankTransaction | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -386,15 +386,13 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
         onSave={fetchTransactions}
       />
       
-      <BankTransactionEditModal
-        isOpen={showEditModal}
+      <BankTransactionViewModal
+        isOpen={showViewModal}
         onClose={() => {
-          setShowEditModal(false);
+          setShowViewModal(false);
           setSelectedTransaction(null);
         }}
-        onAlert={onAlert}
         transaction={selectedTransaction}
-        onSave={fetchTransactions}
       />
       
       {/* Delete Confirmation Modal */}
