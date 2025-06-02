@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { TrendingUp, TrendingDown } from 'lucide-react';
-import Button from './Button';
 
 interface ActivityCount {
   type: string;
@@ -11,12 +10,6 @@ interface ActivityCount {
 }
 
 type TimeRange = '1d' | '7d' | '30d';
-
-const TIME_RANGE_LABELS = {
-  '1d': 'Last 24 hours',
-  '7d': 'Last 7 days',
-  '30d': 'Last 30 days'
-};
 
 const RecentActivity: React.FC = () => {
   const [activities, setActivities] = useState<ActivityCount[]>([]);
@@ -121,6 +114,20 @@ const RecentActivity: React.FC = () => {
 
       if (transactionsError) throw transactionsError;
 
+      // Fetch new bills count
+      const { count: billsCount, error: billsError } = await supabase
+        .from('VendorInvoice')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', startDate.toISOString());
+
+      const { count: previousBillsCount } = await supabase
+        .from('VendorInvoice')
+        .select('*', { count: 'exact', head: true })
+        .gte('created_at', previousStartDate.toISOString())
+        .lt('created_at', previousEndDate.toISOString());
+
+      if (billsError) throw billsError;
+
       const newActivities: ActivityCount[] = [];
       
       if (accountCount && accountCount > 0) {
@@ -165,6 +172,15 @@ const RecentActivity: React.FC = () => {
           count: transactionsCount,
           previousCount: previousTransactionsCount || 0,
           change: calculatePercentageChange(transactionsCount, previousTransactionsCount || 0)
+        });
+      }
+      
+      if (billsCount && billsCount > 0) {
+        newActivities.push({
+          type: 'Bills',
+          count: billsCount,
+          previousCount: previousBillsCount || 0,
+          change: calculatePercentageChange(billsCount, previousBillsCount || 0)
         });
       }
 
@@ -239,42 +255,32 @@ const RecentActivity: React.FC = () => {
         </div>
       ) : activities.length === 0 ? (
         <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-          <p>No new activity in the {TIME_RANGE_LABELS[selectedRange]}</p>
+          <p>No new activity</p>
         </div>
       ) : (
         <div className="divide-y divide-gray-200 dark:divide-gray-700">
           {activities.map((activity) => (
             <div key={activity.type} className="p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-              <div>
-                <span className="text-gray-900 dark:text-white font-medium">New {activity.type}</span>
-                <div className="flex items-center mt-1 space-x-2">
-                  <span className="text-2xl font-bold text-gray-900 dark:text-white">{activity.count}</span>
-                  <div className={`flex items-center ${
-                    activity.change > 0 
-                      ? 'text-green-500 dark:text-green-400' 
-                      : activity.change < 0 
-                        ? 'text-red-500 dark:text-red-400'
-                        : 'text-gray-400 dark:text-gray-500'
-                  }`}>
-                    {activity.change > 0 ? (
-                      <TrendingUp className="w-4 h-4 mr-1" />
-                    ) : (
-                      <TrendingDown className="w-4 h-4 mr-1" />
-                    )}
-                    <span className="text-sm font-medium">
-                      {activity.change > 0 ? '+' : ''}{activity.change}%
-                    </span>
-                  </div>
-                </div>
+              <span className="text-gray-900 dark:text-white font-medium">New {activity.type}</span>
+              <div className="flex items-center space-x-3">
+                <span className="text-lg font-bold text-gray-900 dark:text-white">{activity.count}</span>
+                <div className={`flex items-center ${
+                  activity.change > 0 
+                    ? 'text-green-500 dark:text-green-400' 
+                    : activity.change < 0 
+                      ? 'text-red-500 dark:text-red-400'
+                      : 'text-gray-400 dark:text-gray-500'
+                }`}>
+                  {activity.change > 0 ? (
+                    <TrendingUp className="w-4 h-4 mr-1" />
+                  ) : (
+                    <TrendingDown className="w-4 h-4 mr-1" />
+                  )}
+                  <span className="text-sm font-medium">
+                    {activity.change > 0 ? '+' : ''}{activity.change}%
+                  </span>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-sm"
-                onClick={() => {/* TODO: Implement view all functionality */}}
-              >
-                View All
-              </Button>
+            </div>
             </div>
           ))}
         </div>
