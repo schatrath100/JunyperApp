@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Trash2, Search, Upload, PlusCircle } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, Search, Upload, PlusCircle, Pencil } from 'lucide-react';
 import Button from '../components/Button';
 import { cn } from '../lib/utils';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '../components/ui/table';
@@ -8,6 +8,7 @@ import FilterableTableHead from '../components/FilterableTableHead';
 import BankTransactionUploadModal from '../components/BankTransactionUploadModal';
 import BankTransactionViewModal from '../components/BankTransactionViewModal';
 import BankTransactionAddModal from '../components/BankTransactionAddModal';
+import type { Alert } from '../components/Alert';
 
 interface BankTransaction {
   id: string;
