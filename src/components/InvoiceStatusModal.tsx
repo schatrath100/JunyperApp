@@ -189,6 +189,7 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
             </Button>
             <Button
               variant="primary"
+              className="bg-black hover:bg-black/90 text-white"
               onClick={handleSave}
               disabled={saving}
             >
