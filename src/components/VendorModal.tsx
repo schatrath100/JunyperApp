@@ -82,8 +82,13 @@ const VendorModal: React.FC<VendorModalProps> = ({ isOpen, onClose, vendor, onSa
     e.preventDefault();
     try {
       setSaving(true);
-      const isValid = await validateForm();
       
+      // Get the current user's ID
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error('No authenticated user found');
+      
+      const isValid = await validateForm();
       if (isValid) {
         const vendorData = {
           vendor_name: formData.name.trim(),
@@ -91,6 +96,7 @@ const VendorModal: React.FC<VendorModalProps> = ({ isOpen, onClose, vendor, onSa
           vendor_taxid: formData.taxId.trim() || null,
           vendor_phone: formData.phone.trim() || null,
           vendor_address: formData.address.trim(),
+          user_id: user.id
         };
 
         const { error } = vendor
