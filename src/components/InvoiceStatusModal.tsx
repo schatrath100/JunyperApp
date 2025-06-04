@@ -32,7 +32,7 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  if (!isOpen || !invoice) return null;
 
   const handleSave = async () => {
     try {
@@ -66,8 +66,17 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-lg">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 z-50 transition-opacity duration-300"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div 
+        className={`fixed inset-y-0 right-0 w-[480px] bg-white dark:bg-gray-900 shadow-xl transform transition-transform duration-300 ease-in-out ${
+          isOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             Invoice #{invoice.id} Details
@@ -80,7 +89,7 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
           </button>
         </div>
 
-        <div className="p-6 space-y-4">
+        <div className="p-6 h-[calc(100vh-160px)] overflow-y-auto space-y-4">
           {error && (
             <div className="p-4 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400">
               {error}
@@ -169,21 +178,23 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
           </div>
         </div>
 
-        <div className="flex justify-end space-x-3 p-6 border-t border-gray-200 dark:border-gray-700">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={saving}
-          >
-            Cancel
-          </Button>
-          <Button
-            variant="primary"
-            onClick={handleSave}
-            disabled={saving}
-          >
-            {saving ? 'Saving...' : 'Save Changes'}
-          </Button>
+        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex justify-end space-x-3">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              disabled={saving}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleSave}
+              disabled={saving}
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </div>
         </div>
       </div>
     </div>
