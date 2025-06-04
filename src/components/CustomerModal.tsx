@@ -159,8 +159,17 @@ const CustomerModal: React.FC<CustomerModalProps> = ({ isOpen, onClose, customer
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 z-50 transition-opacity duration-300"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div 
+        className={`fixed inset-y-0 right-0 w-[480px] bg-white dark:bg-gray-900 shadow-xl transform transition-transform duration-300 ease-in-out ${
+          isOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             {customer ? 'Edit Customer' : 'Add Customer'}
@@ -173,7 +182,7 @@ const CustomerModal: React.FC<CustomerModalProps> = ({ isOpen, onClose, customer
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6">
+        <form onSubmit={handleSubmit} className="p-6 h-[calc(100vh-160px)] overflow-y-auto">
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -269,12 +278,16 @@ const CustomerModal: React.FC<CustomerModalProps> = ({ isOpen, onClose, customer
             </div>
           </div>
 
-          <div className="mt-6 flex space-x-3">
+        </form>
+        
+        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex space-x-3">
             <Button
               type="submit"
               variant="primary"
-              className="flex-1"
+              className="flex-1 bg-black hover:bg-black/90 text-white"
               disabled={saving}
+              onClick={handleSubmit}
             >
               {saving ? 'Saving...' : 'Save'}
             </Button>
@@ -288,7 +301,7 @@ const CustomerModal: React.FC<CustomerModalProps> = ({ isOpen, onClose, customer
               Cancel
             </Button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
