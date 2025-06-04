@@ -35,10 +35,16 @@ const Dashboard: React.FC = () => {
       const now = new Date();
       const fourWeeksAgo = new Date(now.getTime() - (28 * 24 * 60 * 60 * 1000));
 
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error('No authenticated user');
+
       // Fetch sales invoice data
       const { data: salesData, error: salesError } = await supabase
         .from('SalesInvoice')
         .select('InvoiceAmount, InvoiceDate')
+        .eq('user_id', user.id)
         .gte('InvoiceDate', fourWeeksAgo.toISOString())
         .order('InvoiceDate', { ascending: true });
 
@@ -70,6 +76,7 @@ const Dashboard: React.FC = () => {
       const { data: bankData, error: bankError } = await supabase
         .from('bank_transactions')
         .select('amount, credit_debit_indicator, date')
+        .eq('user_id', user.id)
         .gte('date', fourWeeksAgo.toISOString())
         .order('date', { ascending: true });
 
@@ -100,12 +107,36 @@ const Dashboard: React.FC = () => {
         trendData: weeklyBalances
       });
 
-      // For demo purposes, set bills KPI with mock data
-      // In a real implementation, this would fetch from a vendor bills table
+      // Fetch vendor bills data
+      const { data: billsData, error: billsError } = await supabase
+        .from('VendorInvoice')
+        .select('Amount, Date')
+        .eq('user_id', user.id)
+        .gte('Date', fourWeeksAgo.toISOString())
+        .order('Date', { ascending: true });
+
+      if (billsError) throw billsError;
+
+      // Calculate weekly bills totals
+      const weeklyBills = Array(4).fill(0);
+      let totalBills = 0;
+      billsData?.forEach(bill => {
+        const weekIndex = 3 - Math.floor((now.getTime() - new Date(bill.Date).getTime()) / (7 * 24 * 60 * 60 * 1000));
+        if (weekIndex >= 0 && weekIndex < 4) {
+          weeklyBills[weekIndex] += Number(bill.Amount) || 0;
+          totalBills += Number(bill.Amount) || 0;
+        }
+      });
+
+      // Calculate bills change percentage
+      const prevBills = weeklyBills[2];
+      const currentBills = weeklyBills[3];
+      const billsChange = prevBills ? ((currentBills - prevBills) / prevBills) * 100 : 0;
+
       setBillsKPI({
-        value: 45000,
-        change: -2.5,
-        trendData: [42000, 44000, 43000, 45000]
+        value: totalBills,
+        change: Math.round(billsChange * 10) / 10,
+        trendData: weeklyBills
       });
 
     } catch (err) {
