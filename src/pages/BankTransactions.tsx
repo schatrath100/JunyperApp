@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Trash2, Search, Upload, PlusCircle, Pencil } from 'lucide-react';
+import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet } from 'lucide-react';
 import Button from '../components/Button';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import { cn } from '../lib/utils';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '../components/ui/table';
 import FilterableTableHead from '../components/FilterableTableHead';
@@ -44,6 +47,62 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<BankTransaction | null>(null);
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(16);
+    doc.text('Bank Transactions', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Generated on ${new Date().toLocaleDateString()}`, 14, 22);
+
+    // Prepare table data
+    const tableData = transactions.map(t => [
+      new Date(t.date).toLocaleDateString(),
+      t.bank_name,
+      t.description,
+      new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+      }).format(t.amount),
+      t.account_number,
+      t.credit_debit_indicator
+    ]);
+
+    // Generate table
+    autoTable(doc, {
+      head: [['Date', 'Bank', 'Description', 'Amount', 'Account #', 'Type']],
+      body: tableData,
+      startY: 25,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [66, 139, 202] }
+    });
+
+    // Save PDF
+    doc.save('bank-transactions.pdf');
+  };
+
+  const exportToExcel = () => {
+    // Prepare data
+    const data = transactions.map(t => ({
+      'Date': new Date(t.date).toLocaleDateString(),
+      'Bank': t.bank_name,
+      'Description': t.description,
+      'Amount': t.amount,
+      'Account Number': t.account_number,
+      'Type': t.credit_debit_indicator
+    }));
+
+    // Create workbook
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Bank Transactions');
+
+    // Save file
+    XLSX.writeFile(wb, 'bank-transactions.xlsx');
+  };
+
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [filters, setFilters] = useState<FilterState>({
@@ -208,11 +267,25 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
           <Button
             variant="default"
             className="bg-black hover:bg-black/90 text-white"
-            icon={<Upload className="w-4 h-4" />}
             onClick={() => setShowUploadModal(true)}
+            icon={<Upload className="w-4 h-4" />}
           >
             Upload Transactions
           </Button>
+          <button
+            onClick={exportToPDF}
+            className="p-2 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+            title="Export to PDF"
+          >
+            <FileText className="w-5 h-5" />
+          </button>
+          <button
+            onClick={exportToExcel}
+            className="p-2 text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
+            title="Export to Excel"
+          >
+            <FileSpreadsheet className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
