@@ -105,6 +105,11 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
     e.preventDefault();
     setError(null);
     
+    // Get the current user's ID
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError) throw userError;
+    if (!user) throw new Error('No authenticated user found');
+    
     // When editing, only validate status
     if (bill && !formData.status) {
       setError('Please select a status');
@@ -172,7 +177,8 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
           Description: formData.description || null,
           Amount: parseFloat(formData.amount),
           Status: formData.status,
-          attachment_path: attachmentPath
+          attachment_path: attachmentPath,
+          user_id: user.id
         };
 
         const { error: insertError } = await supabase

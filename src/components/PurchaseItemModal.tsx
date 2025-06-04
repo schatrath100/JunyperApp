@@ -80,12 +80,18 @@ const PurchaseItemModal: React.FC<PurchaseItemModalProps> = ({ isOpen, onClose, 
       setSaving(true);
       const isValid = await validateForm();
       
+      // Get the current user's ID
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error('No authenticated user found');
+      
       if (isValid) {
         const itemData = {
           Item_name: formData.name.trim(),
           Item_desc: formData.description.trim(),
           item_num: formData.number ? Number(formData.number) : null,
           Item_price: formData.price.trim() ? Number(formData.price.trim()) : null,
+          user_id: user.id
         };
 
         const { error } = item
