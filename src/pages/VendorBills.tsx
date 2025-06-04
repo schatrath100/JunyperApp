@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Trash2, Pencil, Paperclip } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, Pencil, Paperclip, FileText, FileSpreadsheet } from 'lucide-react';
 import Button from '../components/Button';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import VendorBillModal from '../components/VendorBillModal';
 import VendorBillPreviewModal from '../components/VendorBillPreviewModal';
 import { useTableSort } from '../hooks/useTableSort';
@@ -45,6 +48,61 @@ const VendorBills: React.FC<VendorBillsProps> = ({ onAlert }) => {
     bills.filter(bill => bill.Status === selectedStatus),
     { key: 'Date', direction: 'desc' }
   );
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(16);
+    doc.text('Vendor Bills', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Generated on ${new Date().toLocaleDateString()}`, 14, 22);
+
+    // Prepare table data
+    const tableData = sortedBills.map(bill => [
+      `#${bill.id}`,
+      new Date(bill.Date).toLocaleDateString(),
+      bill.Vendor_name,
+      bill.Description || '-',
+      new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+      }).format(bill.Amount),
+      bill.Status
+    ]);
+
+    // Generate table
+    autoTable(doc, {
+      head: [['Bill #', 'Date', 'Vendor', 'Description', 'Amount', 'Status']],
+      body: tableData,
+      startY: 25,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [66, 139, 202] }
+    });
+
+    // Save PDF
+    doc.save('vendor-bills.pdf');
+  };
+
+  const exportToExcel = () => {
+    // Prepare data
+    const data = sortedBills.map(bill => ({
+      'Bill #': bill.id,
+      'Date': new Date(bill.Date).toLocaleDateString(),
+      'Vendor': bill.Vendor_name,
+      'Description': bill.Description || '-',
+      'Amount': bill.Amount,
+      'Status': bill.Status
+    }));
+
+    // Create workbook
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Vendor Bills');
+
+    // Save file
+    XLSX.writeFile(wb, 'vendor-bills.xlsx');
+  };
 
   const fetchBills = async () => {
     try {
@@ -152,6 +210,20 @@ const VendorBills: React.FC<VendorBillsProps> = ({ onAlert }) => {
           >
             Add Vendor Bill
           </Button>
+          <button
+            onClick={exportToPDF}
+            className="p-2 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+            title="Export to PDF"
+          >
+            <FileText className="w-5 h-5" />
+          </button>
+          <button
+            onClick={exportToExcel}
+            className="p-2 text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
+            title="Export to Excel"
+          >
+            <FileSpreadsheet className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
