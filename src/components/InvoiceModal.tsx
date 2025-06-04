@@ -266,7 +266,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave, on
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 h-[calc(100vh-160px)] overflow-y-auto">
+        <form id="invoice-form" onSubmit={handleSubmit} className="p-4 h-[calc(100vh-160px)] overflow-y-auto">
           {error && (
             <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400">
               {error}
@@ -407,10 +407,11 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave, on
         <div className="absolute bottom-0 left-0 right-0 p-6 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
           <div className="flex space-x-3">
             <Button
-              form="invoice-form"
+              type="submit"
               variant="primary"
               className="flex-1"
               disabled={loading}
+              onClick={handleSubmit}
             >
               {loading ? 'Saving...' : 'Save Invoice'}
             </Button>
