@@ -185,6 +185,8 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave, on
       if (insertError) throw insertError;
       invoiceId = invoiceData.id;
 
+      const userId = (await supabase.auth.getUser()).data.user?.id;
+
       // Create the debit and credit transactions
       const { error: transactionError } = await supabase
         .from('Transaction')
@@ -198,7 +200,8 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave, on
             invoice_id: invoiceId,
             bill_id: 0,
             row_num: 1,
-            Status: formData.status
+            Status: formData.status,
+            user_id: userId
           },
           {
             transaction_date: formData.invoiceDate,
@@ -209,7 +212,8 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave, on
             invoice_id: invoiceId,
             bill_id: 0,
             row_num: 2,
-            Status: formData.status
+            Status: formData.status,
+            user_id: userId
           }
         ]);
 
