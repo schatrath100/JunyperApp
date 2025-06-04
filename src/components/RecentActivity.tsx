@@ -26,6 +26,11 @@ const RecentActivity: React.FC = () => {
       const previousStartDate = new Date();
       let daysToSubtract = 1;
 
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error('No authenticated user');
+
       switch (range) {
         case '7d':
           startDate.setDate(startDate.getDate() - 7);
@@ -48,11 +53,13 @@ const RecentActivity: React.FC = () => {
       const { count: accountCount, error: accountError } = await supabase
         .from('Account')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
         .gte('created_at', startDate.toISOString());
 
       const { count: previousAccountCount } = await supabase
         .from('Account')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
         .gte('created_at', previousStartDate.toISOString())
         .lt('created_at', previousEndDate.toISOString());
 
@@ -62,11 +69,13 @@ const RecentActivity: React.FC = () => {
       const { count: customerCount, error: customerError } = await supabase
         .from('Customer')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
         .gte('created_at', startDate.toISOString());
 
       const { count: previousCustomerCount } = await supabase
         .from('Customer')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
         .gte('created_at', previousStartDate.toISOString())
         .lt('created_at', previousEndDate.toISOString());
 
@@ -76,11 +85,13 @@ const RecentActivity: React.FC = () => {
       const { count: itemCount, error: itemError } = await supabase
         .from('SaleItems')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
         .gte('created_at', startDate.toISOString());
 
       const { count: previousItemCount } = await supabase
         .from('SaleItems')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
         .gte('created_at', previousStartDate.toISOString())
         .lt('created_at', previousEndDate.toISOString());
 
@@ -90,11 +101,13 @@ const RecentActivity: React.FC = () => {
       const { count: invoiceCount, error: invoiceError } = await supabase
         .from('SalesInvoice')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
         .gte('created_at', startDate.toISOString());
 
       const { count: previousInvoiceCount } = await supabase
         .from('SalesInvoice')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
         .gte('created_at', previousStartDate.toISOString())
         .lt('created_at', previousEndDate.toISOString());
 
@@ -104,11 +117,13 @@ const RecentActivity: React.FC = () => {
       const { count: transactionsCount, error: transactionsError } = await supabase
         .from('bank_transactions')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
         .gte('created_at', startDate.toISOString());
 
       const { count: previousTransactionsCount } = await supabase
         .from('bank_transactions')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
         .gte('created_at', previousStartDate.toISOString())
         .lt('created_at', previousEndDate.toISOString());
 
@@ -118,11 +133,13 @@ const RecentActivity: React.FC = () => {
       const { count: billsCount, error: billsError } = await supabase
         .from('VendorInvoice')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
         .gte('created_at', startDate.toISOString());
 
       const { count: previousBillsCount } = await supabase
         .from('VendorInvoice')
         .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
         .gte('created_at', previousStartDate.toISOString())
         .lt('created_at', previousEndDate.toISOString());
 
