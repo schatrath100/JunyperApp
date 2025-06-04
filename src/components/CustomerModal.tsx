@@ -120,6 +120,11 @@ const CustomerModal: React.FC<CustomerModalProps> = ({ isOpen, onClose, customer
       setSaving(true);
       const isValid = await validateForm();
       
+      // Get the current user's ID
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error('No authenticated user found');
+      
       if (isValid) {        
         const customerData = {
           Customer_name: formData.name,
@@ -127,7 +132,8 @@ const CustomerModal: React.FC<CustomerModalProps> = ({ isOpen, onClose, customer
           Customer_Phone: formData.phone ? Number(formData.phone) : null,
           Customer_TaxID: formData.taxId ? Number(formData.taxId) : null,
           Customer_address: formData.address,
-          Customer_PaymentTerms: formData.paymentTerms ? Number(formData.paymentTerms) : null
+          Customer_PaymentTerms: formData.paymentTerms ? Number(formData.paymentTerms) : null,
+          user_id: user.id
         };
 
         const { error } = customer
