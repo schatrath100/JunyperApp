@@ -242,8 +242,17 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave, on
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-5xl">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 z-50 transition-opacity duration-300"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div 
+        className={`fixed inset-y-0 right-0 w-[800px] bg-white dark:bg-gray-900 shadow-xl transform transition-transform duration-300 ease-in-out ${
+          isOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
+      >
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             Add Invoice
@@ -256,7 +265,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave, on
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4">
+        <form onSubmit={handleSubmit} className="p-4 h-[calc(100vh-160px)] overflow-y-auto">
           {error && (
             <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400">
               {error}
@@ -393,12 +402,14 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave, on
             </div>
           </div>
 
-          <div className="mt-4 flex space-x-3">
+        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex space-x-3">
             <Button
               type="submit"
               variant="primary"
               className="flex-1"
               disabled={loading}
+              onClick={handleSubmit}
             >
               {loading ? 'Saving...' : 'Save Invoice'}
             </Button>
@@ -412,7 +423,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave, on
               Cancel
             </Button>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );
