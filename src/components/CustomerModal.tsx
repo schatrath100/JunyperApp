@@ -54,9 +54,13 @@ const CustomerModal: React.FC<CustomerModalProps> = ({ isOpen, onClose, customer
   useEffect(() => {
     if (customer) {
       // Convert numeric payment terms to string for form data
-      const paymentTerms = customer.Customer_PaymentTerms !== null && customer.Customer_PaymentTerms !== undefined
-        ? customer.Customer_PaymentTerms.toString()
-        : '';
+      let paymentTerms = '';
+      if (customer.Customer_PaymentTerms !== null && customer.Customer_PaymentTerms !== undefined) {
+        // Handle both string and number types
+        paymentTerms = typeof customer.Customer_PaymentTerms === 'string' 
+          ? customer.Customer_PaymentTerms 
+          : customer.Customer_PaymentTerms.toString();
+      }
 
       setFormData({
         name: customer.Customer_name,
@@ -132,7 +136,7 @@ const CustomerModal: React.FC<CustomerModalProps> = ({ isOpen, onClose, customer
           Customer_Phone: formData.phone ? Number(formData.phone) : null,
           Customer_TaxID: formData.taxId ? Number(formData.taxId) : null,
           Customer_address: formData.address,
-          Customer_PaymentTerms: formData.paymentTerms ? Number(formData.paymentTerms) : null,
+          Customer_PaymentTerms: formData.paymentTerms || null,
           user_id: user.id
         };
 
