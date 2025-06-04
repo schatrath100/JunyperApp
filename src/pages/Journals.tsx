@@ -41,6 +41,7 @@ const Journals: React.FC = () => {
           *,
           Account (account_name)
         `)
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
         .order('transaction_date', { ascending: false });
 
       if (transactionError) throw transactionError;
