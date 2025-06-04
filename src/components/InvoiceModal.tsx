@@ -176,7 +176,8 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave, on
           Status: formData.status,
           attachment_path: attachmentPath,
           OutstandingAmount: parseFloat(formData.invoiceAmount), // Initially same as invoice amount
-          ItemID: items.findIndex(item => item.Item_Name === formData.itemName) + 1
+          ItemID: items.findIndex(item => item.Item_Name === formData.itemName) + 1,
+          user_id: (await supabase.auth.getUser()).data.user?.id
         }])
         .select()
         .single();
