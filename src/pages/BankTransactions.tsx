@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet } from 'lucide-react';
+import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet, PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import Button from '../components/Button';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
