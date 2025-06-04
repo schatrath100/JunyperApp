@@ -160,18 +160,7 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
         if (updateError) throw updateError;
       } else {
         // For new bills, handle full creation process
-        const { data: maxIdData, error: maxIdError } = await supabase
-          .from('VendorInvoice')
-          .select('id')
-          .order('id', { ascending: false })
-          .limit(1);
-
-        if (maxIdError) throw maxIdError;
-
-        const nextId = maxIdData && maxIdData.length > 0 ? maxIdData[0].id + 1 : 1;
-
         const billData = {
-          id: nextId,
           Date: formData.billDate,
           Vendor_name: formData.vendorName,
           Description: formData.description || null,
