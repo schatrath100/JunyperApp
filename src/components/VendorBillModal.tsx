@@ -198,7 +198,7 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
     }
   };
 
-  if (!isOpen || !bill) return null;
+  if (!isOpen) return null;
 
   return (
     <div 
