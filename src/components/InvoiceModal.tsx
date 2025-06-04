@@ -407,11 +407,10 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave, on
         <div className="absolute bottom-0 left-0 right-0 p-6 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
           <div className="flex space-x-3">
             <Button
-              type="submit"
+              form="invoice-form"
               variant="primary"
               className="flex-1"
               disabled={loading}
-              onClick={handleSubmit}
             >
               {loading ? 'Saving...' : 'Save Invoice'}
             </Button>
