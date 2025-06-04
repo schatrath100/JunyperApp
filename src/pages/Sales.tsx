@@ -240,6 +240,22 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
           </button>
         ))}
       </div>
+      <div className="flex justify-end space-x-2 mb-4">
+        <button
+          onClick={exportToPDF}
+          className="p-2 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+          title="Export to PDF"
+        >
+          <FileText className="w-5 h-5" />
+        </button>
+        <button
+          onClick={exportToExcel}
+          className="p-2 text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
+          title="Export to Excel"
+        >
+          <FileSpreadsheet className="w-5 h-5" />
+        </button>
+      </div>
 
       {error && (
         <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400">
