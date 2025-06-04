@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Trash2, Pencil, Paperclip } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, Pencil, Paperclip, FileText, FileSpreadsheet } from 'lucide-react';
 import Button from '../components/Button';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 import InvoiceModal from '../components/InvoiceModal';
 import InvoiceStatusModal from '../components/InvoiceStatusModal';
 import InvoicePreviewModal from '../components/InvoicePreviewModal';
@@ -47,6 +50,62 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
     invoices.filter(invoice => invoice.Status === selectedStatus),
     { key: 'InvoiceDate', direction: 'desc' }
   );
+
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(16);
+    doc.text('Sales Invoices', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Generated on ${new Date().toLocaleDateString()}`, 14, 22);
+
+    // Prepare table data
+    const tableData = sortedInvoices.map(invoice => [
+      `#${invoice.id}`,
+      new Date(invoice.InvoiceDate).toLocaleDateString(),
+      invoice.Customer_name,
+      invoice.Description || '-',
+      new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+      }).format(invoice.InvoiceAmount || 0),
+      invoice.Status
+    ]);
+
+    // Generate table
+    autoTable(doc, {
+      head: [['Invoice #', 'Date', 'Customer', 'Description', 'Amount', 'Status']],
+      body: tableData,
+      startY: 25,
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [66, 139, 202] }
+    });
+
+    // Save PDF
+    doc.save('sales-invoices.pdf');
+  };
+
+  const exportToExcel = () => {
+    // Prepare data
+    const data = sortedInvoices.map(invoice => ({
+      'Invoice #': invoice.id,
+      'Date': new Date(invoice.InvoiceDate).toLocaleDateString(),
+      'Customer': invoice.Customer_name,
+      'Description': invoice.Description || '-',
+      'Amount': invoice.InvoiceAmount || 0,
+      'Outstanding': invoice.OutstandingAmount || 0,
+      'Status': invoice.Status
+    }));
+
+    // Create workbook
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sales Invoices');
+
+    // Save file
+    XLSX.writeFile(wb, 'sales-invoices.xlsx');
+  };
 
   const fetchInvoices = async () => {
     try {
@@ -149,6 +208,20 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
           >
             Add Invoice
           </Button>
+          <button
+            onClick={exportToPDF}
+            className="p-2 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+            title="Export to PDF"
+          >
+            <FileText className="w-5 h-5" />
+          </button>
+          <button
+            onClick={exportToExcel}
+            className="p-2 text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
+            title="Export to Excel"
+          >
+            <FileSpreadsheet className="w-5 h-5" />
+          </button>
         </div>
       </div>
 
