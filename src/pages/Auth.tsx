@@ -14,6 +14,8 @@ const Auth: React.FC = () => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
 
+  console.log('Current name state:', name); // Debug log
+
   const handleSubmit = async (email: string, password: string) => {
     setError(null);
     setMessage(null);
@@ -75,7 +77,10 @@ const Auth: React.FC = () => {
         <SignUpForm
           name={name}
           phone={phone}
-          onNameChange={setName}
+          onNameChange={(value) => {
+            console.log('onNameChange called with:', value);
+            setName(value);
+          }}
           onPhoneChange={setPhone}
           onSubmit={handleSubmit}
           onLogin={() => {
