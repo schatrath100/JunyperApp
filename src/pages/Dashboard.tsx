@@ -161,8 +161,15 @@ const Dashboard: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
         <Greeting name={userName} />  
       </div>
-
-      <SectionCards />
+      
+      <div className="mb-8">
+        <SectionCards 
+          salesKPI={salesKPI}
+          billsKPI={billsKPI}
+          cashKPI={cashKPI}
+          loading={loading}
+        />
+      </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div className="animate-fade-in">

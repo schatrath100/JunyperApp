@@ -10,28 +10,120 @@ import {
   CardTitle,
 } from './ui/card';
 
-export function SectionCards() {
+interface SectionCardsProps {
+  salesKPI: {
+    value: number;
+    change: number;
+    trendData: number[];
+  };
+  billsKPI: {
+    value: number;
+    change: number;
+    trendData: number[];
+  };
+  cashKPI: {
+    value: number;
+    change: number;
+    trendData: number[];
+  };
+  loading?: boolean;
+}
+
+export function SectionCards({ salesKPI, billsKPI, cashKPI, loading }: SectionCardsProps) {
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="@container/card animate-pulse">
+            <CardHeader>
+              <div className="h-4 w-24 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              <div className="h-8 w-32 mt-2 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              <div className="h-6 w-16 mt-4 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            </CardHeader>
+            <CardFooter className="flex-col items-start gap-1.5">
+              <div className="h-4 w-40 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>Total Revenue</CardDescription>
+          <CardDescription>Total Sales</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            $1,250.00
+            {new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+              maximumFractionDigits: 0
+            }).format(salesKPI.value)}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline" className="flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" />
-              +12.5%
+            <Badge variant="outline" className={`flex items-center gap-1 ${
+              salesKPI.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+            }`}>
+              {salesKPI.change >= 0 ? (
+                <TrendingUp className="h-3 w-3" />
+              ) : (
+                <TrendingDown className="h-3 w-3" />
+              )}
+              {salesKPI.change >= 0 ? '+' : ''}{salesKPI.change}%
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            Trending up this month <TrendingUp className="h-4 w-4" />
+            {salesKPI.change >= 0 ? 'Trending up' : 'Trending down'} this month
+            {salesKPI.change >= 0 ? (
+              <TrendingUp className="h-4 w-4 text-green-500" />
+            ) : (
+              <TrendingDown className="h-4 w-4 text-red-500" />
+            )}
           </div>
           <div className="text-gray-500 dark:text-gray-400">
-            Revenue for the last 6 months
+            Total sales from invoices
+          </div>
+        </CardFooter>
+      </Card>
+
+      <Card className="@container/card">
+        <CardHeader>
+          <CardDescription>Total Bills</CardDescription>
+          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+            {new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+              maximumFractionDigits: 0
+            }).format(billsKPI.value)}
+          </CardTitle>
+          <CardAction>
+            <Badge variant="outline" className={`flex items-center gap-1 ${
+              billsKPI.change <= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+            }`}>
+              {billsKPI.change <= 0 ? (
+                <TrendingDown className="h-3 w-3" />
+              ) : (
+                <TrendingUp className="h-3 w-3" />
+              )}
+              {billsKPI.change >= 0 ? '+' : ''}{billsKPI.change}%
+            </Badge>
+          </CardAction>
+        </CardHeader>
+        <CardFooter className="flex-col items-start gap-1.5 text-sm">
+          <div className="line-clamp-1 flex gap-2 font-medium">
+            {billsKPI.change <= 0 ? 'Expenses decreasing' : 'Expenses increasing'}
+            {billsKPI.change <= 0 ? (
+              <TrendingDown className="h-4 w-4 text-green-500" />
+            ) : (
+              <TrendingUp className="h-4 w-4 text-red-500" />
+            )}
+          </div>
+          <div className="text-gray-500 dark:text-gray-400">
+            Total expenses from bills
           </div>
         </CardFooter>
       </Card>
@@ -40,67 +132,70 @@ export function SectionCards() {
         <CardHeader>
           <CardDescription>New Customers</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            1,234
+            {salesKPI.trendData[salesKPI.trendData.length - 1]}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline" className="flex items-center gap-1">
-              <TrendingDown className="h-3 w-3" />
-              -20%
+            <Badge variant="outline" className={`flex items-center gap-1 ${
+              salesKPI.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+            }`}>
+              {salesKPI.change >= 0 ? (
+                <TrendingUp className="h-3 w-3" />
+              ) : (
+                <TrendingDown className="h-3 w-3" />
+              )}
+              {salesKPI.change >= 0 ? '+' : ''}{salesKPI.change}%
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            Down 20% this period <TrendingDown className="h-4 w-4" />
+            {salesKPI.change >= 0 ? 'Growing customer base' : 'Customer acquisition down'}
+            {salesKPI.change >= 0 ? (
+              <TrendingUp className="h-4 w-4 text-green-500" />
+            ) : (
+              <TrendingDown className="h-4 w-4 text-red-500" />
+            )}
           </div>
           <div className="text-gray-500 dark:text-gray-400">
-            Acquisition needs attention
+            New customers this period
           </div>
         </CardFooter>
       </Card>
 
       <Card className="@container/card">
         <CardHeader>
-          <CardDescription>Active Accounts</CardDescription>
+          <CardDescription>Cash Balance</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            45,678
+            {new Intl.NumberFormat('en-US', {
+              style: 'currency',
+              currency: 'USD',
+              maximumFractionDigits: 0
+            }).format(cashKPI.value)}
           </CardTitle>
           <CardAction>
-            <Badge variant="outline" className="flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" />
-              +12.5%
+            <Badge variant="outline" className={`flex items-center gap-1 ${
+              cashKPI.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+            }`}>
+              {cashKPI.change >= 0 ? (
+                <TrendingUp className="h-3 w-3" />
+              ) : (
+                <TrendingDown className="h-3 w-3" />
+              )}
+              {cashKPI.change >= 0 ? '+' : ''}{cashKPI.change}%
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            Strong user retention <TrendingUp className="h-4 w-4" />
+            {cashKPI.change >= 0 ? 'Positive cash flow' : 'Negative cash flow'}
+            {cashKPI.change >= 0 ? (
+              <TrendingUp className="h-4 w-4 text-green-500" />
+            ) : (
+              <TrendingDown className="h-4 w-4 text-red-500" />
+            )}
           </div>
           <div className="text-gray-500 dark:text-gray-400">
-            Engagement exceed targets
-          </div>
-        </CardFooter>
-      </Card>
-
-      <Card className="@container/card">
-        <CardHeader>
-          <CardDescription>Growth Rate</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            4.5%
-          </CardTitle>
-          <CardAction>
-            <Badge variant="outline" className="flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" />
-              +4.5%
-            </Badge>
-          </CardAction>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1.5 text-sm">
-          <div className="line-clamp-1 flex gap-2 font-medium">
-            Steady performance increase <TrendingUp className="h-4 w-4" />
-          </div>
-          <div className="text-gray-500 dark:text-gray-400">
-            Meets growth projections
+            Current cash position
           </div>
         </CardFooter>
       </Card>
