@@ -162,14 +162,14 @@ const RecentActivity: React.FC = () => {
         });
       }
 
-      if (customerCount && customerCount > 0) {
+     /* if (customerCount && customerCount > 0) {
         newActivities.push({
           type: 'Customers',
           count: customerCount,
           previousCount: previousCustomerCount || 0,
           change: calculatePercentageChange(customerCount, previousCustomerCount || 0)
         });
-      }
+      }*/
 
       if (itemCount && itemCount > 0) {
         newActivities.push({
