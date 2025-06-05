@@ -29,21 +29,13 @@ const Auth: React.FC = () => {
           email,
           password,
           options: {
+            data: {
+              full_name: name,
+              phone: phone || null,
+              email_verified: false,
+              admin_approved: false
+            },
             emailRedirectTo: `${window.location.origin}/verify`,
-            data: {
-              full_name: name,
-              phone: phone || null,
-              email_verified: false,
-              admin_approved: false
-            }
-          }
-          options: {
-            data: {
-              full_name: name,
-              phone: phone || null,
-              email_verified: false,
-              admin_approved: false
-            }
           }
         });
 
