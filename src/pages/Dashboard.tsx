@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Greeting from '../components/Greeting';
 import RecentActivity from '../components/RecentActivity';
 import KPICard from '../components/KPICard';
+import ExpensesChart from '../components/ExpensesChart';
 import RevenueChart from '../components/RevenueChart';
 import { supabase } from '../lib/supabase';
 
@@ -190,8 +191,13 @@ const Dashboard: React.FC = () => {
         </div>
       </div>
       
-      <div className="mb-8">
-        <RevenueChart />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="animate-fade-in">
+          <RevenueChart />
+        </div>
+        <div className="animate-fade-in [animation-delay:100ms]">
+          <ExpensesChart />
+        </div>
       </div>
       
       <div className="max-w-sm">
