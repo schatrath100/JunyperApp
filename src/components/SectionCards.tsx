@@ -60,15 +60,15 @@ export function SectionCards({ salesKPI, billsKPI, newCustomersKPI, cashKPI, loa
       <Card className="@container/card">
         <CardHeader>
           <CardDescription>Total Sales</CardDescription>
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <div className="flex items-baseline gap-2">
+            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl tracking-tight">
               {new Intl.NumberFormat('en-US', {
                 style: 'currency',
                 currency: 'USD',
                 maximumFractionDigits: 0
               }).format(salesKPI.value)}
             </CardTitle>
-            <Badge variant="outline" className={`flex items-center gap-1 ${
+            <Badge variant="outline" className={`flex items-center gap-1 text-xs ${
               salesKPI.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
             }`}>
               {salesKPI.change >= 0 ? (
@@ -98,15 +98,15 @@ export function SectionCards({ salesKPI, billsKPI, newCustomersKPI, cashKPI, loa
       <Card className="@container/card">
         <CardHeader>
           <CardDescription>Total Bills</CardDescription>
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <div className="flex items-baseline gap-2">
+            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl tracking-tight">
               {new Intl.NumberFormat('en-US', {
                 style: 'currency',
                 currency: 'USD',
                 maximumFractionDigits: 0
               }).format(billsKPI.value)}
             </CardTitle>
-            <Badge variant="outline" className={`flex items-center gap-1 ${
+            <Badge variant="outline" className={`flex items-center gap-1 text-xs ${
               billsKPI.change <= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
             }`}>
               {billsKPI.change <= 0 ? (
@@ -136,11 +136,11 @@ export function SectionCards({ salesKPI, billsKPI, newCustomersKPI, cashKPI, loa
       <Card className="@container/card">
         <CardHeader>
           <CardDescription>New Customers</CardDescription>
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <div className="flex items-baseline gap-2">
+            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl tracking-tight">
               {newCustomersKPI.value}
             </CardTitle>
-            <Badge variant="outline" className={`flex items-center gap-1 ${
+            <Badge variant="outline" className={`flex items-center gap-1 text-xs ${
               newCustomersKPI.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
             }`}>
               {newCustomersKPI.change >= 0 ? (
@@ -170,15 +170,15 @@ export function SectionCards({ salesKPI, billsKPI, newCustomersKPI, cashKPI, loa
       <Card className="@container/card">
         <CardHeader>
           <CardDescription>Cash Balance</CardDescription>
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+          <div className="flex items-baseline gap-2">
+            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl tracking-tight">
               {new Intl.NumberFormat('en-US', {
                 style: 'currency',
                 currency: 'USD',
                 maximumFractionDigits: 0
               }).format(cashKPI.value)}
             </CardTitle>
-            <Badge variant="outline" className={`flex items-center gap-1 ${
+            <Badge variant="outline" className={`flex items-center gap-1 text-xs ${
               cashKPI.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
             }`}>
               {cashKPI.change >= 0 ? (
