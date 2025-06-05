@@ -2,11 +2,10 @@ import React, { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { LoginForm } from '../components/LoginForm';
+import { SignUpForm } from '../components/SignUpForm';
 
 const Auth: React.FC = () => {
   const [isSignUp, setIsSignUp] = useState(false);
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -72,15 +71,16 @@ const Auth: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center p-4">
       {isSignUp ? (
-        <div className="w-full max-w-md">
-          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-8">
-            <div className="text-center mb-8">
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Create Account</h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-2">Sign up to get started</p>
-            </div>
-            {/* Sign up form content */}
-          </div>
-        </div>
+        <SignUpForm
+          onSubmit={handleSubmit}
+          onLogin={() => {
+            setIsSignUp(false);
+            setError(null);
+            setMessage(null);
+          }}
+          loading={loading}
+          error={error}
+        />
       ) : (
         <LoginForm
           onSubmit={handleSubmit}
