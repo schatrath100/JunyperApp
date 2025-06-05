@@ -25,11 +25,14 @@ const customFetch = (url: string, options: FetchOptions = {}) => {
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
+    flowType: 'pkce',
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    flowType: 'implicit',
     storage: window.localStorage
+  },
+  global: {
+    fetch: customFetch
   }
 });
 
