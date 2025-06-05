@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Greeting from '../components/Greeting';
 import RecentActivity from '../components/RecentActivity';
 import KPICard from '../components/KPICard';
+import RevenueChart from '../components/RevenueChart';
 import { supabase } from '../lib/supabase';
 
 interface KPIData {
@@ -187,6 +188,10 @@ const Dashboard: React.FC = () => {
             type="cash"
           />
         </div>
+      </div>
+      
+      <div className="mb-8">
+        <RevenueChart />
       </div>
       
       <div className="max-w-sm">
