@@ -8,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { Progress } from "./ui/progress";
 import { supabase } from '../lib/supabase';
 
 interface MonthlyExpenses {
@@ -94,9 +95,19 @@ export default function ExpensesChart() {
   if (loading) {
     return (
       <div className="rounded-2xl shadow-md bg-white dark:bg-gray-900 p-6 w-full">
-        <div className="animate-pulse space-y-4">
-          <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
-          <div className="h-64 bg-gray-100 dark:bg-gray-800 rounded"></div>
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Expenses Trend</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Loading data...</p>
+          </div>
+          <div className="h-64 flex items-center justify-center">
+            <div className="w-full max-w-md space-y-4">
+              <Progress value={66} />
+              <p className="text-sm text-center text-gray-500 dark:text-gray-400">
+                Analyzing expense data...
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     );
