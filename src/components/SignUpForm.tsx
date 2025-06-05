@@ -19,6 +19,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
   onSubmit,
   onLogin,
   name,
+  name,
   phone,
   onNameChange,
   onPhoneChange,
@@ -27,9 +28,15 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password.length < 6) {
+      setValidationError('Password must be at least 6 characters long');
+      return;
+    }
+    setValidationError(null);
     await onSubmit(email, password);
   };
 
@@ -37,7 +44,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
     <div className="w-full max-w-md bg-white rounded-lg shadow-md p-8">
       <h2 className="text-2xl font-bold text-center mb-6">Create an Account</h2>
       
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3">
         {error && (
           <div className="p-3 mb-4 text-sm text-red-800 rounded-lg bg-red-50\" role="alert">
             {error}
@@ -78,6 +85,11 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
             placeholder="••••••••"
             required
           />
+          {validationError && (
+            <div className="text-sm text-red-600 mt-1">
+              {validationError}
+            </div>
+          )}
         </div>
 
         <div className="space-y-2">
