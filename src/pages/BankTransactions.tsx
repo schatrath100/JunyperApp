@@ -46,6 +46,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<BankTransaction | null>(null);
 
   const exportToPDF = () => {
@@ -470,6 +471,13 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
       />
       
       {/* Delete Confirmation Modal */}
+      <BankTransactionEditModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        onAlert={onAlert}
+        onSave={fetchTransactions}
+        transaction={selectedTransaction}
+      />
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md p-6">
