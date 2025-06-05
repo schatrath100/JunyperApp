@@ -72,7 +72,7 @@ const RecentActivity: React.FC = () => {
       if (accountError) throw accountError;
 
       // Fetch new customers count
-      const { count: customerCount, error: customerError } = await supabase
+    /*  const { count: customerCount, error: customerError } = await supabase
         .from('Customer')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
@@ -85,7 +85,7 @@ const RecentActivity: React.FC = () => {
         .gte('created_at', previousStartDate.toISOString())
         .lt('created_at', previousEndDate.toISOString());
 
-      if (customerError) throw customerError;
+      if (customerError) throw customerError; */
 
       // Fetch new sales items count
       const { count: itemCount, error: itemError } = await supabase
