@@ -11,6 +11,7 @@ import FilterableTableHead from '../components/FilterableTableHead';
 import BankTransactionUploadModal from '../components/BankTransactionUploadModal';
 import BankTransactionViewModal from '../components/BankTransactionViewModal';
 import BankTransactionAddModal from '../components/BankTransactionAddModal';
+import BankTransactionEditModal from '../components/BankTransactionEditModal';
 import type { Alert } from '../components/Alert';
 
 interface BankTransaction {
