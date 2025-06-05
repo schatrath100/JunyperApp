@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Greeting from '../components/Greeting';
 import RecentActivity from '../components/RecentActivity';
 import KPICard from '../components/KPICard';
+import { SectionCards } from '../components/SectionCards';
 import ExpensesChart from '../components/ExpensesChart';
 import RevenueChart from '../components/RevenueChart';
 import { supabase } from '../lib/supabase';
@@ -160,36 +161,8 @@ const Dashboard: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
         <Greeting name={userName} />  
       </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="animate-fade-in">
-          <KPICard
-            title="Total Sales"
-            value={salesKPI.value}
-            change={salesKPI.change}
-            trendData={salesKPI.trendData}
-            type="sales"
-          />
-        </div>
-        <div className="animate-fade-in [animation-delay:100ms]">
-          <KPICard
-            title="Total Bills"
-            value={billsKPI.value}
-            change={billsKPI.change}
-            trendData={billsKPI.trendData}
-            type="bills"
-          />
-        </div>
-        <div className="animate-fade-in [animation-delay:200ms]">
-          <KPICard
-            title="Cash Balance"
-            value={cashKPI.value}
-            change={cashKPI.change}
-            trendData={cashKPI.trendData}
-            type="cash"
-          />
-        </div>
-      </div>
+
+      <SectionCards />
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         <div className="animate-fade-in">
