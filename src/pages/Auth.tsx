@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { LoginForm } from '../components/LoginForm';
@@ -10,6 +10,9 @@ const Auth: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const navigate = useNavigate();
+
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
 
   const handleSubmit = async (email: string, password: string) => {
     setError(null);
@@ -72,6 +75,8 @@ const Auth: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center p-4">
       {isSignUp ? (
         <SignUpForm
+          name={name}
+          phone={phone}
           onSubmit={handleSubmit}
           onLogin={() => {
             setIsSignUp(false);
