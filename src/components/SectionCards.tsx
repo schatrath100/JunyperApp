@@ -32,7 +32,7 @@ interface SectionCardsProps {
 export function SectionCards({ salesKPI, billsKPI, cashKPI, loading }: SectionCardsProps) {
   if (loading) {
     return (
-      <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+      <div className="grid grid-cols-4 gap-4">
         {[1, 2, 3, 4].map((i) => (
           <Card key={i} className="@container/card animate-pulse">
             <CardHeader>
@@ -51,7 +51,7 @@ export function SectionCards({ salesKPI, billsKPI, cashKPI, loading }: SectionCa
   }
 
   return (
-    <div className="grid grid-cols-1 gap-4 px-4 lg:px-6 @xl/main:grid-cols-2 @5xl/main:grid-cols-4">
+    <div className="grid grid-cols-4 gap-4">
       <Card className="@container/card">
         <CardHeader>
           <CardDescription>Total Sales</CardDescription>
