@@ -38,12 +38,7 @@ const Auth: React.FC = () => {
           }
         });
 
-        if (signUpError) throw signUpError;
-
-        // Notify the edge function about the signup
-        await supabase.functions.invoke('auth-notifications', {
-          body: { event: 'SIGNED_UP', user: signUpData.user },
-        });
+        if (signUpError) throw new Error(signUpError.message);
 
         setMessage('Please check your email to verify your account.');
       } else {
@@ -52,7 +47,7 @@ const Auth: React.FC = () => {
           password,
         });
 
-        if (signInError) throw signInError;
+        if (signInError) throw new Error(signInError.message);
 
         if (!user?.user_metadata.email_verified) {
           throw new Error('Please verify your email before logging in.');
@@ -87,6 +82,7 @@ const Auth: React.FC = () => {
           }}
           loading={loading}
           error={error}
+          message={message}
         />
       ) : (
         <LoginForm
