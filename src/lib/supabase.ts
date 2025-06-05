@@ -1,4 +1,4 @@
-import { createClient, type FetchOptions } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -11,18 +11,6 @@ if (!supabaseKey) {
   throw new Error('Missing VITE_SUPABASE_ANON_KEY environment variable');
 }
 
-// Custom fetch implementation with CORS mode
-const customFetch = (url: string, options: FetchOptions = {}) => {
-  return fetch(url, {
-    ...options,
-    mode: 'cors',
-    credentials: 'include',
-    headers: {
-      ...options.headers,
-    }
-  });
-};
-
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
     flowType: 'pkce',
@@ -30,9 +18,6 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     autoRefreshToken: true,
     detectSessionInUrl: true,
     storage: window.localStorage
-  },
-  global: {
-    fetch: customFetch
   }
 });
 
