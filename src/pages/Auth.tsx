@@ -42,18 +42,6 @@ const Auth: React.FC = () => {
         if (signUpError) throw new Error(signUpError.message);
         if (!signUpData.user) throw new Error('Failed to create account');
 
-        // Create user profile in public.users table
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert([{
-            auth_id: signUpData.user.id,
-            full_name: name,
-            email: email,
-            phone: phone || null
-          }]);
-
-        if (profileError) throw new Error('Failed to create user profile');
-
         setMessage('Please check your email to verify your account');
         setIsSignUp(false); // Switch back to login view
       } else {
