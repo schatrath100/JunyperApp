@@ -32,7 +32,11 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
       <h2 className="text-2xl font-bold text-center mb-6">Create an Account</h2>
       
       <form onSubmit={handleSubmit} className="space-y-4">
-        {error && <Alert variant="destructive\" message={error} />}
+        {error && (
+          <div className="p-3 mb-4 text-sm text-red-800 rounded-lg bg-red-50" role="alert">
+            {error}
+          </div>
+        )}
         
         <div className="space-y-2">
           <Label htmlFor="name">Full Name</Label>
