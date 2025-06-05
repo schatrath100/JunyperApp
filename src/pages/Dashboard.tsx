@@ -15,9 +15,10 @@ interface KPIData {
 
 const Dashboard: React.FC = () => {
   const [userName, setUserName] = useState('');
-  const [salesKPI, setSalesKPI] = useState<KPIData>({ value: 0, change: 0, trendData: [] });
-  const [billsKPI, setBillsKPI] = useState<KPIData>({ value: 0, change: 0, trendData: [] });
-  const [cashKPI, setCashKPI] = useState<KPIData>({ value: 0, change: 0, trendData: [] });
+  const [salesKPI, setSalesKPI] = useState<KPIData>({ value: 0, change: 0, trendData: [0] });
+  const [billsKPI, setBillsKPI] = useState<KPIData>({ value: 0, change: 0, trendData: [0] });
+  const [newCustomersKPI, setNewCustomersKPI] = useState<KPIData>({ value: 0, change: 0, trendData: [0] });
+  const [cashKPI, setCashKPI] = useState<KPIData>({ value: 0, change: 0, trendData: [0] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,111 +36,134 @@ const Dashboard: React.FC = () => {
   const fetchKPIData = async () => {
     try {
       setLoading(true);
+      
+      // Get current month range
       const now = new Date();
-      const fourWeeksAgo = new Date(now.getTime() - (28 * 24 * 60 * 60 * 1000));
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
       if (!user) throw new Error('No authenticated user');
 
-      // Fetch sales invoice data
-      const { data: salesData, error: salesError } = await supabase
+      // Get this month's sales
+      const { data: currentSales, error: salesError } = await supabase
         .from('SalesInvoice')
-        .select('InvoiceAmount, InvoiceDate')
+        .select('InvoiceAmount')
         .eq('user_id', user.id)
-        .gte('InvoiceDate', fourWeeksAgo.toISOString())
-        .order('InvoiceDate', { ascending: true });
-
+        .neq('Status', 'Cancelled')
+        .gte('InvoiceDate', startOfMonth.toISOString())
+        .lte('InvoiceDate', now.toISOString());
+        
       if (salesError) throw salesError;
 
-      // Calculate weekly sales totals
-      const weeklySales = Array(4).fill(0);
-      let totalSales = 0;
-      salesData?.forEach(invoice => {
-        const weekIndex = 3 - Math.floor((now.getTime() - new Date(invoice.InvoiceDate).getTime()) / (7 * 24 * 60 * 60 * 1000));
-        if (weekIndex >= 0 && weekIndex < 4) {
-          weeklySales[weekIndex] += Number(invoice.InvoiceAmount) || 0;
-          totalSales += Number(invoice.InvoiceAmount) || 0;
-        }
-      });
+      // Get last month's sales
+      const { data: lastSales } = await supabase
+        .from('SalesInvoice')
+        .select('InvoiceAmount')
+        .eq('user_id', user.id)
+        .neq('Status', 'Cancelled')
+        .gte('InvoiceDate', startOfLastMonth.toISOString())
+        .lte('InvoiceDate', endOfLastMonth.toISOString());
 
-      // Calculate sales change percentage
-      const prevSales = weeklySales[2];
-      const currentSales = weeklySales[3];
-      const salesChange = prevSales ? ((currentSales - prevSales) / prevSales) * 100 : 0;
+      const currentMonthSales = currentSales?.reduce((sum, inv) => sum + (Number(inv.InvoiceAmount) || 0), 0) || 0;
+      const lastMonthSales = lastSales?.reduce((sum, inv) => sum + (Number(inv.InvoiceAmount) || 0), 0) || 0;
+      const salesChange = lastMonthSales ? ((currentMonthSales - lastMonthSales) / lastMonthSales) * 100 : 0;
 
       setSalesKPI({
-        value: totalSales,
+        value: currentMonthSales,
         change: Math.round(salesChange * 10) / 10,
-        trendData: weeklySales
+        trendData: [currentMonthSales]
       });
 
-      // Fetch bank transactions for cash balance
-      const { data: bankData, error: bankError } = await supabase
-        .from('bank_transactions')
-        .select('amount, credit_debit_indicator, date')
-        .eq('user_id', user.id)
-        .gte('date', fourWeeksAgo.toISOString())
-        .order('date', { ascending: true });
-
-      if (bankError) throw bankError;
-
-      // Calculate weekly cash balances
-      let runningBalance = 0;
-      const weeklyBalances = Array(4).fill(0);
-      
-      bankData?.forEach(transaction => {
-        const amount = Number(transaction.amount) || 0;
-        runningBalance += transaction.credit_debit_indicator === 'credit' ? amount : -amount;
-        
-        const weekIndex = 3 - Math.floor((now.getTime() - new Date(transaction.date).getTime()) / (7 * 24 * 60 * 60 * 1000));
-        if (weekIndex >= 0 && weekIndex < 4) {
-          weeklyBalances[weekIndex] = runningBalance;
-        }
-      });
-
-      // Calculate cash balance change percentage
-      const prevBalance = weeklyBalances[2];
-      const currentBalance = weeklyBalances[3];
-      const balanceChange = prevBalance ? ((currentBalance - prevBalance) / prevBalance) * 100 : 0;
-
-      setCashKPI({
-        value: runningBalance,
-        change: Math.round(balanceChange * 10) / 10,
-        trendData: weeklyBalances
-      });
-
-      // Fetch vendor bills data
-      const { data: billsData, error: billsError } = await supabase
+      // Get this month's bills
+      const { data: currentBills, error: billsError } = await supabase
         .from('VendorInvoice')
-        .select('Amount, Date')
+        .select('Amount')
         .eq('user_id', user.id)
-        .gte('Date', fourWeeksAgo.toISOString())
-        .order('Date', { ascending: true });
+        .neq('Status', 'Cancelled')
+        .gte('Date', startOfMonth.toISOString())
+        .lte('Date', now.toISOString());
 
       if (billsError) throw billsError;
 
-      // Calculate weekly bills totals
-      const weeklyBills = Array(4).fill(0);
-      let totalBills = 0;
-      billsData?.forEach(bill => {
-        const weekIndex = 3 - Math.floor((now.getTime() - new Date(bill.Date).getTime()) / (7 * 24 * 60 * 60 * 1000));
-        if (weekIndex >= 0 && weekIndex < 4) {
-          weeklyBills[weekIndex] += Number(bill.Amount) || 0;
-          totalBills += Number(bill.Amount) || 0;
-        }
-      });
+      // Get last month's bills
+      const { data: lastBills } = await supabase
+        .from('VendorInvoice')
+        .select('Amount')
+        .eq('user_id', user.id)
+        .neq('Status', 'Cancelled')
+        .gte('Date', startOfLastMonth.toISOString())
+        .lte('Date', endOfLastMonth.toISOString());
 
-      // Calculate bills change percentage
-      const prevBills = weeklyBills[2];
-      const currentBills = weeklyBills[3];
-      const billsChange = prevBills ? ((currentBills - prevBills) / prevBills) * 100 : 0;
+      const currentMonthBills = currentBills?.reduce((sum, bill) => sum + (Number(bill.Amount) || 0), 0) || 0;
+      const lastMonthBills = lastBills?.reduce((sum, bill) => sum + (Number(bill.Amount) || 0), 0) || 0;
+      const billsChange = lastMonthBills ? ((currentMonthBills - lastMonthBills) / lastMonthBills) * 100 : 0;
 
       setBillsKPI({
-        value: totalBills,
+        value: currentMonthBills,
         change: Math.round(billsChange * 10) / 10,
-        trendData: weeklyBills
+        trendData: [currentMonthBills]
+      });
+
+      // Get new customers this month
+      const { data: currentCustomers, error: customersError } = await supabase
+        .from('Customer')
+        .select('id')
+        .eq('user_id', user.id)
+        .gte('created_at', startOfMonth.toISOString())
+        .lte('created_at', now.toISOString());
+
+      if (customersError) throw customersError;
+
+      // Get new customers last month
+      const { data: lastCustomers } = await supabase
+        .from('Customer')
+        .select('id')
+        .eq('user_id', user.id)
+        .gte('created_at', startOfLastMonth.toISOString())
+        .lte('created_at', endOfLastMonth.toISOString());
+
+      const currentMonthCustomers = currentCustomers?.length || 0;
+      const lastMonthCustomers = lastCustomers?.length || 0;
+      const customersChange = lastMonthCustomers ? ((currentMonthCustomers - lastMonthCustomers) / lastMonthCustomers) * 100 : 0;
+
+      setNewCustomersKPI({
+        value: currentMonthCustomers,
+        change: Math.round(customersChange * 10) / 10,
+        trendData: [currentMonthCustomers]
+      });
+
+      // Get current cash balance
+      const { data: transactions, error: transactionsError } = await supabase
+        .from('bank_transactions')
+        .select('amount, credit_debit_indicator')
+        .eq('user_id', user.id);
+
+      if (transactionsError) throw transactionsError;
+
+      const currentBalance = transactions?.reduce((balance, trans) => {
+        const amount = Number(trans.amount) || 0;
+        return balance + (trans.credit_debit_indicator === 'credit' ? amount : -amount);
+      }, 0) || 0;
+
+      // Calculate month-to-date change in cash balance
+      const monthStartBalance = transactions?.reduce((balance, trans) => {
+        if (new Date(trans.created_at) < startOfMonth) {
+          const amount = Number(trans.amount) || 0;
+          return balance + (trans.credit_debit_indicator === 'credit' ? amount : -amount);
+        }
+        return balance;
+      }, 0) || 0;
+
+      const cashChange = monthStartBalance ? ((currentBalance - monthStartBalance) / Math.abs(monthStartBalance)) * 100 : 0;
+
+      setCashKPI({
+        value: currentBalance,
+        change: Math.round(cashChange * 10) / 10,
+        trendData: [currentBalance]
       });
 
     } catch (err) {
@@ -166,6 +190,7 @@ const Dashboard: React.FC = () => {
         <SectionCards 
           salesKPI={salesKPI}
           billsKPI={billsKPI}
+          newCustomersKPI={newCustomersKPI}
           cashKPI={cashKPI}
           loading={loading}
         />

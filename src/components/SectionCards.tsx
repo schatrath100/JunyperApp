@@ -21,6 +21,11 @@ interface SectionCardsProps {
     change: number;
     trendData: number[];
   };
+  newCustomersKPI: {
+    value: number;
+    change: number;
+    trendData: number[];
+  };
   cashKPI: {
     value: number;
     change: number;
@@ -29,7 +34,7 @@ interface SectionCardsProps {
   loading?: boolean;
 }
 
-export function SectionCards({ salesKPI, billsKPI, cashKPI, loading }: SectionCardsProps) {
+export function SectionCards({ salesKPI, billsKPI, newCustomersKPI, cashKPI, loading }: SectionCardsProps) {
   if (loading) {
     return (
       <div className="grid grid-cols-4 gap-4">
@@ -132,32 +137,32 @@ export function SectionCards({ salesKPI, billsKPI, cashKPI, loading }: SectionCa
         <CardHeader>
           <CardDescription>New Customers</CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {salesKPI.trendData[salesKPI.trendData.length - 1]}
+            {newCustomersKPI.value}
           </CardTitle>
           <CardAction>
             <Badge variant="outline" className={`flex items-center gap-1 ${
-              salesKPI.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+              newCustomersKPI.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
             }`}>
-              {salesKPI.change >= 0 ? (
+              {newCustomersKPI.change >= 0 ? (
                 <TrendingUp className="h-3 w-3" />
               ) : (
                 <TrendingDown className="h-3 w-3" />
               )}
-              {salesKPI.change >= 0 ? '+' : ''}{salesKPI.change}%
+              {newCustomersKPI.change >= 0 ? '+' : ''}{newCustomersKPI.change}%
             </Badge>
           </CardAction>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
-            {salesKPI.change >= 0 ? 'Growing customer base' : 'Customer acquisition down'}
-            {salesKPI.change >= 0 ? (
+            {newCustomersKPI.change >= 0 ? 'Growing customer base' : 'Customer acquisition down'}
+            {newCustomersKPI.change >= 0 ? (
               <TrendingUp className="h-4 w-4 text-green-500" />
             ) : (
               <TrendingDown className="h-4 w-4 text-red-500" />
             )}
           </div>
           <div className="text-gray-500 dark:text-gray-400">
-            New customers this period
+            New customers this month
           </div>
         </CardFooter>
       </Card>
