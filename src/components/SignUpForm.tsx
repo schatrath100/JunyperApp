@@ -7,6 +7,10 @@ import { Alert } from './Alert';
 interface SignUpFormProps {
   onSubmit: (email: string, password: string) => Promise<void>;
   onLogin: () => void;
+  name: string;
+  phone: string;
+  onNameChange?: (name: string) => void;
+  onPhoneChange?: (phone: string) => void;
   loading: boolean;
   error: string | null;
 }
@@ -14,13 +18,15 @@ interface SignUpFormProps {
 export const SignUpForm: React.FC<SignUpFormProps> = ({
   onSubmit,
   onLogin,
+  name,
+  phone,
+  onNameChange,
+  onPhoneChange,
   loading,
   error
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +50,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
             id="name"
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => onNameChange?.(e.target.value)}
             placeholder="John Doe"
             required
           />
@@ -80,7 +86,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
             id="phone"
             type="tel"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => onPhoneChange?.(e.target.value)}
             placeholder="+1 (555) 000-0000"
           />
         </div>

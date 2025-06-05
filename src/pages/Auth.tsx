@@ -77,6 +77,8 @@ const Auth: React.FC = () => {
         <SignUpForm
           name={name}
           phone={phone}
+          onNameChange={setName}
+          onPhoneChange={setPhone}
           onSubmit={handleSubmit}
           onLogin={() => {
             setIsSignUp(false);
