@@ -154,33 +154,15 @@ const BankTransactionEditModal: React.FC<BankTransactionEditModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Type
               </label>
-              <select
-                value={formData.credit_debit_indicator}
-                onChange={(e) => setFormData({ ...formData, credit_debit_indicator: e.target.value as 'credit' | 'debit' })}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                required
-              >
-                <option value="credit">Credit</option>
-                <option value="debit">Debit</option>
-              </select>
+              <div className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-400">
+                {formData.credit_debit_indicator}
+              </div>
             </div>
           </div>
 
           <div className="mt-6 flex justify-end space-x-3">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              className="bg-black hover:bg-black/90 text-white"
-              disabled={loading}
-            >
-              {loading ? 'Saving...' : 'Save Changes'}
+            <Button variant="outline" onClick={onClose}>
+              Close
             </Button>
           </div>
         </form>
