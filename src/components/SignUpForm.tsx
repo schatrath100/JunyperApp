@@ -19,7 +19,6 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
   onSubmit,
   onLogin,
   name,
-  name,
   phone,
   onNameChange,
   onPhoneChange,
