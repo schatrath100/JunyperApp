@@ -60,14 +60,14 @@ export function SectionCards({ salesKPI, billsKPI, newCustomersKPI, cashKPI, loa
       <Card className="@container/card">
         <CardHeader>
           <CardDescription>Total Sales</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: 'USD',
-              maximumFractionDigits: 0
-            }).format(salesKPI.value)}
-          </CardTitle>
-          <CardAction>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+              {new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                maximumFractionDigits: 0
+              }).format(salesKPI.value)}
+            </CardTitle>
             <Badge variant="outline" className={`flex items-center gap-1 ${
               salesKPI.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
             }`}>
@@ -78,7 +78,7 @@ export function SectionCards({ salesKPI, billsKPI, newCustomersKPI, cashKPI, loa
               )}
               {salesKPI.change >= 0 ? '+' : ''}{salesKPI.change}%
             </Badge>
-          </CardAction>
+          </div>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
@@ -98,14 +98,14 @@ export function SectionCards({ salesKPI, billsKPI, newCustomersKPI, cashKPI, loa
       <Card className="@container/card">
         <CardHeader>
           <CardDescription>Total Bills</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: 'USD',
-              maximumFractionDigits: 0
-            }).format(billsKPI.value)}
-          </CardTitle>
-          <CardAction>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+              {new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                maximumFractionDigits: 0
+              }).format(billsKPI.value)}
+            </CardTitle>
             <Badge variant="outline" className={`flex items-center gap-1 ${
               billsKPI.change <= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
             }`}>
@@ -116,7 +116,7 @@ export function SectionCards({ salesKPI, billsKPI, newCustomersKPI, cashKPI, loa
               )}
               {billsKPI.change >= 0 ? '+' : ''}{billsKPI.change}%
             </Badge>
-          </CardAction>
+          </div>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
@@ -136,10 +136,10 @@ export function SectionCards({ salesKPI, billsKPI, newCustomersKPI, cashKPI, loa
       <Card className="@container/card">
         <CardHeader>
           <CardDescription>New Customers</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {newCustomersKPI.value}
-          </CardTitle>
-          <CardAction>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+              {newCustomersKPI.value}
+            </CardTitle>
             <Badge variant="outline" className={`flex items-center gap-1 ${
               newCustomersKPI.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
             }`}>
@@ -150,7 +150,7 @@ export function SectionCards({ salesKPI, billsKPI, newCustomersKPI, cashKPI, loa
               )}
               {newCustomersKPI.change >= 0 ? '+' : ''}{newCustomersKPI.change}%
             </Badge>
-          </CardAction>
+          </div>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
@@ -170,14 +170,14 @@ export function SectionCards({ salesKPI, billsKPI, newCustomersKPI, cashKPI, loa
       <Card className="@container/card">
         <CardHeader>
           <CardDescription>Cash Balance</CardDescription>
-          <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {new Intl.NumberFormat('en-US', {
-              style: 'currency',
-              currency: 'USD',
-              maximumFractionDigits: 0
-            }).format(cashKPI.value)}
-          </CardTitle>
-          <CardAction>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+              {new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                maximumFractionDigits: 0
+              }).format(cashKPI.value)}
+            </CardTitle>
             <Badge variant="outline" className={`flex items-center gap-1 ${
               cashKPI.change >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
             }`}>
@@ -188,7 +188,7 @@ export function SectionCards({ salesKPI, billsKPI, newCustomersKPI, cashKPI, loa
               )}
               {cashKPI.change >= 0 ? '+' : ''}{cashKPI.change}%
             </Badge>
-          </CardAction>
+          </div>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1.5 text-sm">
           <div className="line-clamp-1 flex gap-2 font-medium">
