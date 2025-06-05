@@ -22,8 +22,8 @@ const RecentActivity: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const startDate = new Date();
-      const previousStartDate = new Date();
+      let startDate = new Date();
+      let previousStartDate = new Date();
       let daysToSubtract = 1;
 
       // Get current user
@@ -33,14 +33,20 @@ const RecentActivity: React.FC = () => {
 
       switch (range) {
         case '7d':
+          startDate = new Date();
+          previousStartDate = new Date();
           startDate.setDate(startDate.getDate() - 7);
           daysToSubtract = 7;
           break;
         case '30d':
+          startDate = new Date();
+          previousStartDate = new Date();
           startDate.setDate(startDate.getDate() - 30);
           daysToSubtract = 30;
           break;
         default: // 1d
+          startDate = new Date();
+          previousStartDate = new Date();
           startDate.setHours(startDate.getHours() - 24);
           daysToSubtract = 1;
       }
