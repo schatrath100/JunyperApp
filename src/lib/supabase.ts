@@ -13,7 +13,7 @@ if (!supabaseKey) {
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
-    flowType: 'pkce',
+    flowType: 'implicit',
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
