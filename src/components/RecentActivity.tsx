@@ -88,7 +88,7 @@ const RecentActivity: React.FC = () => {
       if (customerError) throw customerError; */
 
       // Fetch new sales items count
-      const { count: itemCount, error: itemError } = await supabase
+     /* const { count: itemCount, error: itemError } = await supabase
         .from('SaleItems')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
@@ -101,7 +101,7 @@ const RecentActivity: React.FC = () => {
         .gte('created_at', previousStartDate.toISOString())
         .lt('created_at', previousEndDate.toISOString());
 
-      if (itemError) throw itemError;
+      if (itemError) throw itemError;*/
 
       // Fetch new invoices count
       const { count: invoiceCount, error: invoiceError } = await supabase
@@ -170,7 +170,7 @@ const RecentActivity: React.FC = () => {
           change: calculatePercentageChange(customerCount, previousCustomerCount || 0)
         });
       }*/
-
+/*
       if (itemCount && itemCount > 0) {
         newActivities.push({
           type: 'Sales Items',
@@ -178,7 +178,7 @@ const RecentActivity: React.FC = () => {
           previousCount: previousItemCount || 0,
           change: calculatePercentageChange(itemCount, previousItemCount || 0)
         });
-      }
+      }*/
 
       if (invoiceCount && invoiceCount > 0) {
         newActivities.push({
