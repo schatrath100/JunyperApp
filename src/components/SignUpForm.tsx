@@ -27,6 +27,11 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [localName, setLocalName] = useState(name);
+
+  useEffect(() => {
+    setLocalName(name);
+  }, [name]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,8 +59,11 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
           <Input
             id="name"
             type="text"
-            value={name}
-            onChange={(e) => onNameChange?.(e.target.value)}
+            value={localName}
+            onChange={(e) => {
+              setLocalName(e.target.value);
+              onNameChange?.(e.target.value);
+            }}
             placeholder="John Doe"
             required
           />
