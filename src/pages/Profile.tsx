@@ -113,16 +113,7 @@ const Profile: React.FC<ProfileProps> = ({ onAlert }) => {
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Profile</h1>
-        {!isEditing && (
-          <Button
-            variant="primary"
-            className="bg-black hover:bg-black/90 text-white"
-            onClick={() => setIsEditing(true)}
-          >
-            Edit Profile
-          </Button>
-        )}
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Profile</h1>        
       </div>
 
       {error && (
@@ -192,10 +183,10 @@ const Profile: React.FC<ProfileProps> = ({ onAlert }) => {
         </div>
 
         <div className={cn(
-          "px-6 py-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-b-lg",
-          !isEditing && "hidden"
+          "px-6 py-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-b-lg"
         )}>
-          <div className="flex space-x-4">
+          {isEditing ? (
+            <div className="flex space-x-4">
               <Button
                 variant="primary"
                 className="flex-1 bg-black hover:bg-black/90 text-white"
@@ -216,7 +207,18 @@ const Profile: React.FC<ProfileProps> = ({ onAlert }) => {
               >
                 Cancel
               </Button>
-          </div>
+            </div>
+          ) : (
+            <div className="flex justify-center">
+              <Button
+                variant="primary"
+                className="bg-black hover:bg-black/90 text-white"
+                onClick={() => setIsEditing(true)}
+              >
+                Edit Profile
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>
