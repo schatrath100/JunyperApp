@@ -113,6 +113,15 @@ const Profile: React.FC<ProfileProps> = ({ onAlert }) => {
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Profile</h1>
+        {!isEditing && (
+          <Button
+            variant="primary"
+            className="bg-black hover:bg-black/90 text-white"
+            onClick={() => setIsEditing(true)}
+          >
+            Edit Profile
+          </Button>
+        )}
       </div>
 
       {error && (
@@ -181,12 +190,15 @@ const Profile: React.FC<ProfileProps> = ({ onAlert }) => {
           </div>
         </div>
 
-        <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-b-lg">
+        <div className={cn(
+          "px-6 py-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-b-lg",
+          !isEditing && "hidden"
+        )}>
           {isEditing ? (
             <div className="flex space-x-4">
               <Button
                 variant="primary"
-                className="flex-1"
+                className="flex-1 bg-black hover:bg-black/90 text-white"
                 onClick={handleSave}
                 disabled={loading}
                 icon={<Save className="w-4 h-4" />}
@@ -205,14 +217,6 @@ const Profile: React.FC<ProfileProps> = ({ onAlert }) => {
                 Cancel
               </Button>
             </div>
-          ) : (
-            <Button
-              variant="primary"
-              className="w-full"
-              onClick={() => setIsEditing(true)}
-            >
-              Edit Profile
-            </Button>
           )}
         </div>
       </div>
