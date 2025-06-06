@@ -57,7 +57,15 @@ const Auth: React.FC = () => {
 
         console.log('Signup response:', { signUpData, error: signUpError });
 
-        if (signUpError) throw new Error(signUpError.message);
+        if (signUpError) {
+          // Check if the error is due to user already existing
+          if (signUpError.message.includes('User already registered') || 
+              signUpError.message.includes('already been registered') ||
+              signUpError.message.includes('email address is already registered')) {
+            throw new Error('A user with this email already exists. Please try logging in instead.');
+          }
+          throw new Error(signUpError.message);
+        }
         if (!signUpData.user) throw new Error('Failed to create account');
 
         setMessage('Please check your email to verify your account');
