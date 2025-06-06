@@ -21,11 +21,11 @@ const Greeting: React.FC<GreetingProps> = ({ name }) => {
           .from('accounting_settings')
           .select('time_zone, company_legal_name')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (error) throw error;
         if (data) {
-          setTimeZone(data.time_zone);
+          setTimeZone(data.time_zone || 'US/Eastern');
           setCompanyName(data.company_legal_name || '');
         }
       } catch (err) {
