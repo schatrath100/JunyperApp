@@ -20,12 +20,26 @@ const Auth: React.FC = () => {
     setError(null);
     setMessage(null);
     setLoading(true);
+    console.log('Signup form submitted with:', { email, name, phone });
 
     try {
       if (isSignUp) {
         if (!name.trim()) {
           throw new Error('Name is required');
         }
+
+        console.log('Creating user with data:', {
+          email,
+          password: '[REDACTED]',
+          options: {
+            data: {
+              full_name: name,
+              phone: phone || null,
+              email_verified: false,
+              admin_approved: false
+            }
+          }
+        });
 
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
@@ -40,6 +54,8 @@ const Auth: React.FC = () => {
             emailRedirectTo: `${window.location.origin}/verify`,
           }
         });
+
+        console.log('Signup response:', { signUpData, error: signUpError });
 
         if (signUpError) throw new Error(signUpError.message);
         if (!signUpData.user) throw new Error('Failed to create account');
@@ -65,6 +81,7 @@ const Auth: React.FC = () => {
         navigate('/');
       }
     } catch (err) {
+      console.error('Signup error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
