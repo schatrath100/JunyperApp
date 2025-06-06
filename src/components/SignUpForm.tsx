@@ -49,7 +49,7 @@ export const SignUpForm: React.FC<SignUpFormProps> = ({
       
       <form onSubmit={handleSubmit} className="space-y-3">
         {error && (
-          <div className="p-3 mb-4 text-sm text-red-800 rounded-lg bg-red-50\" role="alert">
+          <div className="p-3 mb-4 text-sm text-red-800 rounded-lg bg-red-50" role="alert">
             {error}
           </div>
         )}
