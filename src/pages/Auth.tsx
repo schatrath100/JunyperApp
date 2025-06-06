@@ -74,9 +74,7 @@ const Auth: React.FC = () => {
           throw new Error('Please verify your email before logging in.');
         }
 
-        if (!user?.user_metadata.admin_approved) {
-          throw new Error('Your account is pending admin approval.');
-        }
+        // Removed admin approval check to allow users to login after email verification
 
         navigate('/');
       }
