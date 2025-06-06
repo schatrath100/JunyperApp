@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { cn } from '../lib/utils';
 import Button from '../components/Button';
 import { supabase } from '../lib/supabase';
 import { Save, X } from 'lucide-react';
@@ -194,8 +195,7 @@ const Profile: React.FC<ProfileProps> = ({ onAlert }) => {
           "px-6 py-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 rounded-b-lg",
           !isEditing && "hidden"
         )}>
-          {isEditing ? (
-            <div className="flex space-x-4">
+          <div className="flex space-x-4">
               <Button
                 variant="primary"
                 className="flex-1 bg-black hover:bg-black/90 text-white"
@@ -216,8 +216,7 @@ const Profile: React.FC<ProfileProps> = ({ onAlert }) => {
               >
                 Cancel
               </Button>
-            </div>
-          )}
+          </div>
         </div>
       </div>
     </div>
