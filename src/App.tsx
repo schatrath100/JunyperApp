@@ -168,9 +168,9 @@ function App() {
     <BrowserRouter>
       {!session ? (
         <Routes>
-          <Route path="/auth" element={<Auth />} />
+          <Route path="/auth\" element={<Auth />} />
           <Route path="/verify" element={<VerifyEmail />} />
-          <Route path="*" element={<Navigate to="/auth" replace />} />
+          <Route path="*" element={<Navigate to="/auth\" replace />} />
         </Routes>
       ) : (
         <ShortcutBar items={shortcutItems}>
@@ -195,7 +195,7 @@ function App() {
                     path="/profile" 
                     element={<Profile onAlert={addAlert} />} 
                   />
-                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                  <Route path="*" element={<Navigate to="/dashboard\" replace />} />
                 </Routes>
               </main>
             </div>
