@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, BookOpen, ShoppingCart, Receipt, Bot, Settings, LogOut, Sparkles, ChevronDown, Users, FileText, Building2, ScrollText, Package, Boxes, BookOpenCheck, Wallet, Check, User2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutDashboard, BookOpen, ShoppingCart, Receipt, Bot, Settings, LogOut, ChevronDown, Users, FileText, Building2, ScrollText, Package, Boxes, BookOpenCheck, Wallet, User2, Search } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { cn } from '../lib/utils';
+import { ShortcutBarTriggerButton } from './ShortcutBar';
 
 interface SidebarProps {
-  onToggleShortcuts: () => void;
-  showShortcuts: boolean;
-  collapsed: boolean;
-  onToggleCollapse: () => void;
+  setNavigate: (navigate: (path: string) => void) => void;
 }
 
 interface AccountingSettings {
@@ -23,7 +21,6 @@ interface NavItemProps {
   onClick?: () => void;
   rightIcon?: React.ReactNode;
   className?: string;
-  collapsed?: boolean;
   isDashboard?: boolean;
 }
 
@@ -35,7 +32,6 @@ const NavItem: React.FC<NavItemProps> = ({
   rightIcon, 
   children, 
   className = '', 
-  collapsed,
   isDashboard 
 }) => {
   const handleClick = (e: React.MouseEvent) => {
@@ -57,11 +53,11 @@ const NavItem: React.FC<NavItemProps> = ({
         ${className}
       `}
       onClick={handleClick}
-      title={typeof label === 'string' ? label : "I'm Sydney—ask me anything about your books!"}
+      title={typeof label === 'string' ? label : undefined}
     >
-      <div className={`flex items-center ${collapsed ? 'justify-center w-8 h-8' : 'space-x-3'}`}>
+      <div className="flex items-center space-x-3">
         {icon}
-        {!collapsed && <span className="font-medium">{label}</span>}
+        <span className="font-medium">{label}</span>
       </div>
       {rightIcon}
     </button>
@@ -71,17 +67,19 @@ const NavItem: React.FC<NavItemProps> = ({
 };
 
 const Sidebar: React.FC<{
-  onToggleShortcuts: () => void;
-  showShortcuts: boolean;
-  collapsed: boolean;
-  onToggleCollapse: () => void;
-}> = ({ onToggleShortcuts, showShortcuts, collapsed, onToggleCollapse }) => {
+  setNavigate: (navigate: (path: string) => void) => void;
+}> = ({ setNavigate }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [salesOpen, setSalesOpen] = useState(false);
   const [purchasesOpen, setPurchasesOpen] = useState(false);
   const [companyName, setCompanyName] = useState<string>('');
   const [userName, setUserName] = useState<string>('');
+
+  // Pass navigate function to parent
+  useEffect(() => {
+    setNavigate(navigate);
+  }, [navigate, setNavigate]);
 
   useEffect(() => {
     const fetchCompanyName = async () => {
@@ -132,86 +130,74 @@ const Sidebar: React.FC<{
   }, []);
 
   return (
-    <aside className={`hidden md:flex flex-col ${collapsed ? 'w-16' : 'w-56'} bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 h-[calc(100vh-4rem)]`}>
+    <aside className="hidden md:flex flex-col w-56 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 h-[calc(100vh-4rem)]">
       {/* Workspace Selector */}
-      {!collapsed && (
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger asChild>
-              <button className="w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center justify-between">
-                <span className="truncate">{companyName}</span>
-                <ChevronDown className="w-4 h-4 ml-2" />
-              </button>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.Content
-                className="w-[var(--radix-dropdown-menu-trigger-width)] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 animate-in fade-in-0 zoom-in-95 min-w-[200px]"
-                align="start"
-                sideOffset={5}
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <button className="w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center justify-between">
+              <span className="truncate">{companyName}</span>
+              <ChevronDown className="w-4 h-4 ml-2" />
+            </button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              className="w-[var(--radix-dropdown-menu-trigger-width)] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 animate-in fade-in-0 zoom-in-95 min-w-[200px]"
+              align="start"
+              sideOffset={5}
+            >
+              <DropdownMenu.Item
+                className={cn(
+                  "relative flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 outline-none cursor-pointer",
+                  "hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors",
+                  "focus:bg-gray-100 dark:focus:bg-gray-700"
+                )}
+                onClick={() => navigate('/settings')}
               >
-                <DropdownMenu.Item
-                  className={cn(
-                    "relative flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 outline-none cursor-pointer",
-                    "hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors",
-                    "focus:bg-gray-100 dark:focus:bg-gray-700"
-                  )}
-                  onClick={() => navigate('/settings')}
-                >
-                  <Settings className="w-4 h-4 mr-2" />
-                  <span>Company Settings</span>
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Root>
-        </div>
-      )}
+                <Settings className="w-4 h-4 mr-2" />
+                <span>Company Settings</span>
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      </div>
       
       <div className="flex flex-col h-full overflow-hidden">
         <div className="flex-1 p-4 overflow-y-auto">
           <div className="space-y-1">
             <div className="mb-1">
-              <NavItem
-                icon={<Sparkles className={`w-5 h-5 transition-colors duration-150 ${showShortcuts ? 'text-green-600 dark:text-green-400' : ''}`} />}
-                label={collapsed ? "" : "Shortcuts"}
-                active={false}
-                onClick={onToggleShortcuts}
-                className="w-full"
-                collapsed={collapsed}
-              />
+              <ShortcutBarTriggerButton />
             </div>
             <NavItem 
               icon={<LayoutDashboard className="w-5 h-5" />} 
-              label={collapsed ? "" : "Dashboard"}
+              label="Dashboard"
               active={location.pathname === '/dashboard'} 
               onClick={() => {
                 if (location.pathname === '/dashboard') {
-                  onToggleCollapse();
+                  // Do nothing or add some dashboard-specific action
                 } else {
                   navigate('/dashboard');
                 }
               }}
               className="cursor-pointer"
-              collapsed={collapsed}
               isDashboard={true}
             />
             <NavItem 
               icon={<BookOpen className="w-5 h-5" />} 
-              label={collapsed ? "" : "Accounts"}
+              label="Accounts"
               active={location.pathname === '/accounts'} 
               onClick={() => navigate('/accounts')}
-              collapsed={collapsed}
             />
             <NavItem 
               icon={<ShoppingCart className="w-5 h-5" />} 
-              label={collapsed ? "" : "Sales"}
+              label="Sales"
               active={location.pathname.startsWith('/sales')}
               onClick={() => setSalesOpen(!salesOpen)}
-              rightIcon={!collapsed && (
+              rightIcon={(
                 <ChevronDown className={`w-4 h-4 transition-transform ${salesOpen ? 'transform rotate-180' : ''}`} />
               )}
-              collapsed={collapsed}
             >
-              {salesOpen && !collapsed && (
+              {salesOpen && (
                 <div className="ml-6 space-y-1 mt-1">
                   <button
                     className={`
@@ -257,15 +243,14 @@ const Sidebar: React.FC<{
             </NavItem>
             <NavItem 
               icon={<Receipt className="w-5 h-5" />} 
-              label={collapsed ? "" : "Purchases"}
+              label="Purchases"
               active={location.pathname.startsWith('/purchases')}
               onClick={() => setPurchasesOpen(!purchasesOpen)}
-              rightIcon={!collapsed && (
+              rightIcon={(
                 <ChevronDown className={`w-4 h-4 transition-transform ${purchasesOpen ? 'transform rotate-180' : ''}`} />
               )}
-              collapsed={collapsed}
             >
-              {purchasesOpen && !collapsed && (
+              {purchasesOpen && (
                 <div className="ml-6 space-y-1 mt-1">
                   <button
                     className={`
@@ -312,7 +297,7 @@ const Sidebar: React.FC<{
             <NavItem 
               icon={<Bot className="w-5 h-5" />} 
               label={
-                collapsed ? "" : <div className="flex items-center">
+                <div className="flex items-center">
                   <span className="font-medium italic font-bold text-teal-600 dark:text-teal-400">Sydney AI</span>
                   <span className="ml-2 px-1.5 py-0.5 text-xs bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 rounded-full">New</span>
                 </div>
@@ -320,83 +305,77 @@ const Sidebar: React.FC<{
               active={location.pathname === '/sydney-ai'}
               onClick={() => navigate('/sydney-ai')}
               className="group hover:scale-105 transition-transform [&>button>div>*:first-child]:text-teal-600 dark:[&>button>div>*:first-child]:text-teal-400"
-              collapsed={collapsed}
             />
             <NavItem 
               icon={<BookOpenCheck className="w-5 h-5" />} 
-              label={collapsed ? "" : "Journals"}
+              label="Journals"
               active={location.pathname === '/journals'} 
               onClick={() => navigate('/journals')}
-              collapsed={collapsed}
             />
             <NavItem 
               icon={<Wallet className="w-5 h-5" />} 
-              label={collapsed ? "" : "Banking"}
+              label="Banking"
               active={location.pathname === '/bank-transactions'}
               onClick={() => navigate('/bank-transactions')} 
-              collapsed={collapsed}
             />
             <NavItem 
               icon={<LogOut className="w-5 h-5" />} 
-              label={collapsed ? "" : "Logout"}
+              label="Logout"
               onClick={async () => {
                 await supabase.auth.signOut();
                 navigate('/auth');
               }}
               className="mt-2 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-              collapsed={collapsed}
             />
           </div>
         </div>
       </div>
       
       {/* Footer */}
-      {!collapsed && (
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger asChild>
-              <button className="w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center">
-                <User2 className="w-4 h-4 mr-2" />
-                <span className="truncate">{userName}</span>
-                <ChevronDown className="w-4 h-4 ml-auto" />
-              </button>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.Content
-                className="w-[var(--radix-dropdown-menu-trigger-width)] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 animate-in fade-in-0 zoom-in-95"
-                align="end"
-                side="top"
-                sideOffset={5}
+      <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger asChild>
+            <button className="w-full px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-800 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex items-center">
+              <User2 className="w-4 h-4 mr-2" />
+              <span className="truncate">{userName}</span>
+              <ChevronDown className="w-4 h-4 ml-auto" />
+            </button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content
+              className="w-[var(--radix-dropdown-menu-trigger-width)] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 animate-in fade-in-0 zoom-in-95"
+              align="end"
+              side="top"
+              sideOffset={5}
+            >
+              <DropdownMenu.Item
+                className={cn(
+                  "relative flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 outline-none cursor-pointer",
+                  "hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors",
+                  "focus:bg-gray-100 dark:focus:bg-gray-700"
+                )}
+                onClick={() => navigate('/profile')}
               >
-                <DropdownMenu.Item
-                  className={cn(
-                    "relative flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 outline-none cursor-pointer",
-                    "hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors",
-                    "focus:bg-gray-100 dark:focus:bg-gray-700"
-                  )}
-                  onClick={() => navigate('/profile')}
-                >
-                  <span>Account</span>
-                </DropdownMenu.Item>
-                <DropdownMenu.Separator className="h-px my-1 bg-gray-200 dark:bg-gray-700" />
-                <DropdownMenu.Item
-                  className={cn(
-                    "relative flex items-center px-3 py-2 text-sm text-red-600 dark:text-red-400 outline-none cursor-pointer",
-                    "hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors",
-                    "focus:bg-red-50 dark:focus:bg-red-900/20"
-                  )}
-                  onClick={async () => {
-                    await supabase.auth.signOut();
-                    navigate('/auth');
-                  }}
-                >
-                  <span>Sign out</span>
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Root>
-        </div>
-      )}
+                <span>Account</span>
+              </DropdownMenu.Item>
+              <DropdownMenu.Separator className="h-px my-1 bg-gray-200 dark:bg-gray-700" />
+              <DropdownMenu.Item
+                className={cn(
+                  "relative flex items-center px-3 py-2 text-sm text-red-600 dark:text-red-400 outline-none cursor-pointer",
+                  "hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors",
+                  "focus:bg-red-50 dark:focus:bg-red-900/20"
+                )}
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  navigate('/auth');
+                }}
+              >
+                <span>Sign out</span>
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
+      </div>
     </aside>
   );
 };
