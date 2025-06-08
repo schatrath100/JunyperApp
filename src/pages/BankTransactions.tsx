@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet, PlusCircle, Pencil, Trash2 } from 'lucide-react';
+import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet, PlusCircle, Pencil, Search, Trash2 } from 'lucide-react';
 import Button from '../components/Button';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -301,13 +301,11 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
         <Table>
           <TableHeader>
             <TableRow>
-              <FilterableTableHead
-                label="Date"
-                filterKey="dateFrom"
-                filterValue={filters.dateFrom}
-                filterType="date"
-                onFilterChange={handleFilterChange}
-              />
+              <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                  Date
+                </span>
+              </th>
               <FilterableTableHead
                 label="Bank Name"
                 filterKey="bankName"
@@ -378,11 +376,14 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
                 <TableCell>
                   <div className="flex space-x-2">
                     <button
-                      onClick={() => handleEdit(transaction)}
+                      onClick={() => {
+                        setSelectedTransaction(transaction);
+                        setShowViewModal(true);
+                      }}
                       className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                      title="Edit transaction"
+                      title="View details"
                     >
-                      <Pencil className="w-4 h-4" />
+                      <Search className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => {
