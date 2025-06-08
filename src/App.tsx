@@ -19,6 +19,7 @@ import Sidebar from './components/Sidebar';
 import ShortcutPanel from './components/ShortcutPanel';
 import { supabase } from './lib/supabase';
 import { Alert } from './components/Alert';
+import SydneyAI from './pages/SydneyAI';
 
 function App() {
   const mainRef = React.useRef<HTMLDivElement>(null);
@@ -27,6 +28,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+
   const addAlert = (message: string, type: Alert['type'] = 'info') => {
     const newAlert: Alert = {
       id: Math.random().toString(36).substr(2, 9),
@@ -44,8 +46,6 @@ function App() {
   }, []);
 
   const handleMainClick = (e: React.MouseEvent) => {
-    // Close if clicking on the main element or any of its direct children
-    // that aren't inside the shortcut panel
     if (showShortcuts && mainRef.current?.contains(e.target as Node)) {
       setShowShortcuts(false);
     }
@@ -65,6 +65,10 @@ function App() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const toggleShortcuts = () => {
+    setShowShortcuts(prev => !prev);
+  };
 
   if (loading) {
     return (
@@ -87,7 +91,7 @@ function App() {
           <Navbar alerts={alerts} onDismiss={(id) => setAlerts(prev => prev.filter(a => a.id !== id))} />
           <div className="flex flex-1">
             <Sidebar 
-              onToggleShortcuts={() => setShowShortcuts(!showShortcuts)} 
+              onToggleShortcuts={toggleShortcuts} 
               showShortcuts={showShortcuts}
               collapsed={sidebarCollapsed}
               onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -100,24 +104,23 @@ function App() {
               <Routes>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/accounts" element={<Accounts />} />
+                <Route path="/sales" element={<Sales />} />
+                <Route path="/sales/invoices" element={<Sales />} />
                 <Route path="/journals" element={<Journals />} />
-                <Route path="/sales/customers" element={<Customers />} />
-                <Route path="/sales/invoices" element={<Sales onAlert={addAlert} />} />
                 <Route path="/sales/items" element={<SalesItems />} />
+                <Route path="/sales/customers" element={<Customers />} />
+                <Route path="/bank-transactions" element={<BankTransactions />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="/purchases/items" element={<PurchaseItems />} />
                 <Route path="/purchases/vendors" element={<Vendors />} />
                 <Route path="/purchases/bills" element={<VendorBills />} />
-                <Route path="/bank-transactions" element={<BankTransactions onAlert={addAlert} />} />
-                <Route path="/purchases/items" element={<PurchaseItems />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route 
-                  path="/profile" 
-                  element={<Profile onAlert={addAlert} />} 
-                />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/profile" element={<Profile />} />
+                <Route path="/sydney-ai" element={<SydneyAI />} />
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </main>
-            {showShortcuts && <ShortcutPanel />}
           </div>
+          <ShortcutPanel isOpen={showShortcuts} onClose={toggleShortcuts} />
         </div>
       )}
     </BrowserRouter>

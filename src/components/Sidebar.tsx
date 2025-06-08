@@ -169,16 +169,6 @@ const Sidebar: React.FC<{
       <div className="flex flex-col h-full overflow-hidden">
         <div className="flex-1 p-4 overflow-y-auto">
           <div className="space-y-1">
-            <div className="mb-1">
-              <NavItem
-                icon={<Sparkles className={`w-5 h-5 transition-colors duration-150 ${showShortcuts ? 'text-green-600 dark:text-green-400' : ''}`} />}
-                label={collapsed ? "" : "Shortcuts"}
-                active={false}
-                onClick={onToggleShortcuts}
-                className="w-full"
-                collapsed={collapsed}
-              />
-            </div>
             <NavItem 
               icon={<LayoutDashboard className="w-5 h-5" />} 
               label={collapsed ? "" : "Dashboard"}

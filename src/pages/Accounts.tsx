@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, RefreshCw, X, Pencil, Wallet, TrendingUp, TrendingDown, Building2, Landmark } from 'lucide-react';
+import { Plus, RefreshCw, X, Pencil, Wallet, TrendingUp, TrendingDown, Building2, Landmark, Trash2 } from 'lucide-react';
 import Button from '../components/Button';
 import { cn } from '../lib/utils';
 
@@ -48,6 +48,7 @@ const ACCOUNT_TYPES = [
 ];
 
 const Accounts: React.FC = () => {
+  const [selectedType, setSelectedType] = useState('Revenue');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,8 +65,8 @@ const Accounts: React.FC = () => {
   const [editingAccountId, setEditingAccountId] = useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [selectedType, setSelectedType] = useState('Revenue');
   const [errors, setErrors] = useState<Record<string, string>>({});
+
   const { sortedItems: sortedAccounts, sortConfig, requestSort } = useTableSort(
     accounts.filter(account => account.account_type === selectedType),
     { key: 'created_at', direction: 'desc' }
@@ -86,6 +87,7 @@ const Accounts: React.FC = () => {
       const { data, error } = await supabase
         .from('Account')
         .select('*')
+        .eq('account_type', selectedType)
         .order('id');
 
       if (error) {
@@ -105,8 +107,8 @@ const Accounts: React.FC = () => {
   const handleEdit = (account: Account) => {
     setFormData({
       account_name: account.account_name,
-      account_type: account.account_type,
       account_group: account.account_group,
+      account_type: account.account_type,
       account_description: account.account_description,
     });
     setEditingAccountId(account.id);
@@ -118,16 +120,13 @@ const Accounts: React.FC = () => {
     setFormError(null);
     setErrors({});
     
-    // Validate all fields
+    // Only validate description field
     const newErrors: Record<string, string> = {};
-    if (!formData.account_name.trim()) newErrors.account_name = 'Account Name is required';
-    if (!formData.account_type) newErrors.account_type = 'Account Type is required';
-    if (!formData.account_group.trim()) newErrors.account_group = 'Account Group is required';
     if (!formData.account_description.trim()) newErrors.account_description = 'Description is required';
     
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      setFormError('Please fill in all required fields');
+      setFormError('Please provide a description');
       return;
     }
 
@@ -140,25 +139,13 @@ const Accounts: React.FC = () => {
       if (!user) throw new Error('You must be logged in to manage accounts');
 
       if (editingAccountId) {
-        // Update existing account
+        // Update only the description field
         const { error: updateError } = await supabase
           .from('Account')
-          .update(formData)
+          .update({ account_description: formData.account_description })
           .eq('id', editingAccountId);
 
         if (updateError) throw updateError;
-      } else {
-        // Create new account
-        const { error: insertError } = await supabase
-          .from('Account')
-          .insert([
-            {
-              ...formData,
-              user_id: user.id,
-            },
-          ]);
-
-        if (insertError) throw insertError;
       }
 
       // Reset form and close panel
@@ -179,55 +166,20 @@ const Accounts: React.FC = () => {
     }
   };
 
-  const handleDelete = async () => {
-    if (!editingAccountId) return;
-    
+  const handleDelete = async (accountId: number) => {
     try {
       setDeleteLoading(true);
-      setFormError(null);
-      setError(null);
-
-      // Get the user for verification
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
-      if (!user) throw new Error('You must be logged in to delete accounts');
-
-      // First verify the account exists and belongs to the user
-      const { data: account, error: fetchError } = await supabase
-        .from('Account')
-        .select('user_id')
-        .eq('id', editingAccountId)
-        .single();
-
-      if (fetchError) throw fetchError;
-      if (!account) throw new Error('Account not found');
-      if (account.user_id !== user.id) throw new Error('You can only delete your own accounts');
-
-      const { error: deleteError } = await supabase
+      const { error } = await supabase
         .from('Account')
         .delete()
-        .eq('id', editingAccountId)
-        .eq('user_id', user.id);
+        .eq('id', accountId);
 
-      if (deleteError) throw deleteError;
-
-      // Reset form and close panel after successful deletion
-      setIsFormOpen(false);
-      setEditingAccountId(null);
-      setFormData({
-        account_name: '',
-        account_group: '',
-        account_type: '',
-        account_description: '',
-      });
+      if (error) throw error;
       await fetchAccounts();
       setShowDeleteConfirm(false);
     } catch (err) {
       console.error('Error deleting account:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to delete account';
-      setFormError(errorMessage);
-      setError(errorMessage);
-      setShowDeleteConfirm(false);
+      setError(err instanceof Error ? err.message : 'Failed to delete account');
     } finally {
       setDeleteLoading(false);
     }
@@ -235,7 +187,7 @@ const Accounts: React.FC = () => {
 
   useEffect(() => {
     fetchAccounts();
-  }, []);
+  }, [selectedType]);
 
   return (
     <div className="p-8 font-inter">
@@ -300,212 +252,196 @@ const Accounts: React.FC = () => {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
         </div> 
       ) : (
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead onClick={() => requestSort('account_name')} className="cursor-pointer">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-700 border-b-4 border-gray-200 dark:border-gray-600">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Account Name
-                  </TableHead>
-                  <TableHead onClick={() => requestSort('account_type')} className="cursor-pointer">
-                    Account Type
-                  </TableHead>
-                  <TableHead onClick={() => requestSort('account_group')} className="cursor-pointer">
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Group
-                  </TableHead>
-                  <TableHead onClick={() => requestSort('account_description')} className="cursor-pointer">
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                     Description
-                  </TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {sortedAccounts.map((account) => (
-                  <TableRow key={account.id}>
-                    <TableCell>
-                      <div className="text-sm leading-5 font-medium text-gray-900 dark:text-white">{account.account_name}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm leading-5 text-gray-500 dark:text-gray-400">{account.account_type || '-'}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm leading-5 text-gray-500 dark:text-gray-400">{account.account_group || '-'}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm leading-5 text-gray-500 dark:text-gray-400">{account.account_description || '-'}</div>
-                    </TableCell>
-                    <TableCell>
+                  <tr key={account.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                      {account.account_name}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {account.account_type}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {account.account_group}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      {account.account_description}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <button
                         onClick={() => handleEdit(account)}
-                        className="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-all duration-200 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                       >
                         <Pencil className="w-4 h-4" />
                       </button>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 ))}
-                {accounts.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center">
-                      No accounts found. Click "New Account" to add one.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
       {/* Sliding Form Panel */}
-      <div className={`fixed inset-y-0 right-0 w-[480px] bg-white dark:bg-gray-900 shadow-xl transform transition-transform duration-300 ease-in-out ${isFormOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-        <div className="h-full flex flex-col">
-          <div className="px-8 py-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white tracking-tight">
-              {editingAccountId ? 'Edit Account' : 'New Account'}
-            </h2>
-            <button
-              onClick={() => {
-                setIsFormOpen(false);
-                setEditingAccountId(null);
-                setFormError(null);
-              }}
-              className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-all duration-200 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-8 py-6">
-            {formError && (
-              <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 text-sm">
-                {formError}
-              </div>
-            )}
-
-            <div className="space-y-6">
-              <div>
-                <label htmlFor="account_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Account Name *
-                </label>
-                <input
-                  type="text"
-                  id="account_name"
-                  value={formData.account_name}
-                  onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
-                  className={cn(
-                    "w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white text-sm leading-5 transition-shadow duration-200 hover:border-gray-400 dark:hover:border-gray-600",
-                    errors.account_name && "border-red-500 focus:ring-red-500"
-                  )}
-                  placeholder="Enter account name"
-                />
-                {errors.account_name && (
-                  <p className="mt-1 text-sm text-red-500">{errors.account_name}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="account_type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Account Type *
-                </label>
-                <select
-                  id="account_type"
-                  value={formData.account_type}
-                  onChange={(e) => setFormData({ ...formData, account_type: e.target.value })}
-                  className={cn(
-                    "w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white text-sm leading-5 transition-shadow duration-200 hover:border-gray-400 dark:hover:border-gray-600",
-                    errors.account_type && "border-red-500 focus:ring-red-500"
-                  )}
-                >
-                  <option value="">Select account type</option>
-                  {ACCOUNT_TYPES.map((type) => (
-                    <option key={type} value={type}>{type}</option>
-                  ))}
-                </select>
-                {errors.account_type && (
-                  <p className="mt-1 text-sm text-red-500">{errors.account_type}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="account_group" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Account Group *
-                </label>
-                <input
-                  type="text"
-                  id="account_group"
-                  value={formData.account_group}
-                  onChange={(e) => setFormData({ ...formData, account_group: e.target.value })}
-                  className={cn(
-                    "w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white text-sm leading-5 transition-shadow duration-200 hover:border-gray-400 dark:hover:border-gray-600",
-                    errors.account_group && "border-red-500 focus:ring-red-500"
-                  )}
-                  placeholder="Enter account group"
-                />
-                {errors.account_group && (
-                  <p className="mt-1 text-sm text-red-500">{errors.account_group}</p>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="account_description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Description *
-                </label>
-                <textarea
-                  id="account_description"
-                  value={formData.account_description}
-                  onChange={(e) => setFormData({ ...formData, account_description: e.target.value })}
-                  rows={4}
-                  className={cn(
-                    "w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white text-sm leading-5 transition-shadow duration-200 hover:border-gray-400 dark:hover:border-gray-600",
-                    errors.account_description && "border-red-500 focus:ring-red-500"
-                  )}
-                  placeholder="Enter account description"
-                />
-                {errors.account_description && (
-                  <p className="mt-1 text-sm text-red-500">{errors.account_description}</p>
-                )}
-              </div>
-            </div>
-          </form>
-
-          <div className="px-8 py-6 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-            <div className="flex space-x-3">
-              {editingAccountId && (
-                <Button
-                  variant="primary"
-                  className="flex-1 !bg-red-500 hover:!bg-red-600"
-                  onClick={() => setShowDeleteConfirm(true)}
-                  disabled={saving || deleteLoading}
-                >
-                  Delete Account
-                </Button>
-              )}
-              <Button
-                variant="primary"
-                className="flex-1 bg-black hover:bg-black/90 text-white"
-                onClick={handleSubmit}
-                disabled={saving || deleteLoading}
-              >
-                {saving ? 'Saving...' : (editingAccountId ? 'Save Changes' : 'Save Account')}
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1"
+      {isFormOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                {editingAccountId ? 'Edit Account Description' : 'New Account'}
+              </h2>
+              <button
                 onClick={() => {
                   setIsFormOpen(false);
                   setEditingAccountId(null);
-                  setFormError(null);
+                  setFormData({
+                    account_name: '',
+                    account_group: '',
+                    account_type: '',
+                    account_description: '',
+                  });
                 }}
-                disabled={saving}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
               >
-                Cancel
-              </Button>
+                <X className="w-5 h-5" />
+              </button>
             </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {editingAccountId ? (
+                <>
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Account Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.account_name}
+                      disabled
+                      className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md text-gray-500 dark:text-gray-400"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Account Type
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.account_type}
+                      disabled
+                      className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md text-gray-500 dark:text-gray-400"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Account Group
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.account_group}
+                      disabled
+                      className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md text-gray-500 dark:text-gray-400"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div>
+                  <label htmlFor="account_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Account Name *
+                  </label>
+                  <input
+                    type="text"
+                    id="account_name"
+                    value={formData.account_name}
+                    onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
+                    className={cn(
+                      "w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white text-sm leading-5 transition-shadow duration-200 hover:border-gray-400 dark:hover:border-gray-600",
+                      errors.account_name && "border-red-500 focus:ring-red-500"
+                    )}
+                    placeholder="Enter account name"
+                  />
+                  {errors.account_name && (
+                    <p className="mt-1 text-sm text-red-500">{errors.account_name}</p>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Description {!editingAccountId && <span className="text-red-500">*</span>}
+                </label>
+                <textarea
+                  value={formData.account_description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, account_description: e.target.value }))}
+                  className={cn(
+                    "w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500",
+                    errors.account_description
+                      ? "border-red-500 dark:border-red-500"
+                      : "border-gray-300 dark:border-gray-700",
+                    "bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  )}
+                  rows={3}
+                  placeholder="Enter account description"
+                />
+                {errors.account_description && (
+                  <p className="text-sm text-red-500">{errors.account_description}</p>
+                )}
+              </div>
+
+              {formError && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-md text-red-700 dark:text-red-400">
+                  {formError}
+                </div>
+              )}
+
+              <div className="flex justify-end space-x-3">
+                {editingAccountId && (
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(true)}
+                    className="px-4 py-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
+                    disabled={saving || deleteLoading}
+                  >
+                    Delete
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
+                  disabled={saving || deleteLoading}
+                >
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
-      </div>
+      )}
       
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
@@ -529,7 +465,7 @@ const Accounts: React.FC = () => {
               <Button
                 variant="primary"
                 className="flex-1 !bg-red-500 hover:!bg-red-600"
-                onClick={handleDelete}
+                onClick={() => handleDelete(editingAccountId as number)}
                 disabled={deleteLoading}
               >
                 {deleteLoading ? 'Deleting...' : 'Delete'}

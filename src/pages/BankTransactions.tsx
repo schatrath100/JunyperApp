@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet, PlusCircle, Pencil, Search, Trash2 } from 'lucide-react';
+import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet, PlusCircle, Pencil, Search, Trash2, ChevronDown, Sun, Moon, Bell, User } from 'lucide-react';
 import Button from '../components/Button';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -49,6 +49,15 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<BankTransaction | null>(null);
+  const [showBankFilter, setShowBankFilter] = useState(false);
+  const [showDescriptionFilter, setShowDescriptionFilter] = useState(false);
+  const [showAmountFilter, setShowAmountFilter] = useState(false);
+  const [showAccountFilter, setShowAccountFilter] = useState(false);
+  const [showTypeFilter, setShowTypeFilter] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   const exportToPDF = () => {
     const doc = new jsPDF();
@@ -235,6 +244,19 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     fetchTransactions();
   }, [filters, currentPage, pageSize]);
 
+  useEffect(() => {
+    const testConnection = async () => {
+      try {
+        const { data, error } = await supabase.from('bank_transactions').select('*').limit(1);
+        if (error) throw error;
+        console.log('Supabase connection successful:', data);
+      } catch (error) {
+        console.error('Supabase connection error:', error);
+      }
+    };
+    testConnection();
+  }, []);
+
   const totalPages = Math.ceil(totalCount / pageSize);
 
   const handlePageChange = (page: number) => {
@@ -268,7 +290,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
           </span>
           <Button
             variant="default"
-            className="bg-black hover:bg-black/90 text-white"
+            className="bg-black hover:bg-black/90 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5"
             onClick={() => setShowUploadModal(true)}
             icon={<Upload className="w-4 h-4" />}
           >
@@ -302,48 +324,144 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
           <TableHeader>
             <TableRow>
               <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
-                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
                   Date
                 </span>
               </th>
-              <FilterableTableHead
-                label="Bank Name"
-                filterKey="bankName"
-                filterValue={filters.bankName}
-                onFilterChange={handleFilterChange}
-              />
-              <FilterableTableHead
-                label="Description"
-                filterKey="description"
-                filterValue={filters.description}
-                onFilterChange={handleFilterChange}
-              />
-              <FilterableTableHead
-                label="Amount"
-                filterKey="amountMin"
-                filterValue={filters.amountMin}
-                filterType="number"
-                onFilterChange={handleFilterChange}
-              />
-              <FilterableTableHead
-                label="Account Number"
-                filterKey="accountNumber"
-                filterValue={filters.accountNumber}
-                onFilterChange={handleFilterChange}
-              />
-              <FilterableTableHead
-                label="Type"
-                filterKey="type"
-                filterValue={filters.type}
-                filterType="select"
-                selectOptions={[
-                  { value: 'credit', label: 'Credit' },
-                  { value: 'debit', label: 'Debit' }
-                ]}
-                onFilterChange={handleFilterChange}
-              />
+              <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
+                <div className="flex items-center space-x-1">
+                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                    Bank name
+                  </span>
+                  <button
+                    onClick={() => setShowBankFilter(!showBankFilter)}
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+                {showBankFilter && (
+                  <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                    <div className="p-2">
+                      <input
+                        type="text"
+                        value={filters.bankName}
+                        onChange={(e) => handleFilterChange('bankName', e.target.value)}
+                        placeholder="Filter bank..."
+                        className="w-full px-2 py-1 text-sm border rounded-md"
+                      />
+                    </div>
+                  </div>
+                )}
+              </th>
+              <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
+                <div className="flex items-center space-x-1">
+                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                    Description
+                  </span>
+                  <button
+                    onClick={() => setShowDescriptionFilter(!showDescriptionFilter)}
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+                {showDescriptionFilter && (
+                  <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                    <div className="p-2">
+                      <input
+                        type="text"
+                        value={filters.description}
+                        onChange={(e) => handleFilterChange('description', e.target.value)}
+                        placeholder="Filter description..."
+                        className="w-full px-2 py-1 text-sm border rounded-md"
+                      />
+                    </div>
+                  </div>
+                )}
+              </th>
+              <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
+                <div className="flex items-center space-x-1">
+                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                    Amount
+                  </span>
+                  <button
+                    onClick={() => setShowAmountFilter(!showAmountFilter)}
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+                {showAmountFilter && (
+                  <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                    <div className="p-2">
+                      <input
+                        type="number"
+                        value={filters.amountMin}
+                        onChange={(e) => handleFilterChange('amountMin', e.target.value)}
+                        placeholder="Min amount..."
+                        className="w-full px-2 py-1 text-sm border rounded-md"
+                      />
+                    </div>
+                  </div>
+                )}
+              </th>
+              <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
+                <div className="flex items-center space-x-1">
+                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                    Account number
+                  </span>
+                  <button
+                    onClick={() => setShowAccountFilter(!showAccountFilter)}
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+                {showAccountFilter && (
+                  <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                    <div className="p-2">
+                      <input
+                        type="text"
+                        value={filters.accountNumber}
+                        onChange={(e) => handleFilterChange('accountNumber', e.target.value)}
+                        placeholder="Filter account..."
+                        className="w-full px-2 py-1 text-sm border rounded-md"
+                      />
+                    </div>
+                  </div>
+                )}
+              </th>
+              <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
+                <div className="flex items-center space-x-1">
+                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                    Type
+                  </span>
+                  <button
+                    onClick={() => setShowTypeFilter(!showTypeFilter)}
+                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+                {showTypeFilter && (
+                  <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                    <div className="p-2">
+                      <select
+                        value={filters.type}
+                        onChange={(e) => handleFilterChange('type', e.target.value)}
+                        className="w-full px-2 py-1 text-sm border rounded-md"
+                      >
+                        <option value="">All</option>
+                        <option value="credit">Credit</option>
+                        <option value="debit">Debit</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+              </th>
               <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
-                <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
                   Actions
                 </span>
               </th>
@@ -352,7 +470,15 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
           <TableBody>
             {transactions.map((transaction) => (
               <TableRow key={transaction.id}>
-                <TableCell>{new Date(transaction.date).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  <span className="text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                    {new Date(transaction.date).toLocaleDateString('en-US', { 
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </span>
+                </TableCell>
                 <TableCell>{transaction.bank_name}</TableCell>
                 <TableCell>{transaction.description}</TableCell>
                 <TableCell>

@@ -12,6 +12,8 @@ interface Customer {
   Customer_Email: string;
   Customer_address: string;
   Customer_Phone: string;
+  Customer_TaxID?: string;
+  Customer_PaymentTerms?: string;
   OutstandingAmount?: number;
 }
 
@@ -43,7 +45,8 @@ const Customers: React.FC = () => {
           Customer_Email,
           Customer_address,
           Customer_Phone,
-          Customer_TaxID
+          Customer_TaxID,
+          Customer_PaymentTerms
         `);
 
       if (customersError) throw customersError;
@@ -186,97 +189,104 @@ const Customers: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-700 border-b-4 border-gray-200 dark:border-gray-600">
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                   <input
                     type="checkbox"
                     className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
                     checked={selectedRows.length === customers.length && customers.length > 0}
                     onChange={handleSelectAll}
                   />
-                </TableHead>
-                <TableHead onClick={() => requestSort('Customer_name')} className="cursor-pointer">
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('Customer_name')}>
                   Name
-                </TableHead>
-                <TableHead onClick={() => requestSort('Customer_Email')} className="cursor-pointer">
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('Customer_Email')}>
                   Email
-                </TableHead>
-                <TableHead onClick={() => requestSort('Customer_address')} className="cursor-pointer">
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('Customer_address')}>
                   Address
-                </TableHead>
-                <TableHead onClick={() => requestSort('Customer_Phone')} className="cursor-pointer">
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('Customer_Phone')}>
                   Phone
-                </TableHead>
-                <TableHead onClick={() => requestSort('Customer_TaxID')} className="cursor-pointer">
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('Customer_TaxID')}>
                   Tax ID
-                </TableHead>
-                <TableHead onClick={() => requestSort('OutstandingAmount')} className="cursor-pointer">
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('Customer_PaymentTerms')}>
+                  Payment Terms
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" onClick={() => requestSort('OutstandingAmount')}>
                   Receivable
-                </TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+                </th>
+                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {sortedCustomers.map((customer) => (
-                <TableRow 
-                  key={customer.id}
-                  className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
+                <tr 
+                  key={customer.id} 
+                  className={`group transition-all duration-200 ease-in-out hover:bg-gray-100 dark:hover:bg-gray-700/70 hover:shadow-sm ${
                     selectedRows.includes(customer.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                   }`}
                 >
-                  <TableCell>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm group-hover:bg-gray-100 dark:group-hover:bg-gray-700/70">
                     <input
                       type="checkbox"
                       className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
                       checked={selectedRows.includes(customer.id)}
                       onChange={() => handleRowSelect(customer.id)}
                     />
-                  </TableCell>
-                  <TableCell className="font-medium">
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100 font-medium group-hover:bg-gray-100 dark:group-hover:bg-gray-700/70">
                     {customer.Customer_name}
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 group-hover:bg-gray-100 dark:group-hover:bg-gray-700/70">
                     {customer.Customer_Email}
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 group-hover:bg-gray-100 dark:group-hover:bg-gray-700/70">
                     {customer.Customer_address}
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 group-hover:bg-gray-100 dark:group-hover:bg-gray-700/70">
                     {customer.Customer_Phone}
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 group-hover:bg-gray-100 dark:group-hover:bg-gray-700/70">
                     {customer.Customer_TaxID || '-'}
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 group-hover:bg-gray-100 dark:group-hover:bg-gray-700/70">
+                    {customer.Customer_PaymentTerms || '-'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 group-hover:bg-gray-100 dark:group-hover:bg-gray-700/70">
                     {new Intl.NumberFormat('en-US', {
                       style: 'currency',
                       currency: 'USD'
                     }).format(customer.OutstandingAmount || 0)}
-                  </TableCell>
-                  <TableCell>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium group-hover:bg-gray-100 dark:group-hover:bg-gray-700/70">
                     <button
                       onClick={() => handleEdit(customer)}
-                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                      title="Edit customer"
+                      className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ))}
               {customers.length === 0 && !loading && (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center">
+                <tr>
+                  <td colSpan={8} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
                     No customers found
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               )}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
       </div>
       <CustomerModal
