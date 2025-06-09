@@ -68,7 +68,7 @@ const Accounts: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { sortedItems: sortedAccounts, sortConfig, requestSort } = useTableSort(
-    accounts.filter(account => account.account_type === selectedType),
+    accounts.filter(account => account.account_type.toLowerCase() === selectedType.toLowerCase()),
     { key: 'created_at', direction: 'desc' }
   );
 
@@ -84,11 +84,22 @@ const Accounts: React.FC = () => {
         return;
       }
 
+      // First, let's fetch all accounts to see what we have
+      const { data: allData, error: allError } = await supabase
+        .from('Account')
+        .select('*');
+
+      console.log('All accounts:', allData);
+      console.log('Selected type:', selectedType);
+      console.log('Capitalized type:', selectedType.charAt(0).toUpperCase() + selectedType.slice(1));
+
       const { data, error } = await supabase
         .from('Account')
         .select('*')
-        .eq('account_type', selectedType)
+        .eq('account_type', selectedType.charAt(0).toUpperCase() + selectedType.slice(1))
         .order('id');
+
+      console.log('Filtered accounts:', data);
 
       if (error) {
         throw error;
@@ -189,6 +200,60 @@ const Accounts: React.FC = () => {
     fetchAccounts();
   }, [selectedType]);
 
+  const getTabStyle = (type: string) => {
+    const colorSchemes = {
+      asset: {
+        gradient: 'linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 100%)',
+        hover: 'linear-gradient(135deg, #BAE6FD 0%, #7DD3FC 100%)',
+        active: 'linear-gradient(135deg, #7DD3FC 0%, #38BDF8 100%)',
+        text: '#0369A1',
+      },
+      liability: {
+        gradient: 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)',
+        hover: 'linear-gradient(135deg, #FECACA 0%, #FCA5A5 100%)',
+        active: 'linear-gradient(135deg, #FCA5A5 0%, #F87171 100%)',
+        text: '#B91C1C',
+      },
+      equity: {
+        gradient: 'linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%)',
+        hover: 'linear-gradient(135deg, #BBF7D0 0%, #86EFAC 100%)',
+        active: 'linear-gradient(135deg, #86EFAC 0%, #4ADE80 100%)',
+        text: '#15803D',
+      },
+      revenue: {
+        gradient: 'linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%)',
+        hover: 'linear-gradient(135deg, #BBF7D0 0%, #86EFAC 100%)',
+        active: 'linear-gradient(135deg, #86EFAC 0%, #4ADE80 100%)',
+        text: '#15803D',
+      },
+      expense: {
+        gradient: 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)',
+        hover: 'linear-gradient(135deg, #FECACA 0%, #FCA5A5 100%)',
+        active: 'linear-gradient(135deg, #FCA5A5 0%, #F87171 100%)',
+        text: '#B91C1C',
+      },
+    };
+
+    const scheme = colorSchemes[type as keyof typeof colorSchemes] || colorSchemes.asset;
+
+    return {
+      padding: '0.75rem 1.5rem',
+      borderRadius: '9999px',
+      fontSize: '0.875rem',
+      fontWeight: selectedType === type ? 600 : 500,
+      transition: 'all 0.2s ease-in-out',
+      cursor: 'pointer',
+      border: 'none',
+      outline: 'none',
+      background: selectedType === type ? scheme.active : scheme.gradient,
+      color: selectedType === type ? scheme.text : '#4B5563',
+      '&:hover': {
+        background: scheme.hover,
+        color: scheme.text,
+      },
+    };
+  };
+
   return (
     <div className="p-8 font-inter">
       <div className="flex justify-between items-center mb-8">
@@ -221,24 +286,19 @@ const Accounts: React.FC = () => {
         </Button>
       </div>
 
-      <div className="mb-8 flex space-x-3">
-        {ACCOUNT_TYPE_FILTERS.map((type) => {
-          const Icon = type.icon;
-          return (
-            <button
-              key={type.value}
-              onClick={() => setSelectedType(type.value)}
-              className={`px-5 py-2.5 rounded-md font-medium transition-all duration-200 flex items-center space-x-3 text-sm leading-5 hover:shadow-sm ${
-                selectedType === type.value
-                  ? type.color
-                  : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span>{type.value}</span>
-            </button>
-          );
-        })}
+      <div className="flex space-x-2 mb-6 overflow-x-auto pb-2">
+        {['revenue', 'expense', 'equity', 'asset', 'liability'].map((type) => (
+          <button
+            key={type}
+            onClick={() => setSelectedType(type)}
+            style={getTabStyle(type)}
+            className={`capitalize ${
+              selectedType === type ? 'shadow-md' : ''
+            }`}
+          >
+            {type}
+          </button>
+        ))}
       </div>
 
       {error && (
@@ -275,30 +335,38 @@ const Accounts: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {sortedAccounts.map((account) => (
-                  <tr key={account.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                      {account.account_name}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {account.account_type}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {account.account_group}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {account.account_description}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button
-                        onClick={() => handleEdit(account)}
-                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
+                {sortedAccounts.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                      No accounts found
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  sortedAccounts.map((account) => (
+                    <tr key={account.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
+                        {account.account_name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {account.account_type}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {account.account_group}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {account.account_description}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button
+                          onClick={() => handleEdit(account)}
+                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>

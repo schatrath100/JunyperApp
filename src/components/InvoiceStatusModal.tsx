@@ -102,7 +102,11 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
             </label>
             <input
               type="text"
-              value={new Date(invoice.InvoiceDate).toLocaleDateString()}
+              value={new Date(invoice.InvoiceDate).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+              })}
               disabled
               className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-500 dark:text-gray-400"
             />

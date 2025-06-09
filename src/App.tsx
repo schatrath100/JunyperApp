@@ -20,6 +20,7 @@ import ShortcutPanel from './components/ShortcutPanel';
 import { supabase } from './lib/supabase';
 import { Alert } from './components/Alert';
 import SydneyAI from './pages/SydneyAI';
+import { ToastProvider, ToastViewport } from './components/ui/toast';
 
 function App() {
   const mainRef = React.useRef<HTMLDivElement>(null);
@@ -79,51 +80,54 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
-      {!session ? (
-        <Routes>
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/verify" element={<VerifyEmail />} />
-          <Route path="*" element={<Navigate to="/auth" replace />} />
-        </Routes>
-      ) : (
-        <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900">
-          <Navbar alerts={alerts} onDismiss={(id) => setAlerts(prev => prev.filter(a => a.id !== id))} />
-          <div className="flex flex-1">
-            <Sidebar 
-              onToggleShortcuts={toggleShortcuts} 
-              showShortcuts={showShortcuts}
-              collapsed={sidebarCollapsed}
-              onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-            />
-            <main 
-              ref={mainRef}
-              className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-800"
-              onClick={handleMainClick}
-            >
-              <Routes>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/accounts" element={<Accounts />} />
-                <Route path="/sales" element={<Sales />} />
-                <Route path="/sales/invoices" element={<Sales />} />
-                <Route path="/journals" element={<Journals />} />
-                <Route path="/sales/items" element={<SalesItems />} />
-                <Route path="/sales/customers" element={<Customers />} />
-                <Route path="/bank-transactions" element={<BankTransactions />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/purchases/items" element={<PurchaseItems />} />
-                <Route path="/purchases/vendors" element={<Vendors />} />
-                <Route path="/purchases/bills" element={<VendorBills />} />
-                <Route path="/profile" element={<Profile />} />
-                <Route path="/sydney-ai" element={<SydneyAI />} />
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              </Routes>
-            </main>
+    <ToastProvider>
+      <BrowserRouter>
+        {!session ? (
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/verify" element={<VerifyEmail />} />
+            <Route path="*" element={<Navigate to="/auth" replace />} />
+          </Routes>
+        ) : (
+          <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900">
+            <Navbar alerts={alerts} onDismiss={(id) => setAlerts(prev => prev.filter(a => a.id !== id))} />
+            <div className="flex flex-1">
+              <Sidebar 
+                onToggleShortcuts={toggleShortcuts} 
+                showShortcuts={showShortcuts}
+                collapsed={sidebarCollapsed}
+                onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+              />
+              <main 
+                ref={mainRef}
+                className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-800"
+                onClick={handleMainClick}
+              >
+                <Routes>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/accounts" element={<Accounts />} />
+                  <Route path="/sales" element={<Sales />} />
+                  <Route path="/sales/invoices" element={<Sales />} />
+                  <Route path="/journals" element={<Journals />} />
+                  <Route path="/sales/items" element={<SalesItems />} />
+                  <Route path="/sales/customers" element={<Customers />} />
+                  <Route path="/bank-transactions" element={<BankTransactions />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/purchases/items" element={<PurchaseItems />} />
+                  <Route path="/purchases/vendors" element={<Vendors />} />
+                  <Route path="/purchases/bills" element={<VendorBills />} />
+                  <Route path="/profile" element={<Profile />} />
+                  <Route path="/sydney-ai" element={<SydneyAI />} />
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                </Routes>
+              </main>
+            </div>
+            <ShortcutPanel isOpen={showShortcuts} onClose={toggleShortcuts} />
           </div>
-          <ShortcutPanel isOpen={showShortcuts} onClose={toggleShortcuts} />
-        </div>
-      )}
-    </BrowserRouter>
+        )}
+      </BrowserRouter>
+      <ToastViewport />
+    </ToastProvider>
   );
 }
 

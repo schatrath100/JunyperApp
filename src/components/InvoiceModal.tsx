@@ -192,7 +192,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave, on
         .from('Transaction')
         .insert([
           {
-            transaction_date: formData.invoiceDate,
+            transaction_date: new Date().toISOString(),
             account_id: arAccount.id,
             debit_amount: parseFloat(formData.invoiceAmount),
             credit_amount: 0,
@@ -204,7 +204,7 @@ const InvoiceModal: React.FC<InvoiceModalProps> = ({ isOpen, onClose, onSave, on
             user_id: userId
           },
           {
-            transaction_date: formData.invoiceDate,
+            transaction_date: new Date().toISOString(),
             account_id: salesAccount.id,
             debit_amount: 0,
             credit_amount: parseFloat(formData.invoiceAmount),

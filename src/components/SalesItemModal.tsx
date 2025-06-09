@@ -35,13 +35,15 @@ const SalesItemModal: React.FC<SalesItemModalProps> = ({ isOpen, onClose, item, 
 
   const [errors, setErrors] = useState<Partial<SalesItemFormData>>({});
   const [saving, setSaving] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (item) {
       setFormData({
         name: item.Item_Name,
         description: item.Item_Desc || '',
-        number: item.Item_Number || '',
+        number: item.Item_Number?.toString() || '',
         price: item.Item_Price?.toString() || '',
       });
     } else {
@@ -83,9 +85,15 @@ const SalesItemModal: React.FC<SalesItemModalProps> = ({ isOpen, onClose, item, 
 
     if (!formData.price || !formData.price.trim()) {
       newErrors.price = 'Price is required';
-    } else
-    if (formData.price && isNaN(Number(formData.price))) {
+    } else if (formData.price && isNaN(Number(formData.price))) {
       newErrors.price = 'Price must be a valid number';
+    }
+
+    // Add validation for Item Number
+    if (formData.number && formData.number.trim()) {
+      if (isNaN(Number(formData.number))) {
+        newErrors.number = 'Item Number must be a valid number';
+      }
     }
 
     setErrors(newErrors);
@@ -100,19 +108,27 @@ const SalesItemModal: React.FC<SalesItemModalProps> = ({ isOpen, onClose, item, 
       
       // Get the current user's ID
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      if (!user) throw new Error('No authenticated user found');
+      if (userError) {
+        console.error('User authentication error:', userError);
+        throw userError;
+      }
+      if (!user) {
+        console.error('No authenticated user found');
+        throw new Error('No authenticated user found');
+      }
       
       if (isValid) {
         const itemData = {
           Item_Name: formData.name.trim(),
           Item_Desc: formData.description.trim() || null,
-          Item_Number: formData.number.trim() || null,
+          Item_Number: formData.number ? formData.number.trim() : null,
           Item_Price: formData.price.trim() ? Number(formData.price.trim()) : null,
           user_id: user.id
         };
 
-        const { error } = item
+        console.log('Attempting to save item with data:', itemData);
+
+        const { error, data } = item
           ? await supabase
               .from('SaleItems')
               .update(itemData)
@@ -121,8 +137,12 @@ const SalesItemModal: React.FC<SalesItemModalProps> = ({ isOpen, onClose, item, 
               .from('SaleItems')
               .insert([itemData]);
 
-        if (error) throw error;
-        
+        if (error) {
+          console.error('Supabase error details:', error);
+          throw error;
+        }
+
+        console.log('Item saved successfully:', data);
         onSave();
         onClose();
       }
@@ -134,6 +154,32 @@ const SalesItemModal: React.FC<SalesItemModalProps> = ({ isOpen, onClose, item, 
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!item) return;
+    
+    try {
+      setDeleting(true);
+      const { error } = await supabase
+        .from('SaleItems')
+        .delete()
+        .eq('id', item.id);
+
+      if (error) throw error;
+      
+      onSave();
+      onClose();
+    } catch (err) {
+      console.error('Error deleting item:', err);
+      setErrors({
+        ...errors,
+        name: 'Failed to delete item. Please try again.'
+      });
+    } finally {
+      setDeleting(false);
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -175,7 +221,9 @@ const SalesItemModal: React.FC<SalesItemModalProps> = ({ isOpen, onClose, item, 
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white ${
                   errors.name ? 'border-red-500' : 'border-gray-300'
-                }`}
+                } ${item ? 'bg-gray-100 dark:bg-gray-800 cursor-not-allowed' : ''}`}
+                disabled={!!item}
+                readOnly={!!item}
               />
               {errors.name && (
                 <p className="mt-1 text-sm text-red-500">{errors.name}</p>
@@ -202,8 +250,13 @@ const SalesItemModal: React.FC<SalesItemModalProps> = ({ isOpen, onClose, item, 
                 type="text"
                 value={formData.number}
                 onChange={(e) => setFormData({ ...formData, number: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white ${
+                  errors.number ? 'border-red-500' : 'border-gray-300'
+                }`}
               />
+              {errors.number && (
+                <p className="mt-1 text-sm text-red-500">{errors.number}</p>
+              )}
             </div>
 
             <div>
@@ -231,13 +284,24 @@ const SalesItemModal: React.FC<SalesItemModalProps> = ({ isOpen, onClose, item, 
           <div className="flex space-x-3">
             <Button
               type="submit"
-              variant="primary"
+              variant="default"
               className="flex-1 bg-black hover:bg-black/90 text-white"
               disabled={saving}
               onClick={handleSubmit}
             >
               {saving ? 'Saving...' : (item ? 'Save Changes' : 'Save Item')}
             </Button>
+            {item && (
+              <Button
+                type="button"
+                variant="destructive"
+                className="flex-1"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={saving}
+              >
+                Delete
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -250,6 +314,38 @@ const SalesItemModal: React.FC<SalesItemModalProps> = ({ isOpen, onClose, item, 
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Confirm Deletion
+            </h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
+              Are you sure you want to delete this item? This action cannot be undone.
+            </p>
+            <div className="flex space-x-4">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1"
+                onClick={handleDelete}
+                disabled={deleting}
+              >
+                {deleting ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -73,7 +73,16 @@ const Journals: React.FC = () => {
     // Prepare table data
     const tableData = sortedTransactions.map(t => [
       `#${t.id}`,
-      new Date(t.transaction_date).toLocaleDateString(),
+      new Date(t.transaction_date).toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+        timeZone: 'UTC'
+      }),
       t.account_name,
       t.description,
       t.debit_amount ? `$${t.debit_amount.toFixed(2)}` : '-',
@@ -88,7 +97,10 @@ const Journals: React.FC = () => {
       body: tableData,
       startY: 25,
       styles: { fontSize: 8 },
-      headStyles: { fillColor: [66, 139, 202] }
+      headStyles: { fillColor: [66, 139, 202] },
+      columnStyles: {
+        1: { cellWidth: 40 } // Make the date column wider
+      }
     });
 
     // Save PDF
@@ -99,7 +111,16 @@ const Journals: React.FC = () => {
     // Prepare data
     const data = sortedTransactions.map(t => ({
       'ID': `#${t.id}`,
-      'Date': new Date(t.transaction_date).toLocaleDateString(),
+      'Date': new Date(t.transaction_date).toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+        timeZone: 'UTC'
+      }),
       'Account': t.account_name,
       'Description': t.description,
       'Debit': t.debit_amount || '',
@@ -196,7 +217,16 @@ const Journals: React.FC = () => {
                     #{transaction.id}
                   </TableCell>
                   <TableCell>
-                    {new Date(transaction.transaction_date).toLocaleDateString()}
+                    {new Date(transaction.transaction_date).toLocaleString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                      hour12: true,
+                      timeZone: 'UTC'
+                    })}
                   </TableCell>
                   <TableCell>
                     {transaction.account_name}

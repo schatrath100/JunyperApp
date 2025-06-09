@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Save } from 'lucide-react';
+import { Save, Pencil, X, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/Button';
 import { supabase } from '../lib/supabase';
+import { useToast } from '../components/ui/use-toast';
+import { cn } from "../lib/utils";
 
 interface Account {
   id: number;
@@ -11,30 +13,28 @@ interface Account {
 }
 
 interface AccountingSettings {
-  id: string | null;
+  id: string;
+  user_id: string;
+  company_legal_name: string;
   base_currency: string;
   accounting_method: string;
   time_zone: string;
-  company_legal_name: string;
-  sales_revenue_account: number | null;
-  purchases_account: number | null;
-  discounts_account: number | null;
-  accounts_receivable_account: number | null;
-  accounts_payable_account: number | null;
-  taxes_payable_account: number | null;
-  retained_earnings_account: number | null;
+  business_type: string;
+  tax_id: string;
+  business_address: string;
+  business_phone: string;
+  sales_revenue_account: string;
+  purchases_account: string;
+  accounts_receivable_account: string;
+  accounts_payable_account: string;
+  taxes_payable_account: string;
   bank_name: string;
   branch_name: string;
   account_number: string;
   is_default_bank: boolean;
+  created_at: string;
+  updated_at: string;
 }
-
-const CURRENCIES = [
-  { value: 'USD', label: 'US Dollar (USD)' },
-  { value: 'CAD', label: 'Canadian Dollar (CAD)' },
-  { value: 'GBP', label: 'British Pound (GBP)' },
-  { value: 'EUR', label: 'Euro (EUR)' },
-];
 
 const ACCOUNTING_METHODS = [
   { value: 'Cash', label: 'Cash Basis' },
@@ -53,22 +53,27 @@ const TIME_ZONES = [
 ];
 
 const DEFAULT_SETTINGS: AccountingSettings = {
-  id: null,
-  base_currency: 'USD',
+  id: '',
+  user_id: '',
   company_legal_name: '',
+  base_currency: 'USD',
   accounting_method: 'Accrual',
   time_zone: 'US/Eastern',
-  sales_revenue_account: null,
-  purchases_account: null,
-  discounts_account: null,
-  accounts_receivable_account: null,
-  accounts_payable_account: null,
-  taxes_payable_account: null,
-  retained_earnings_account: null,
+  business_type: '',
+  tax_id: '',
+  business_address: '',
+  business_phone: '',
+  sales_revenue_account: '',
+  purchases_account: '',
+  accounts_receivable_account: '',
+  accounts_payable_account: '',
+  taxes_payable_account: '',
   bank_name: '',
   branch_name: '',
   account_number: '',
   is_default_bank: false,
+  created_at: '',
+  updated_at: '',
 };
 
 const MAX_RETRIES = 3;
@@ -78,10 +83,11 @@ const Settings: React.FC = () => {
   const navigate = useNavigate();
   const [settings, setSettings] = useState<AccountingSettings>(DEFAULT_SETTINGS);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [editingCard, setEditingCard] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [savedCard, setSavedCard] = useState<string | null>(null);
   const [accountsByType, setAccountsByType] = useState<Record<string, Account[]>>({
     Revenue: [],
     Expense: [],
@@ -89,6 +95,7 @@ const Settings: React.FC = () => {
     Liability: [],
     Equity: []
   });
+  const { toast } = useToast();
 
   // Check authentication status
   useEffect(() => {
@@ -175,7 +182,7 @@ const Settings: React.FC = () => {
 
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -192,8 +199,7 @@ const Settings: React.FC = () => {
       purchases_account: 'Purchases Account', 
       accounts_receivable_account: 'Accounts Receivable Account',
       accounts_payable_account: 'Accounts Payable Account',
-      taxes_payable_account: 'Taxes Payable Account',
-      retained_earnings_account: 'Retained Earnings Account'
+      taxes_payable_account: 'Taxes Payable Account'
     };
 
     // Check each required field
@@ -214,9 +220,8 @@ const Settings: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      setSaving(true);
+      setIsSaving(true);
       setError(null);
-      setSuccess(null);
 
       // Check authentication first
       const { data: { session } } = await supabase.auth.getSession();
@@ -237,11 +242,9 @@ const Settings: React.FC = () => {
         // Convert empty string selections to null
         sales_revenue_account: settings.sales_revenue_account || null,
         purchases_account: settings.purchases_account || null,
-        discounts_account: settings.discounts_account || null,
         accounts_receivable_account: settings.accounts_receivable_account || null,
         accounts_payable_account: settings.accounts_payable_account || null,
         taxes_payable_account: settings.taxes_payable_account || null,
-        retained_earnings_account: settings.retained_earnings_account || null,
       };
 
       // Remove the id field if it's null (for new records)
@@ -274,7 +277,6 @@ const Settings: React.FC = () => {
       }
 
       setSettings(data);
-      setSuccess('Settings saved successfully');
     } catch (err) {
       console.error('Error saving settings:', err);
       
@@ -290,7 +292,7 @@ const Settings: React.FC = () => {
 
       setError(err instanceof Error ? err.message : 'Failed to save settings');
     } finally {
-      setSaving(false);
+      setIsSaving(false);
     }
   };
 
@@ -301,7 +303,83 @@ const Settings: React.FC = () => {
     }));
   };
 
-  if (loading) {
+  const handleSaveCard = async (cardType: string) => {
+    console.log('Starting save for card:', cardType);
+    setIsSaving(true);
+    try {
+      // Get the current user's session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        throw new Error('No authenticated user found');
+      }
+
+      const updateData: Partial<AccountingSettings> = {
+        id: settings.id,
+        user_id: session.user.id, // Add user_id to satisfy RLS policy
+      };
+
+      // Add only the fields for the specific card being saved
+      if (cardType === 'general') {
+        updateData.base_currency = settings.base_currency;
+        updateData.accounting_method = settings.accounting_method;
+        updateData.time_zone = settings.time_zone;
+      } else if (cardType === 'business') {
+        updateData.company_legal_name = settings.company_legal_name;
+        updateData.business_type = settings.business_type;
+        updateData.tax_id = settings.tax_id;
+        updateData.business_address = settings.business_address;
+        updateData.business_phone = settings.business_phone;
+      } else if (cardType === 'accounts') {
+        updateData.sales_revenue_account = settings.sales_revenue_account;
+        updateData.purchases_account = settings.purchases_account;
+        updateData.accounts_receivable_account = settings.accounts_receivable_account;
+        updateData.accounts_payable_account = settings.accounts_payable_account;
+        updateData.taxes_payable_account = settings.taxes_payable_account;
+      } else if (cardType === 'bank') {
+        updateData.bank_name = settings.bank_name;
+        updateData.branch_name = settings.branch_name;
+        updateData.account_number = settings.account_number;
+        updateData.is_default_bank = settings.is_default_bank;
+      }
+
+      console.log('Saving data:', updateData);
+
+      const { data, error } = await supabase
+        .from('accounting_settings')
+        .upsert(updateData)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
+
+      if (data) {
+        console.log('Save successful, updating state');
+        setSettings(prev => ({ ...prev, ...data }));
+        setSavedCard(cardType);
+        
+        // Clear saved state and exit edit mode after delay
+        setTimeout(() => {
+          console.log('Clearing saved state for card:', cardType);
+          setSavedCard(null);
+          setEditingCard(null);
+        }, 2000);
+      }
+    } catch (error: any) {
+      console.error('Error saving settings:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save settings. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (isLoading) {
     return (
       <div className="p-6 flex justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -310,78 +388,84 @@ const Settings: React.FC = () => {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Settings</h1>
-      </div>
-
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400">
-          {error}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Company Settings</h1>
         </div>
-      )}
 
-      {success && (
-        <div className="mb-6 p-4 bg-green-50 dark:bg-green-900/50 border border-green-200 dark:border-green-700 rounded-lg text-green-700 dark:text-green-400">
-          {success}
-        </div>
-      )}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400">
+            {error}
+          </div>
+        )}
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* General Accounting Settings */}
-          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">General Accounting Settings</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* General Settings Card */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+            <div className="px-3 py-2 bg-blue-50 dark:bg-blue-900/20 border-b border-blue-100 dark:border-blue-800 flex justify-between items-center">
+              <h2 className="text-base font-semibold text-blue-700 dark:text-blue-300">General Settings</h2>
+              <div className="flex gap-2 items-center">
+                {editingCard === 'general' ? (
+                  <>
+                    {savedCard === 'general' ? (
+                      <span className="text-sm font-medium text-green-600 dark:text-green-400">Record saved</span>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSaveCard('general')}
+                        disabled={isSaving}
+                        className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                      >
+                        {isSaving ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
+                          <Save className="h-4 w-4 mr-1" />
+                        )}
+                        Save
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingCard(null);
+                        setSavedCard(null);
+                      }}
+                      className="text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingCard('general')}
+                    className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
-            <div className="p-4 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="p-3 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Company Legal Name
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.company_legal_name}
-                    onChange={(e) => setSettings({ ...settings, company_legal_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                    placeholder="Enter name"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Base Currency
+                    Currency
                   </label>
                   <select
                     value={settings.base_currency}
                     onChange={(e) => setSettings({ ...settings, base_currency: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                    className={cn(
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700",
+                      editingCard !== 'general' && "bg-gray-50 dark:bg-gray-700"
+                    )}
+                    disabled={editingCard !== 'general'}
                   >
-                    {CURRENCIES.map((currency) => (
-                      <option key={currency.value} value={currency.value}>
-                        {currency.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Time Zone
-                  </label>
-                  <select
-                    value={settings.time_zone}
-                    onChange={(e) => setSettings({ ...settings, time_zone: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                  >
-                    {TIME_ZONES.map((zone) => (
-                      <option key={zone.value} value={zone.value}>
-                        {zone.label}
-                      </option>
-                    ))}
+                    <option value="USD">USD (US Dollar)</option>
                   </select>
                 </div>
 
@@ -392,110 +476,405 @@ const Settings: React.FC = () => {
                   <select
                     value={settings.accounting_method}
                     onChange={(e) => setSettings({ ...settings, accounting_method: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                    className={cn(
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
+                      editingCard !== 'general' && "bg-gray-50 dark:bg-gray-700"
+                    )}
+                    disabled={editingCard !== 'general'}
                   >
-                    {ACCOUNTING_METHODS.map((method) => (
-                      <option key={method.value} value={method.value}>
-                        {method.label}
-                      </option>
-                    ))}
+                    <option value="Accrual">Accrual</option>
+                    <option value="Cash">Cash</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Time Zone
+                  </label>
+                  <select
+                    value={settings.time_zone}
+                    onChange={(e) => setSettings({ ...settings, time_zone: e.target.value })}
+                    className={cn(
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
+                      editingCard !== 'general' && "bg-gray-50 dark:bg-gray-700"
+                    )}
+                    disabled={editingCard !== 'general'}
+                  >
+                    <option value="US/Eastern">US/Eastern</option>
+                    <option value="US/Central">US/Central</option>
+                    <option value="US/Mountain">US/Mountain</option>
+                    <option value="US/Pacific">US/Pacific</option>
                   </select>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Chart of Accounts */}
-          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Chart of Accounts</h2>
+          {/* Business Details Card */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+            <div className="px-3 py-2 bg-green-50 dark:bg-green-900/20 border-b border-green-100 dark:border-green-800 flex justify-between items-center">
+              <h2 className="text-base font-semibold text-green-700 dark:text-green-300">Business Details</h2>
+              <div className="flex gap-2 items-center">
+                {editingCard === 'business' ? (
+                  <>
+                    {savedCard === 'business' ? (
+                      <span className="text-sm font-medium text-green-600 dark:text-green-400">Record saved</span>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSaveCard('business')}
+                        disabled={isSaving}
+                        className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
+                      >
+                        {isSaving ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
+                          <Save className="h-4 w-4 mr-1" />
+                        )}
+                        Save
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingCard(null);
+                        setSavedCard(null);
+                      }}
+                      className="text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingCard('business')}
+                    className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
-            <div className="p-4 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="p-3 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Sales Revenue Account *
+                    Business Name
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.company_legal_name}
+                    onChange={(e) => setSettings({ ...settings, company_legal_name: e.target.value })}
+                    className={cn(
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
+                      editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                    )}
+                    disabled={editingCard !== 'business'}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Business Type
+                  </label>
+                  <select
+                    value={settings.business_type}
+                    onChange={(e) => setSettings({ ...settings, business_type: e.target.value })}
+                    className={cn(
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
+                      editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                    )}
+                    disabled={editingCard !== 'business'}
+                  >
+                    <option value="">Select type</option>
+                    <option value="Sole Proprietorship">Sole Proprietorship</option>
+                    <option value="Partnership">Partnership</option>
+                    <option value="Corporation">Corporation</option>
+                    <option value="LLC">LLC</option>
+                    <option value="Non-Profit">Non-Profit</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Tax ID/VAT Number
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.tax_id}
+                    onChange={(e) => setSettings({ ...settings, tax_id: e.target.value })}
+                    className={cn(
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
+                      editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                    )}
+                    disabled={editingCard !== 'business'}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Business Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={settings.business_phone}
+                    onChange={(e) => setSettings({ ...settings, business_phone: e.target.value })}
+                    className={cn(
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
+                      editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                    )}
+                    disabled={editingCard !== 'business'}
+                  />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Business Address
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.business_address}
+                    onChange={(e) => setSettings({ ...settings, business_address: e.target.value })}
+                    className={cn(
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
+                      editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                    )}
+                    disabled={editingCard !== 'business'}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Chart of Accounts Card */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+            <div className="px-3 py-2 bg-purple-50 dark:bg-purple-900/20 border-b border-purple-100 dark:border-purple-800 flex justify-between items-center">
+              <h2 className="text-base font-semibold text-purple-700 dark:text-purple-300">Chart of Accounts</h2>
+              <div className="flex gap-2 items-center">
+                {editingCard === 'accounts' ? (
+                  <>
+                    {savedCard === 'accounts' ? (
+                      <span className="text-sm font-medium text-green-600 dark:text-green-400">Record saved</span>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSaveCard('accounts')}
+                        disabled={isSaving}
+                        className="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300"
+                      >
+                        {isSaving ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
+                          <Save className="h-4 w-4 mr-1" />
+                        )}
+                        Save
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingCard(null);
+                        setSavedCard(null);
+                      }}
+                      className="text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingCard('accounts')}
+                    className="text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="p-3 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Sales Revenue Account
                   </label>
                   <select
                     value={settings.sales_revenue_account || ''}
-                    onChange={(e) => handleAccountChange('sales_revenue_account', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                    onChange={(e) => setSettings({ ...settings, sales_revenue_account: e.target.value })}
+                    className={cn(
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
+                      editingCard !== 'accounts' && "bg-gray-50 dark:bg-gray-700"
+                    )}
+                    disabled={editingCard !== 'accounts'}
                   >
                     <option value="">Select account</option>
-                    {accountsByType['Revenue']?.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.account_name}
-                      </option>
-                    ))}
+                    {accounts
+                      .filter(account => account.account_type === 'Revenue')
+                      .map(account => (
+                        <option key={account.id} value={account.id}>
+                          {account.account_name}
+                        </option>
+                      ))}
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Purchases Account *
+                    Purchases Account
                   </label>
                   <select
                     value={settings.purchases_account || ''}
-                    onChange={(e) => handleAccountChange('purchases_account', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                    onChange={(e) => setSettings({ ...settings, purchases_account: e.target.value })}
+                    className={cn(
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
+                      editingCard !== 'accounts' && "bg-gray-50 dark:bg-gray-700"
+                    )}
+                    disabled={editingCard !== 'accounts'}
                   >
                     <option value="">Select account</option>
-                    {accountsByType['Expense']?.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.account_name}
-                      </option>
-                    ))}
+                    {accounts
+                      .filter(account => account.account_type === 'Expense')
+                      .map(account => (
+                        <option key={account.id} value={account.id}>
+                          {account.account_name}
+                        </option>
+                      ))}
                   </select>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Accounts Receivable *
+                    Accounts Receivable
                   </label>
                   <select
                     value={settings.accounts_receivable_account || ''}
-                    onChange={(e) => handleAccountChange('accounts_receivable_account', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                    onChange={(e) => setSettings({ ...settings, accounts_receivable_account: e.target.value })}
+                    className={cn(
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
+                      editingCard !== 'accounts' && "bg-gray-50 dark:bg-gray-700"
+                    )}
+                    disabled={editingCard !== 'accounts'}
                   >
                     <option value="">Select account</option>
-                    {accountsByType['Asset']?.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.account_name}
-                      </option>
-                    ))}
+                    {accounts
+                      .filter(account => account.account_type === 'Asset')
+                      .map(account => (
+                        <option key={account.id} value={account.id}>
+                          {account.account_name}
+                        </option>
+                      ))}
                   </select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Accounts Payable *
+                    Accounts Payable
                   </label>
                   <select
                     value={settings.accounts_payable_account || ''}
-                    onChange={(e) => handleAccountChange('accounts_payable_account', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                    onChange={(e) => setSettings({ ...settings, accounts_payable_account: e.target.value })}
+                    className={cn(
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
+                      editingCard !== 'accounts' && "bg-gray-50 dark:bg-gray-700"
+                    )}
+                    disabled={editingCard !== 'accounts'}
                   >
                     <option value="">Select account</option>
-                    {accountsByType['Liability']?.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.account_name}
-                      </option>
-                    ))}
+                    {accounts
+                      .filter(account => account.account_type === 'Liability')
+                      .map(account => (
+                        <option key={account.id} value={account.id}>
+                          {account.account_name}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Taxes Payable
+                  </label>
+                  <select
+                    value={settings.taxes_payable_account || ''}
+                    onChange={(e) => setSettings({ ...settings, taxes_payable_account: e.target.value })}
+                    className={cn(
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
+                      editingCard !== 'accounts' && "bg-gray-50 dark:bg-gray-700"
+                    )}
+                    disabled={editingCard !== 'accounts'}
+                  >
+                    <option value="">Select account</option>
+                    {accounts
+                      .filter(account => account.account_type === 'Liability')
+                      .map(account => (
+                        <option key={account.id} value={account.id}>
+                          {account.account_name}
+                        </option>
+                      ))}
                   </select>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Default Bank Account */}
-          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Default Bank Account</h2>
+          {/* Bank Details Card */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+            <div className="px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800 flex justify-between items-center">
+              <h2 className="text-base font-semibold text-amber-700 dark:text-amber-300">Bank Details</h2>
+              <div className="flex gap-2 items-center">
+                {editingCard === 'bank' ? (
+                  <>
+                    {savedCard === 'bank' ? (
+                      <span className="text-sm font-medium text-green-600 dark:text-green-400">Record saved</span>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleSaveCard('bank')}
+                        disabled={isSaving}
+                        className="text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
+                      >
+                        {isSaving ? (
+                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                        ) : (
+                          <Save className="h-4 w-4 mr-1" />
+                        )}
+                        Save
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingCard(null);
+                        setSavedCard(null);
+                      }}
+                      className="text-gray-600 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEditingCard('bank')}
+                    className="text-amber-600 hover:text-amber-700 dark:text-amber-400 dark:hover:text-amber-300"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
             </div>
-            <div className="p-4 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="p-3 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Bank Name
@@ -504,8 +883,11 @@ const Settings: React.FC = () => {
                     type="text"
                     value={settings.bank_name}
                     onChange={(e) => setSettings({ ...settings, bank_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                    placeholder="Enter bank name"
+                    className={cn(
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
+                      editingCard !== 'bank' && "bg-gray-50 dark:bg-gray-700"
+                    )}
+                    disabled={editingCard !== 'bank'}
                   />
                 </div>
 
@@ -517,113 +899,47 @@ const Settings: React.FC = () => {
                     type="text"
                     value={settings.branch_name}
                     onChange={(e) => setSettings({ ...settings, branch_name: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                    placeholder="Enter branch name"
+                    className={cn(
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
+                      editingCard !== 'bank' && "bg-gray-50 dark:bg-gray-700"
+                    )}
+                    disabled={editingCard !== 'bank'}
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Account Number
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.account_number}
-                    onChange={(e) => setSettings({ ...settings, account_number: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                    placeholder="Enter account number"
-                  />
-                </div>
-
-                <div className="flex items-center">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={settings.is_default_bank}
-                      onChange={(e) => setSettings({ ...settings, is_default_bank: e.target.checked })}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      Default Bank Account
-                    </span>
-                  </label>
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Account Number
+                </label>
+                <input
+                  type="text"
+                  value={settings.account_number}
+                  onChange={(e) => setSettings({ ...settings, account_number: e.target.value })}
+                  className={cn(
+                    "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
+                    editingCard !== 'bank' && "bg-gray-50 dark:bg-gray-700"
+                  )}
+                  disabled={editingCard !== 'bank'}
+                />
               </div>
-            </div>
-          </div>
 
-          {/* Additional Accounts */}
-          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-            <div className="p-4 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Additional Accounts</h2>
-            </div>
-            <div className="p-4 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Taxes Payable *
-                  </label>
-                  <select
-                    value={settings.taxes_payable_account || ''}
-                    onChange={(e) => handleAccountChange('taxes_payable_account', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                  >
-                    <option value="">Select account</option>
-                    {accountsByType['Liability']?.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.account_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Retained Earnings *
-                  </label>
-                  <select
-                    value={settings.retained_earnings_account || ''}
-                    onChange={(e) => handleAccountChange('retained_earnings_account', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                  >
-                    <option value="">Select account</option>
-                    {accountsByType['Equity']?.map((account) => (
-                      <option key={account.id} value={account.id}>
-                        {account.account_name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="is_default_bank"
+                  checked={settings.is_default_bank}
+                  onChange={(e) => setSettings({ ...settings, is_default_bank: e.target.checked })}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label htmlFor="is_default_bank" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                  Set as default bank account
+                </label>
               </div>
             </div>
           </div>
         </div>
-
-        <div className="px-6 py-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex justify-end space-x-3">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-24"
-              onClick={() => navigate('/dashboard')}
-              disabled={saving}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              className="w-32 bg-black hover:bg-black/90 text-white"
-              icon={<Save className="w-4 h-4" />}
-              disabled={saving}
-            >
-              {saving ? 'Saving...' : 'Save'}
-            </Button>
-          </div>
-        </div>
-      </form>
+      </div>
     </div>
   );
 };

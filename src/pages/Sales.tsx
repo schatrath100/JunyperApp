@@ -12,9 +12,9 @@ import { useTableSort } from '../hooks/useTableSort';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 
 const INVOICE_STATUS_FILTERS = [
-  { value: 'Pending', color: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-400' },
   { value: 'Paid', color: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-400' },
   { value: 'Partially Paid', color: 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-400' },
+  { value: 'Pending', color: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-400' },
   { value: 'Overdue', color: 'bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-400' },
   { value: 'Cancelled', color: 'bg-gray-100 dark:bg-gray-900/50 text-gray-800 dark:text-gray-400' }
 ];
@@ -63,7 +63,13 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
     // Prepare table data
     const tableData = sortedInvoices.map(invoice => [
       `#${invoice.id}`,
-      new Date(invoice.InvoiceDate).toLocaleDateString(),
+      new Date(invoice.InvoiceDate).toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
       invoice.Customer_name,
       invoice.Description || '-',
       new Intl.NumberFormat('en-US', {
@@ -90,7 +96,13 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
     // Prepare data
     const data = sortedInvoices.map(invoice => ({
       'Invoice #': invoice.id,
-      'Date': new Date(invoice.InvoiceDate).toLocaleDateString(),
+      'Date': new Date(invoice.InvoiceDate).toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
       'Customer': invoice.Customer_name,
       'Description': invoice.Description || '-',
       'Amount': invoice.InvoiceAmount || 0,
@@ -172,6 +184,60 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
     }
   };
 
+  const getTabStyle = (status: string) => {
+    const colorSchemes = {
+      'Pending': {
+        gradient: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
+        hover: 'linear-gradient(135deg, #FDE68A 0%, #FCD34D 100%)',
+        active: 'linear-gradient(135deg, #FCD34D 0%, #FBBF24 100%)',
+        text: '#B45309',
+      },
+      'Paid': {
+        gradient: 'linear-gradient(135deg, #DCFCE7 0%, #BBF7D0 100%)',
+        hover: 'linear-gradient(135deg, #BBF7D0 0%, #86EFAC 100%)',
+        active: 'linear-gradient(135deg, #86EFAC 0%, #4ADE80 100%)',
+        text: '#15803D',
+      },
+      'Partially Paid': {
+        gradient: 'linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 100%)',
+        hover: 'linear-gradient(135deg, #BAE6FD 0%, #7DD3FC 100%)',
+        active: 'linear-gradient(135deg, #7DD3FC 0%, #38BDF8 100%)',
+        text: '#0369A1',
+      },
+      'Overdue': {
+        gradient: 'linear-gradient(135deg, #FEE2E2 0%, #FECACA 100%)',
+        hover: 'linear-gradient(135deg, #FECACA 0%, #FCA5A5 100%)',
+        active: 'linear-gradient(135deg, #FCA5A5 0%, #F87171 100%)',
+        text: '#B91C1C',
+      },
+      'Cancelled': {
+        gradient: 'linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%)',
+        hover: 'linear-gradient(135deg, #E5E7EB 0%, #D1D5DB 100%)',
+        active: 'linear-gradient(135deg, #D1D5DB 0%, #9CA3AF 100%)',
+        text: '#4B5563',
+      },
+    };
+
+    const scheme = colorSchemes[status as keyof typeof colorSchemes] || colorSchemes['Pending'];
+
+    return {
+      padding: '0.75rem 1.5rem',
+      borderRadius: '9999px',
+      fontSize: '0.875rem',
+      fontWeight: selectedStatus === status ? 600 : 500,
+      transition: 'all 0.2s ease-in-out',
+      cursor: 'pointer',
+      border: 'none',
+      outline: 'none',
+      background: selectedStatus === status ? scheme.active : scheme.gradient,
+      color: selectedStatus === status ? scheme.text : '#4B5563',
+      '&:hover': {
+        background: scheme.hover,
+        color: scheme.text,
+      },
+    };
+  };
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -225,15 +291,14 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
         </div>
       </div>
 
-      <div className="mb-6 flex space-x-2">
+      <div className="mb-6 flex space-x-2 overflow-x-auto pb-2">
         {INVOICE_STATUS_FILTERS.map((status) => (
           <button
             key={status.value}
             onClick={() => setSelectedStatus(status.value)}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-              selectedStatus === status.value
-                ? status.color
-                : 'bg-gray-50 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+            style={getTabStyle(status.value)}
+            className={`capitalize ${
+              selectedStatus === status.value ? 'shadow-md' : ''
             }`}
           >
             {status.value}
@@ -297,7 +362,11 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
                     #{invoice.id}
                   </TableCell>
                   <TableCell>
-                    {new Date(invoice.InvoiceDate).toLocaleDateString()}
+                    {new Date(invoice.InvoiceDate).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    })}
                   </TableCell>
                   <TableCell>
                     {invoice.Customer_name}
