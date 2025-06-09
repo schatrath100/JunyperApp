@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import Button from './Button';
 import { supabase } from '../lib/supabase';
+import { cn } from '../lib/utils';
 
 interface InvoiceStatusModalProps {
   isOpen: boolean;
@@ -22,8 +23,6 @@ interface InvoiceStatusModalProps {
 const INVOICE_STATUS = [
   'Pending',
   'Paid',
-  'Partially Paid',
-  'Overdue',
   'Cancelled'
 ];
 
@@ -39,6 +38,23 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
       setSaving(true);
       setError(null);
 
+      // Get the current user's session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        throw new Error('No authenticated user found');
+      }
+
+      // Get account IDs from accounting settings
+      const { data: settings, error: settingsError } = await supabase
+        .from('accounting_settings')
+        .select('accounts_receivable_account, sales_revenue_account, cash_account')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (settingsError) throw new Error('Failed to fetch accounting settings');
+      if (!settings) throw new Error('Accounting settings not found');
+
+      // Update invoice status
       const { error: updateError } = await supabase
         .from('SalesInvoice')
         .update({ Status: status })
@@ -46,7 +62,46 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
 
       if (updateError) throw updateError;
 
-      // Update status in related transactions
+      // If changing from Pending to Paid, create new transactions
+      if (invoice.Status === 'Pending' && status === 'Paid') {
+        const amount = invoice.InvoiceAmount || 0;
+        
+        // Create transactions for payment
+        const transactions = [
+          {
+            transaction_date: new Date().toISOString(),
+            account_id: settings.accounts_receivable_account,
+            debit_amount: 0,
+            credit_amount: amount,
+            description: `Payment for Invoice #${invoice.id} - ${invoice.Customer_name}`,
+            invoice_id: invoice.id,
+            bill_id: 0,
+            row_num: 1,
+            Status: status,
+            user_id: session.user.id
+          },
+          {
+            transaction_date: new Date().toISOString(),
+            account_id: settings.cash_account,
+            debit_amount: amount,
+            credit_amount: 0,
+            description: `Payment for Invoice #${invoice.id} - ${invoice.Customer_name}`,
+            invoice_id: invoice.id,
+            bill_id: 0,
+            row_num: 2,
+            Status: status,
+            user_id: session.user.id
+          }
+        ];
+
+        const { error: transactionError } = await supabase
+          .from('Transaction')
+          .insert(transactions);
+
+        if (transactionError) throw transactionError;
+      }
+
+      // Update status in existing transactions
       const { error: transactionError } = await supabase
         .from('Transaction')
         .update({ Status: status })
@@ -55,7 +110,7 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
       if (transactionError) throw transactionError;
 
       onSave();
-      onAlert?.(`Invoice status updated to ${status}`, status === 'Overdue' ? 'warning' : 'success');
+      onAlert?.(`Invoice status updated to ${status}`, 'success');
       onClose();
     } catch (err) {
       console.error('Error updating invoice status:', err);
@@ -64,6 +119,11 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
       setSaving(false);
     }
   };
+
+  const isPaid = invoice.Status === 'Paid';
+  const isPending = invoice.Status === 'Pending';
+  const isCancelled = invoice.Status === 'Cancelled';
+  const isProtected = isPaid || isCancelled;
 
   return (
     <div 
@@ -173,10 +233,20 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+              disabled={isProtected}
+              className={cn(
+                "w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
+                isProtected && "bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+              )}
             >
               {INVOICE_STATUS.map((s) => (
-                <option key={s} value={s}>{s}</option>
+                <option 
+                  key={s} 
+                  value={s}
+                  disabled={isPending && s === 'Pending'}
+                >
+                  {s}
+                </option>
               ))}
             </select>
           </div>
@@ -192,10 +262,10 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
               Cancel
             </Button>
             <Button
-              variant="primary"
+              variant="default"
               className="bg-black hover:bg-black/90 text-white"
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || isProtected}
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </Button>

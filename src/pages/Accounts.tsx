@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, RefreshCw, X, Pencil, Wallet, TrendingUp, TrendingDown, Building2, Landmark, Trash2 } from 'lucide-react';
+import { Plus, RefreshCw, X, Pencil, Wallet, TrendingUp, TrendingDown, Building2, Landmark, Trash2, Loader2, Save } from 'lucide-react';
 import Button from '../components/Button';
 import { cn } from '../lib/utils';
 
@@ -128,35 +128,89 @@ const Accounts: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError(null);
+    setSaving(true);
+    setFormError('');
     setErrors({});
-    
-    // Only validate description field
-    const newErrors: Record<string, string> = {};
-    if (!formData.account_description.trim()) newErrors.account_description = 'Description is required';
-    
+
+    // Validate all required fields
+    const newErrors: { [key: string]: string } = {};
+    if (!formData.account_name.trim()) {
+      newErrors.account_name = 'Account name is required';
+    }
+    if (!formData.account_type) {
+      newErrors.account_type = 'Account type is required';
+    }
+    if (!formData.account_group.trim()) {
+      newErrors.account_group = 'Account group is required';
+    }
+    if (!formData.account_description.trim()) {
+      newErrors.account_description = 'Description is required';
+    }
+
+    // If there are validation errors, show them and stop submission
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
-      setFormError('Please provide a description');
+      setSaving(false);
       return;
     }
 
     try {
-      setSaving(true);
-      
+      console.log('Starting account save process...');
+      console.log('Form data:', formData);
+
       const { data: { user }, error: authError } = await supabase.auth.getUser();
       
-      if (authError) throw authError;
-      if (!user) throw new Error('You must be logged in to manage accounts');
+      if (authError) {
+        console.error('Auth error:', authError);
+        throw authError;
+      }
+      if (!user) {
+        console.error('No user found');
+        throw new Error('You must be logged in to manage accounts');
+      }
+
+      console.log('User authenticated:', user.id);
 
       if (editingAccountId) {
-        // Update only the description field
+        console.log('Updating existing account:', editingAccountId);
+        // Update existing account
         const { error: updateError } = await supabase
           .from('Account')
-          .update({ account_description: formData.account_description })
-          .eq('id', editingAccountId);
+          .update({
+            account_name: formData.account_name,
+            account_type: formData.account_type,
+            account_group: formData.account_group,
+            account_description: formData.account_description
+          })
+          .eq('id', editingAccountId)
+          .eq('user_id', user.id);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('Update error:', updateError);
+          throw updateError;
+        }
+        console.log('Account updated successfully');
+      } else {
+        console.log('Creating new account...');
+        // Create new account
+        const newAccount = {
+          account_name: formData.account_name,
+          account_type: formData.account_type,
+          account_group: formData.account_group,
+          account_description: formData.account_description,
+          user_id: user.id
+        };
+        console.log('New account data:', newAccount);
+
+        const { error: insertError } = await supabase
+          .from('Account')
+          .insert([newAccount]);
+
+        if (insertError) {
+          console.error('Insert error:', insertError);
+          throw insertError;
+        }
+        console.log('Account created successfully');
       }
 
       // Reset form and close panel
@@ -168,10 +222,21 @@ const Accounts: React.FC = () => {
       });
       setEditingAccountId(null);
       setIsFormOpen(false);
-      fetchAccounts();
+      await fetchAccounts();
+      console.log('Form reset and accounts refreshed');
     } catch (err) {
       console.error('Error saving account:', err);
-      setFormError(err instanceof Error ? err.message : 'Failed to save account');
+      if (err instanceof Error) {
+        console.error('Error details:', {
+          message: err.message,
+          name: err.name,
+          stack: err.stack
+        });
+        setFormError(err.message);
+      } else {
+        console.error('Unknown error type:', err);
+        setFormError('Failed to save account. Please try again.');
+      }
     } finally {
       setSaving(false);
     }
@@ -186,8 +251,19 @@ const Accounts: React.FC = () => {
         .eq('id', accountId);
 
       if (error) throw error;
-      await fetchAccounts();
+      
+      // Close both the delete confirmation and the form panel
       setShowDeleteConfirm(false);
+      setIsFormOpen(false);
+      setEditingAccountId(null);
+      setFormData({
+        account_name: '',
+        account_group: '',
+        account_type: '',
+        account_description: '',
+      });
+      
+      await fetchAccounts();
     } catch (err) {
       console.error('Error deleting account:', err);
       setError(err instanceof Error ? err.message : 'Failed to delete account');
@@ -375,138 +451,232 @@ const Accounts: React.FC = () => {
 
       {/* Sliding Form Panel */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md p-6">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                {editingAccountId ? 'Edit Account Description' : 'New Account'}
-              </h2>
-              <button
-                onClick={() => {
-                  setIsFormOpen(false);
-                  setEditingAccountId(null);
-                  setFormData({
-                    account_name: '',
-                    account_group: '',
-                    account_type: '',
-                    account_description: '',
-                  });
-                }}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {editingAccountId ? (
-                <>
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Account Name
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.account_name}
-                      disabled
-                      className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md text-gray-500 dark:text-gray-400"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Account Type
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.account_type}
-                      disabled
-                      className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md text-gray-500 dark:text-gray-400"
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Account Group
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.account_group}
-                      disabled
-                      className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-md text-gray-500 dark:text-gray-400"
-                    />
-                  </div>
-                </>
-              ) : (
-                <div>
-                  <label htmlFor="account_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Account Name *
-                  </label>
-                  <input
-                    type="text"
-                    id="account_name"
-                    value={formData.account_name}
-                    onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
-                    className={cn(
-                      "w-full px-4 py-2.5 border border-gray-300 dark:border-gray-700 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-800 dark:text-white text-sm leading-5 transition-shadow duration-200 hover:border-gray-400 dark:hover:border-gray-600",
-                      errors.account_name && "border-red-500 focus:ring-red-500"
-                    )}
-                    placeholder="Enter account name"
-                  />
-                  {errors.account_name && (
-                    <p className="mt-1 text-sm text-red-500">{errors.account_name}</p>
-                  )}
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Description {!editingAccountId && <span className="text-red-500">*</span>}
-                </label>
-                <textarea
-                  value={formData.account_description}
-                  onChange={(e) => setFormData(prev => ({ ...prev, account_description: e.target.value }))}
-                  className={cn(
-                    "w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-green-500",
-                    errors.account_description
-                      ? "border-red-500 dark:border-red-500"
-                      : "border-gray-300 dark:border-gray-700",
-                    "bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                  )}
-                  rows={3}
-                  placeholder="Enter account description"
-                />
-                {errors.account_description && (
-                  <p className="text-sm text-red-500">{errors.account_description}</p>
-                )}
-              </div>
-
-              {formError && (
-                <div className="p-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-md text-red-700 dark:text-red-400">
-                  {formError}
-                </div>
-              )}
-
-              <div className="flex justify-end space-x-3">
-                {editingAccountId && (
-                  <button
-                    type="button"
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="px-4 py-2 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
-                    disabled={saving || deleteLoading}
-                  >
-                    Delete
-                  </button>
-                )}
+        <div 
+          className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-50 transition-all duration-300"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsFormOpen(false);
+              setEditingAccountId(null);
+              setFormData({
+                account_name: '',
+                account_group: '',
+                account_type: '',
+                account_description: '',
+              });
+            }
+          }}
+        >
+          <div 
+            className={`fixed inset-y-0 right-0 w-[500px] bg-white dark:bg-gray-900 shadow-[0_0_50px_rgba(0,0,0,0.2)] transform transition-all duration-300 ease-in-out ${
+              isFormOpen ? 'translate-x-0' : 'translate-x-full'
+            }`}
+          >
+            <div className="flex flex-col h-full">
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-800">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                  {editingAccountId ? 'Edit Account' : 'New Account'}
+                </h2>
                 <button
-                  type="submit"
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50"
-                  disabled={saving || deleteLoading}
+                  onClick={() => {
+                    setIsFormOpen(false);
+                    setEditingAccountId(null);
+                    setFormData({
+                      account_name: '',
+                      account_group: '',
+                      account_type: '',
+                      account_description: '',
+                    });
+                  }}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
                 >
-                  {saving ? 'Saving...' : 'Save'}
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-            </form>
+
+              {/* Form Content */}
+              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <label htmlFor="account_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Account Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="account_name"
+                      value={formData.account_name}
+                      onChange={(e) => {
+                        setFormData({ ...formData, account_name: e.target.value });
+                        if (errors.account_name) {
+                          setErrors(prev => ({ ...prev, account_name: '' }));
+                        }
+                      }}
+                      className={cn(
+                        "w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200",
+                        errors.account_name && "border-red-500 focus:ring-red-500"
+                      )}
+                      placeholder="Enter account name"
+                      required
+                    />
+                    {errors.account_name && (
+                      <p className="mt-1.5 text-sm text-red-500 flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {errors.account_name}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="account_type" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Account Type <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      id="account_type"
+                      value={formData.account_type}
+                      onChange={(e) => {
+                        setFormData({ ...formData, account_type: e.target.value });
+                        if (errors.account_type) {
+                          setErrors(prev => ({ ...prev, account_type: '' }));
+                        }
+                      }}
+                      className={cn(
+                        "w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200",
+                        errors.account_type && "border-red-500 focus:ring-red-500"
+                      )}
+                      required
+                    >
+                      <option value="">Select account type</option>
+                      {ACCOUNT_TYPE_OPTIONS.map((type) => (
+                        <option key={type.value} value={type.value}>
+                          {type.label}
+                        </option>
+                      ))}
+                    </select>
+                    {errors.account_type && (
+                      <p className="mt-1.5 text-sm text-red-500 flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {errors.account_type}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="account_group" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Account Group <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      id="account_group"
+                      value={formData.account_group}
+                      onChange={(e) => {
+                        setFormData({ ...formData, account_group: e.target.value });
+                        if (errors.account_group) {
+                          setErrors(prev => ({ ...prev, account_group: '' }));
+                        }
+                      }}
+                      className={cn(
+                        "w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200",
+                        errors.account_group && "border-red-500 focus:ring-red-500"
+                      )}
+                      placeholder="Enter account group"
+                      required
+                    />
+                    {errors.account_group && (
+                      <p className="mt-1.5 text-sm text-red-500 flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {errors.account_group}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label htmlFor="account_description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Description <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      id="account_description"
+                      value={formData.account_description}
+                      onChange={(e) => {
+                        setFormData({ ...formData, account_description: e.target.value });
+                        if (errors.account_description) {
+                          setErrors(prev => ({ ...prev, account_description: '' }));
+                        }
+                      }}
+                      rows={4}
+                      className={cn(
+                        "w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none",
+                        errors.account_description && "border-red-500 focus:ring-red-500"
+                      )}
+                      placeholder="Enter account description"
+                      required
+                    />
+                    {errors.account_description && (
+                      <p className="mt-1.5 text-sm text-red-500 flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {errors.account_description}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {formError && (
+                  <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 flex items-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    {formError}
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setIsFormOpen(false);
+                      setEditingAccountId(null);
+                      setFormData({
+                        account_name: '',
+                        account_group: '',
+                        account_type: '',
+                        account_description: '',
+                      });
+                      setErrors({});
+                    }}
+                    className="flex-1 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-900 dark:text-gray-100 font-medium py-2.5 px-4 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ease-in-out transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-medium py-2.5 px-4 rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 ease-in-out transform hover:-translate-y-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={saving || deleteLoading}
+                  >
+                    {saving ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Saving...</span>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span>Save Account</span>
+                      </div>
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

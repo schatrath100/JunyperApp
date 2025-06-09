@@ -2,7 +2,7 @@
   # Add Required Accounts for Invoice Transactions
 
   1. New Data
-    - Add 'Accounts Receivable' and 'Sales Income' accounts to the Account table
+    - Add 'Accounts Receivable', 'Sales Income', and 'Cash' accounts to the Account table
     - These accounts are required for invoice transaction processing
 
   2. Changes
@@ -49,6 +49,26 @@ BEGIN
       'Revenue',
       'Account for tracking sales revenue',
       'Income'
+    );
+  END IF;
+
+  -- Add Cash if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM "Account" 
+    WHERE account_name = 'Cash'
+  ) THEN
+    INSERT INTO "Account" (
+      id,
+      account_name,
+      account_type,
+      account_description,
+      account_group
+    ) VALUES (
+      3,
+      'Cash',
+      'Asset',
+      'Account for tracking cash on hand',
+      'Current Assets'
     );
   END IF;
 END $$;

@@ -362,10 +362,12 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
                     #{invoice.id}
                   </TableCell>
                   <TableCell>
-                    {new Date(invoice.InvoiceDate).toLocaleDateString('en-US', {
+                    {new Date(invoice.InvoiceDate).toLocaleString('en-US', {
                       year: 'numeric',
                       month: 'short',
-                      day: 'numeric'
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
                     })}
                   </TableCell>
                   <TableCell>
