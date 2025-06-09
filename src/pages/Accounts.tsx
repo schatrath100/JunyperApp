@@ -40,6 +40,7 @@ interface AccountFormData {
 }
 
 const ACCOUNT_TYPES = [
+  'All',
   'Asset',
   'Liability',
   'Equity',
@@ -48,7 +49,7 @@ const ACCOUNT_TYPES = [
 ];
 
 const Accounts: React.FC = () => {
-  const [selectedType, setSelectedType] = useState('Revenue');
+  const [selectedType, setSelectedType] = useState('All');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -68,7 +69,7 @@ const Accounts: React.FC = () => {
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const { sortedItems: sortedAccounts, sortConfig, requestSort } = useTableSort(
-    accounts.filter(account => account.account_type.toLowerCase() === selectedType.toLowerCase()),
+    accounts.filter(account => selectedType === 'All' || account.account_type.toLowerCase() === selectedType.toLowerCase()),
     { key: 'created_at', direction: 'desc' }
   );
 
@@ -84,22 +85,17 @@ const Accounts: React.FC = () => {
         return;
       }
 
-      // First, let's fetch all accounts to see what we have
-      const { data: allData, error: allError } = await supabase
-        .from('Account')
-        .select('*');
-
-      console.log('All accounts:', allData);
-      console.log('Selected type:', selectedType);
-      console.log('Capitalized type:', selectedType.charAt(0).toUpperCase() + selectedType.slice(1));
-
-      const { data, error } = await supabase
+      let query = supabase
         .from('Account')
         .select('*')
-        .eq('account_type', selectedType.charAt(0).toUpperCase() + selectedType.slice(1))
         .order('id');
 
-      console.log('Filtered accounts:', data);
+      // Only apply account type filter if not 'All'
+      if (selectedType !== 'All') {
+        query = query.eq('account_type', selectedType);
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         throw error;
@@ -278,6 +274,12 @@ const Accounts: React.FC = () => {
 
   const getTabStyle = (type: string) => {
     const colorSchemes = {
+      all: {
+        gradient: 'linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%)',
+        hover: 'linear-gradient(135deg, #E5E7EB 0%, #D1D5DB 100%)',
+        active: 'linear-gradient(135deg, #D1D5DB 0%, #9CA3AF 100%)',
+        text: '#1F2937',
+      },
       asset: {
         gradient: 'linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 100%)',
         hover: 'linear-gradient(135deg, #BAE6FD 0%, #7DD3FC 100%)',
@@ -310,7 +312,7 @@ const Accounts: React.FC = () => {
       },
     };
 
-    const scheme = colorSchemes[type as keyof typeof colorSchemes] || colorSchemes.asset;
+    const scheme = colorSchemes[type.toLowerCase() as keyof typeof colorSchemes] || colorSchemes.asset;
 
     return {
       padding: '0.75rem 1.5rem',
@@ -331,22 +333,12 @@ const Accounts: React.FC = () => {
   };
 
   return (
-    <div className="p-8 font-inter">
-      <div className="flex justify-between items-center mb-8">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white tracking-tight">Accounts</h1>
-          <button
-            onClick={fetchAccounts}
-            className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
-            disabled={loading || showDeleteConfirm}
-          >
-            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-        <Button 
-          icon={<Plus className="w-4 h-4" />}
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Accounts</h1>
+        <Button
           variant="default"
-          className="bg-black hover:bg-black/90 text-white"
+          className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5"
           onClick={() => {
             setFormData({
               account_name: '',
@@ -358,12 +350,13 @@ const Accounts: React.FC = () => {
             setIsFormOpen(true);
           }}
         >
+          <Plus className="w-4 h-4 mr-2" />
           New Account
         </Button>
       </div>
 
       <div className="flex space-x-2 mb-6 overflow-x-auto pb-2">
-        {['revenue', 'expense', 'equity', 'asset', 'liability'].map((type) => (
+        {ACCOUNT_TYPES.map((type) => (
           <button
             key={type}
             onClick={() => setSelectedType(type)}
@@ -701,10 +694,10 @@ const Accounts: React.FC = () => {
                 Cancel
               </Button>
               <Button
-                variant="primary"
-                className="flex-1 !bg-red-500 hover:!bg-red-600"
                 onClick={() => handleDelete(editingAccountId as number)}
                 disabled={deleteLoading}
+                className="bg-red-600 hover:bg-red-700 text-white"
+                variant="default"
               >
                 {deleteLoading ? 'Deleting...' : 'Delete'}
               </Button>

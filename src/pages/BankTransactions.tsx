@@ -42,7 +42,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(100);
+  const [pageSize] = useState(10);
   const [error, setError] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -58,6 +58,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const exportToPDF = () => {
     const doc = new jsPDF();
@@ -263,6 +264,68 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     setCurrentPage(page);
   };
 
+  // Calculate pagination
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total pages is less than max visible
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      // Always show first page
+      pageNumbers.push(1);
+      
+      // Calculate start and end of visible pages
+      let startPage = Math.max(2, currentPage - 1);
+      let endPage = Math.min(totalPages - 1, startPage + 2);
+      
+      // Adjust if we're near the end
+      if (endPage === totalPages - 1) {
+        startPage = Math.max(2, endPage - 2);
+      }
+      
+      // Add ellipsis if needed
+      if (startPage > 2) {
+        pageNumbers.push('...');
+      }
+      
+      // Add middle pages
+      for (let i = startPage; i <= endPage; i++) {
+        pageNumbers.push(i);
+      }
+      
+      // Add ellipsis if needed
+      if (endPage < totalPages - 1) {
+        pageNumbers.push('...');
+      }
+      
+      // Always show last page
+      pageNumbers.push(totalPages);
+    }
+    
+    return pageNumbers;
+  };
+
+  // Filter transactions based on search query
+  const filteredTransactions = transactions.filter(transaction => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      transaction.bank_name.toLowerCase().includes(searchLower) ||
+      transaction.description.toLowerCase().includes(searchLower) ||
+      transaction.account_number.toString().includes(searchLower) ||
+      transaction.credit_debit_indicator.toString().includes(searchLower)
+    );
+  });
+
+  // Calculate pagination for filtered transactions
+  const totalPagesFiltered = Math.ceil(filteredTransactions.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const currentTransactions = filteredTransactions.slice(startIndex, endIndex);
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -285,12 +348,31 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
           </button>
         </div>
         <div className="flex items-center space-x-4">
-          <span className="text-sm text-gray-600 dark:text-gray-400">
-            Showing {transactions.length} of {totalCount} transactions
-          </span>
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search transactions..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-64 px-4 py-2 pl-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+            />
+            <svg
+              className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+              />
+            </svg>
+          </div>
           <Button
             variant="default"
-            className="bg-black hover:bg-black/90 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5"
+            className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5"
             onClick={() => setShowUploadModal(true)}
             icon={<Upload className="w-4 h-4" />}
           >
@@ -468,7 +550,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {transactions.map((transaction) => (
+            {currentTransactions.map((transaction) => (
               <TableRow key={transaction.id}>
                 <TableCell>
                   <span className="text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
@@ -529,50 +611,47 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
         </Table>
 
         {/* Pagination Controls */}
-        <div className="px-4 py-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-              Page {currentPage} of {totalPages}
+        {currentTransactions.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
+              Showing {startIndex + 1} to {Math.min(endIndex, filteredTransactions.length)} of {filteredTransactions.length} entries
             </div>
             <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
+              <button
                 onClick={() => handlePageChange(1)}
                 disabled={currentPage === 1}
-                className="px-3 py-1 text-sm"
-              >
-                First
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-1 text-sm"
+                className="px-3 py-1 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Previous
-              </Button>
-              <span className="px-3 py-1 text-sm text-gray-600 dark:text-gray-300">
-                {currentPage} / {totalPages}
-              </span>
-              <Button
-                variant="outline"
+              </button>
+              <div className="flex items-center space-x-1">
+                {getPageNumbers().map((page, index) => (
+                  <button
+                    key={index}
+                    onClick={() => typeof page === 'number' ? handlePageChange(page) : null}
+                    disabled={typeof page !== 'number'}
+                    className={`px-3 py-1 rounded-md text-sm font-medium ${
+                      currentPage === page
+                        ? 'bg-blue-600 text-white'
+                        : typeof page === 'number'
+                        ? 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        : 'text-gray-400 dark:text-gray-500 cursor-default'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+              <button
                 onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 text-sm"
+                disabled={currentPage === totalPagesFiltered}
+                className="px-3 py-1 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => handlePageChange(totalPages)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 text-sm"
-              >
-                Last
-              </Button>
+              </button>
             </div>
           </div>
-        </div>
+        )}
       </div>
       
       <BankTransactionUploadModal

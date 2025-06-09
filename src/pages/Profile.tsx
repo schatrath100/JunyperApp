@@ -242,7 +242,7 @@ export default function Profile() {
         {profile.updated_at && (
           <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
             <Clock className="w-4 h-4 mr-1" />
-            Last updated {new Date(profile.updated_at).toLocaleDateString()}
+            Last updated {new Date(profile.updated_at).toLocaleString()}
           </div>
         )}
       </div>

@@ -32,11 +32,12 @@ const ShortcutPanel: React.FC<ShortcutPanelProps> = ({ isOpen, onClose }) => {
       <button
         onClick={onClose}
         className={cn(
-          "fixed bottom-6 right-6 w-14 h-14 rounded-full bg-green-600 hover:bg-green-700 text-white shadow-lg",
-          "flex items-center justify-center transition-all duration-300",
-          "hover:scale-110 hover:shadow-xl",
+          "fixed bottom-6 right-6 w-14 h-14 rounded-full bg-gradient-to-br from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg",
+          "flex items-center justify-center transition-all duration-300 ease-in-out",
+          "hover:scale-110 hover:shadow-xl active:scale-95",
           "focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2",
-          isOpen ? "rotate-45" : ""
+          "transform-gpu",
+          isOpen ? "rotate-45" : "rotate-0"
         )}
         aria-label={isOpen ? "Close shortcuts" : "Open shortcuts"}
       >
@@ -46,21 +47,32 @@ const ShortcutPanel: React.FC<ShortcutPanelProps> = ({ isOpen, onClose }) => {
       {/* Shortcuts Panel */}
       {isOpen && (
         <div 
-          className="fixed bottom-24 right-6 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-40 animate-in slide-in-from-bottom-5 duration-300"
+          className="fixed bottom-24 right-6 w-64 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 z-40"
           role="dialog"
           aria-label="Quick access shortcuts"
+          style={{
+            animation: 'slideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards',
+            transformOrigin: 'bottom right'
+          }}
         >
           <div className="p-4">
             <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">Quick Access</h3>
             <div className="space-y-1">
-              {shortcuts.map((shortcut) => (
+              {shortcuts.map((shortcut, index) => (
                 <button
                   key={shortcut.path}
                   onClick={() => handleShortcutClick(shortcut.path)}
-                  className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                  className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 ease-in-out transform hover:translate-x-1 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+                  style={{
+                    animation: `fadeIn 0.2s ease-out ${index * 0.05}s forwards`,
+                    opacity: 0,
+                    transform: 'translateX(-10px)'
+                  }}
                 >
-                  {shortcut.icon}
-                  <span>{shortcut.label}</span>
+                  <div className="flex-shrink-0 w-5 h-5 text-gray-500 dark:text-gray-400 group-hover:text-green-500 dark:group-hover:text-green-400 transition-colors duration-200">
+                    {shortcut.icon}
+                  </div>
+                  <span className="font-medium">{shortcut.label}</span>
                 </button>
               ))}
             </div>

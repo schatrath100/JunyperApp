@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Trash2, Pencil, Paperclip, FileText, FileSpreadsheet } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, Pencil, Paperclip, FileText, FileSpreadsheet, Search } from 'lucide-react';
 import Button from '../components/Button';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -26,7 +26,7 @@ interface SalesInvoice {
   Description?: string;
   InvoiceAmount?: number;
   Status: string;
-  OutStandingAmount: number;
+  OutstandingAmount: number;
   attachment_path?: string | null;
 }
 
@@ -46,6 +46,7 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState('Pending');
+  const [searchQuery, setSearchQuery] = useState('');
   const { sortedItems: sortedInvoices, sortConfig, requestSort } = useTableSort(
     invoices.filter(invoice => invoice.Status === selectedStatus),
     { key: 'InvoiceDate', direction: 'desc' }
@@ -121,15 +122,35 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
 
   const fetchInvoices = async () => {
     try {
+      console.log('Fetching invoices with search query:', searchQuery);
       setLoading(true);
       setError(null);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('SalesInvoice')
-        .select('*')
+        .select('*');
+
+      // Add search filter if searchQuery exists
+      if (searchQuery.trim()) {
+        const searchTerm = `%${searchQuery.trim()}%`;
+        query = query.or(
+          `Customer_name.ilike.${searchTerm},Description.ilike.${searchTerm}`
+        );
+      }
+
+      // Add status filter
+      query = query.eq('Status', selectedStatus);
+
+      const { data, error } = await query
         .order('InvoiceDate', { ascending: false });
 
       if (error) throw error;
+      
+      console.log('Fetched invoices:', data);
+      // Debug log for OutStandingAmount
+      data?.forEach(invoice => {
+        console.log(`Invoice ${invoice.id} OutStandingAmount:`, invoice.OutstandingAmount);
+      });
       setInvoices(data || []);
     } catch (err) {
       console.error('Error fetching invoices:', err);
@@ -139,9 +160,15 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
     }
   };
 
+  // Add debounce to search to prevent too many requests
   useEffect(() => {
-    fetchInvoices();
-  }, []);
+    const timer = setTimeout(() => {
+      console.log('Search query changed:', searchQuery);
+      fetchInvoices();
+    }, 300); // 300ms delay
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, selectedStatus]);
 
   const handleRowSelect = (id: number) => {
     setSelectedRows(prev => 
@@ -266,9 +293,24 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
           )}
         </div>
         <div className="flex items-center space-x-4">
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search by customer or description..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-10 pl-10 pr-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            />
+            {loading && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <RefreshCw className="w-4 h-4 animate-spin text-gray-400" />
+              </div>
+            )}
+          </div>
           <Button
             variant="default"
-            className="bg-black hover:bg-black/90 text-white"
+            className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5"
             icon={<Plus className="w-4 h-4" />}
             onClick={() => setIsModalOpen(true)}
           >
@@ -276,14 +318,14 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
           </Button>
           <button
             onClick={exportToPDF}
-            className="p-2 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+            className="h-10 w-10 flex items-center justify-center text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
             title="Export to PDF"
           >
             <FileText className="w-5 h-5" />
           </button>
           <button
             onClick={exportToExcel}
-            className="p-2 text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
+            className="h-10 w-10 flex items-center justify-center text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
             title="Export to Excel"
           >
             <FileSpreadsheet className="w-5 h-5" />
@@ -317,7 +359,7 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12">
+                <TableHead className="w-12 text-center">
                   <input
                     type="checkbox"
                     className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
@@ -325,19 +367,22 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
                     onChange={handleSelectAll}
                   />
                 </TableHead>
-                <TableHead onClick={() => requestSort('id')} className="cursor-pointer">
+                <TableHead onClick={() => requestSort('id')} className="cursor-pointer w-20 text-center">
                   Invoice No.
                 </TableHead>
-                <TableHead onClick={() => requestSort('InvoiceDate')} className="cursor-pointer">
+                <TableHead onClick={() => requestSort('InvoiceDate')} className="cursor-pointer w-36 text-center">
                   Date
                 </TableHead>
-                <TableHead onClick={() => requestSort('Customer_name')} className="cursor-pointer">
+                <TableHead onClick={() => requestSort('Customer_name')} className="cursor-pointer w-40 text-left">
                   Customer
                 </TableHead>
-                <TableHead onClick={() => requestSort('OutstandingAmount')} className="cursor-pointer">
+                <TableHead onClick={() => requestSort('Description')} className="cursor-pointer w-48 text-left">
+                  Description
+                </TableHead>
+                <TableHead onClick={() => requestSort('OutstandingAmount')} className="cursor-pointer w-36 text-right">
                   Outstanding Amount
                 </TableHead>
-                <TableHead>
+                <TableHead className="w-20 text-center">
                   Actions
                 </TableHead>
               </TableRow>
@@ -350,7 +395,7 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
                     selectedRows.includes(invoice.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                   }`}
                 >
-                  <TableCell>
+                  <TableCell className="w-12 text-center">
                     <input
                       type="checkbox"
                       className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
@@ -358,10 +403,10 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
                       onChange={() => handleRowSelect(invoice.id)}
                     />
                   </TableCell>
-                  <TableCell className="font-medium">
+                  <TableCell className="font-medium w-20 text-center">
                     #{invoice.id}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="w-36 text-center whitespace-nowrap">
                     {new Date(invoice.InvoiceDate).toLocaleString('en-US', {
                       year: 'numeric',
                       month: 'short',
@@ -370,17 +415,24 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
                       minute: '2-digit'
                     })}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="w-40 text-left">
                     {invoice.Customer_name}
                   </TableCell>
-                  <TableCell>
-                    {invoice.OutstandingAmount ? new Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: 'USD'
-                    }).format(invoice.OutstandingAmount) : '-'}
+                  <TableCell className="w-48 text-left">
+                    <div className="truncate" title={invoice.Description || ''}>
+                      {invoice.Description || '-'}
+                    </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-3">
+                  <TableCell className="w-36 text-right whitespace-nowrap">
+                    {invoice.OutstandingAmount !== undefined && invoice.OutstandingAmount !== null ? 
+                      new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD'
+                      }).format(invoice.OutstandingAmount) 
+                      : '-'}
+                  </TableCell>
+                  <TableCell className="w-20 text-center">
+                    <div className="flex items-center justify-center space-x-2">
                       <button
                         onClick={() => {
                           setSelectedInvoice(invoice);

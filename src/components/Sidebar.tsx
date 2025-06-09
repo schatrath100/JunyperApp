@@ -132,7 +132,7 @@ const Sidebar: React.FC<{
   }, []);
 
   return (
-    <aside className={`hidden md:flex flex-col ${collapsed ? 'w-16' : 'w-56'} bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 h-[calc(100vh-4rem)]`}>
+    <aside className={`hidden md:flex flex-col fixed top-16 left-0 ${collapsed ? 'w-16' : 'w-56'} bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 h-[calc(100vh-4rem)] z-10`}>
       <div className="flex flex-col h-full overflow-hidden">
         <div className="flex-1 p-4 overflow-y-auto">
           <div className="space-y-1">

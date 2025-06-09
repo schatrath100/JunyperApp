@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
 import Button from './Button';
 import { supabase } from '../lib/supabase';
 
@@ -11,6 +11,7 @@ interface Customer {
   Customer_Phone: string;
   Customer_TaxID?: number;
   Customer_PaymentTerms?: string | number;
+  updated_at?: string;
 }
 
 interface CustomerFormData {
@@ -26,7 +27,7 @@ interface CustomerModalProps {
   isOpen: boolean;
   onClose: () => void;
   customer: Customer | null;
-  onSave: () => void;
+  onSave: (customer: Customer) => void;
 }
 
 const PAYMENT_TERMS = [
@@ -38,7 +39,7 @@ const PAYMENT_TERMS = [
   { value: '45', label: '45 days' },
 ];
 
-const CustomerModal: React.FC<CustomerModalProps> = ({ isOpen, onClose, customer, onSave }) => {
+const CustomerModal: React.FC<CustomerModalProps> = ({ isOpen, onClose, customer: initialCustomer, onSave }) => {
   const [formData, setFormData] = useState<CustomerFormData>({
     name: '',
     email: '',
@@ -48,109 +49,124 @@ const CustomerModal: React.FC<CustomerModalProps> = ({ isOpen, onClose, customer
     paymentTerms: '',
   });
 
-  const [errors, setErrors] = useState<Partial<CustomerFormData>>({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [customerData, setCustomerData] = useState<Customer | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      email: '',
+      phone: '',
+      taxId: '',
+      address: '',
+      paymentTerms: '',
+    });
+    setErrors({});
+    setError(null);
+    setCustomerData(null);
+  };
 
   useEffect(() => {
-    if (customer) {
-      setFormData({
-        name: customer.Customer_name,
-        email: customer.Customer_Email,
-        phone: customer.Customer_Phone?.toString() || '',
-        taxId: customer.Customer_TaxID?.toString() || '',
-        address: customer.Customer_address || '',
-        paymentTerms: customer.Customer_PaymentTerms?.toString() || '',
-      });
+    if (initialCustomer) {
+      // Fetch the latest customer data
+      const fetchCustomer = async () => {
+        const { data, error } = await supabase
+          .from('Customer')
+          .select('*')
+          .eq('id', initialCustomer.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching customer:', error);
+          return;
+        }
+
+        if (data) {
+          setCustomerData(data);
+          setFormData({
+            name: data.Customer_name || '',
+            email: data.Customer_Email || '',
+            phone: data.Customer_Phone?.toString() || '',
+            taxId: data.Customer_TaxID?.toString() || '',
+            address: data.Customer_address || '',
+            paymentTerms: data.Customer_PaymentTerms || '',
+          });
+        }
+      };
+
+      fetchCustomer();
     } else {
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        taxId: '',
-        address: '',
-        paymentTerms: '',
-      });
+      // Reset form when adding new customer
+      resetForm();
     }
-  }, [customer]);
+  }, [initialCustomer]);
 
-  const validateForm = async (): Promise<boolean> => {
-    const newErrors: Partial<CustomerFormData> = {};
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('Submitting form:', formData);
 
+    // Validate form
+    const newErrors: Record<string, string> = {};
     if (!formData.name.trim()) {
       newErrors.name = 'Name is required';
-    } else {
-      // Check for existing customer with the same name
-      const { data: existingCustomers, error: checkError } = await supabase
-        .from('Customer')
-        .select('Customer_name')
-        .eq('Customer_name', formData.name.trim())
-        .neq('id', customer?.id || 0)
-        .maybeSingle();
-
-      if (checkError) {
-        console.error('Error checking customer name:', checkError);
-        newErrors.name = 'Error validating customer name';
-      } else if (existingCustomers) {
-        newErrors.name = 'Customer with the same name exists. Please change the name.';
-      }
     }
-
     if (!formData.email.trim()) {
       newErrors.email = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Invalid email format';
     }
-
     if (!formData.paymentTerms) {
       newErrors.paymentTerms = 'Payment terms are required';
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+    if (Object.keys(newErrors).length > 0) {
+      console.log('Validation errors:', newErrors);
+      setErrors(newErrors);
+      return;
+    }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
     try {
       setSaving(true);
-      const isValid = await validateForm();
-      
-      // Get the current user's ID
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
-      if (!user) throw new Error('No authenticated user found');
-      
-      if (isValid) {        
-        const customerData = {
-          Customer_name: formData.name,
-          Customer_Email: formData.email,
-          Customer_Phone: formData.phone ? Number(formData.phone) : null,
-          Customer_TaxID: formData.taxId ? Number(formData.taxId) : null,
-          Customer_address: formData.address,
-          Customer_PaymentTerms: formData.paymentTerms,
-          user_id: user.id
-        };
+      setError(null);
 
-        const { error } = customer
-          ? await supabase
-              .from('Customer')
-              .update(customerData)
-              .eq('id', customer.id)
-          : await supabase
+      const customerData = {
+        Customer_name: formData.name.trim(),
+        Customer_Email: formData.email.trim(),
+        Customer_Phone: formData.phone ? formData.phone.trim() : null,
+        Customer_TaxID: formData.taxId ? formData.taxId.trim() : null,
+        Customer_address: formData.address ? formData.address.trim() : null,
+        Customer_PaymentTerms: formData.paymentTerms,
+        user_id: (await supabase.auth.getUser()).data.user?.id
+      };
+
+      console.log('Saving customer data:', customerData);
+
+      if (initialCustomer) {
+        // Update existing customer
+        const { error: updateError } = await supabase
+          .from('Customer')
+          .update(customerData)
+          .eq('id', initialCustomer.id);
+
+        if (updateError) throw updateError;
+        console.log('Customer updated successfully');
+      } else {
+        // Create new customer
+        const { error: insertError } = await supabase
           .from('Customer')
           .insert([customerData]);
 
-        if (error) throw error;
-        
-        onSave();
-        onClose();
+        if (insertError) throw insertError;
+        console.log('Customer created successfully');
       }
+
+      onSave(customerData);
+      onClose();
     } catch (err) {
       console.error('Error saving customer:', err);
-      setErrors({
-        ...errors,
-        name: 'Failed to save customer. Please try again.'
-      });
+      setError(err instanceof Error ? err.message : 'Failed to save customer');
     } finally {
       setSaving(false);
     }
@@ -165,143 +181,154 @@ const CustomerModal: React.FC<CustomerModalProps> = ({ isOpen, onClose, customer
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div 
-        className={`fixed inset-y-0 right-0 w-[480px] bg-white dark:bg-gray-900 shadow-xl transform transition-transform duration-300 ease-in-out ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-      >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {customer ? 'Edit Customer' : 'Add Customer'}
-          </h2>
+      <div className="fixed inset-y-0 right-0 w-[480px] bg-white dark:bg-gray-900 shadow-xl transform transition-transform duration-300 ease-in-out">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              {initialCustomer ? 'Edit Customer' : 'Add Customer'}
+            </h2>
+            {customerData && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                Last updated: {new Date(customerData.updated_at!).toLocaleString()}
+              </p>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 h-[calc(100vh-160px)] overflow-y-auto">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Name *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white ${
-                  errors.name ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {errors.name && (
-                <p className="mt-1 text-sm text-red-500">{errors.name}</p>
-              )}
+        <form id="invoice-form" onSubmit={handleSubmit} className="p-4 h-[calc(100vh-160px)] overflow-y-auto">
+          {error && (
+            <div className="mb-3 p-2 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              {error}
             </div>
+          )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Email *
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white ${
-                  errors.email ? 'border-red-500' : 'border-gray-300'
-                }`}
-              />
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-500">{errors.email}</p>
-              )}
-            </div>
+          <div className="max-w-xl mx-auto space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-0.5">
+                  Name *
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className={`w-full px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white ${
+                    errors.name ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.name && (
+                  <p className="mt-0.5 text-xs text-red-500">{errors.name}</p>
+                )}
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Phone
-              </label>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-0.5">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className={`w-full px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white ${
+                    errors.email ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {errors.email && (
+                  <p className="mt-0.5 text-xs text-red-500">{errors.email}</p>
+                )}
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Tax ID
-              </label>
-              <input
-                type="text"
-                value={formData.taxId}
-                onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-0.5">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Billing Address
-              </label>
-              <textarea
-                value={formData.address}
-                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
-              />
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-0.5">
+                  Tax ID
+                </label>
+                <input
+                  type="text"
+                  value={formData.taxId}
+                  onChange={(e) => setFormData({ ...formData, taxId: e.target.value })}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                />
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Payment Terms *
-              </label>
-              <select
-                value={formData.paymentTerms}
-                onChange={(e) => setFormData({ ...formData, paymentTerms: e.target.value })}
-                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white ${
-                  errors.paymentTerms ? 'border-red-500' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select payment terms</option>
-                {PAYMENT_TERMS.map((term) => (
-                  <option key={term.value} value={term.value}>
-                    {term.label}
-                  </option>
-                ))}
-              </select>
-              {errors.paymentTerms && (
-                <p className="mt-1 text-sm text-red-500">{errors.paymentTerms}</p>
-              )}
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-0.5">
+                  Billing Address
+                </label>
+                <textarea
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  rows={2}
+                  className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+                />
+              </div>
+
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-0.5">
+                  Payment Terms *
+                </label>
+                <select
+                  value={formData.paymentTerms}
+                  onChange={(e) => setFormData({ ...formData, paymentTerms: e.target.value })}
+                  className={`w-full px-2.5 py-1.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:border-gray-700 dark:text-white ${
+                    errors.paymentTerms ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                >
+                  <option value="">Select payment terms</option>
+                  {PAYMENT_TERMS.map((term) => (
+                    <option key={term.value} value={term.value}>
+                      {term.label}
+                    </option>
+                  ))}
+                </select>
+                {errors.paymentTerms && (
+                  <p className="mt-0.5 text-xs text-red-500">{errors.paymentTerms}</p>
+                )}
+              </div>
+
+              <div className="col-span-2 mt-2">
+                <div className="flex gap-2">
+                  <Button
+                    type="submit"
+                    variant="default"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                    disabled={saving}
+                    onClick={handleSubmit}
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1 border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800 transition-colors"
+                    onClick={onClose}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
-
         </form>
-        
-        <div className="absolute bottom-0 left-0 right-0 p-6 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex space-x-3">
-            <Button
-              type="submit"
-              variant="primary"
-              className="flex-1 bg-black hover:bg-black/90 text-white"
-              disabled={saving}
-              onClick={handleSubmit}
-            >
-              {saving ? 'Saving...' : 'Save'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={onClose}
-              disabled={saving}
-            >
-              Cancel
-            </Button>
-          </div>
-        </div>
       </div>
     </div>
   );

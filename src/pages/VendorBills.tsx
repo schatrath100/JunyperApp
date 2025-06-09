@@ -201,7 +201,7 @@ const VendorBills: React.FC<VendorBillsProps> = ({ onAlert }) => {
           </div>
           <Button
             variant="default"
-            className="bg-black hover:bg-black/90 text-white"
+            className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5"
             icon={<Plus className="w-4 h-4" />}
             onClick={() => {
               setEditingBill(null);

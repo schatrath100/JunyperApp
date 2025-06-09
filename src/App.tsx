@@ -91,7 +91,7 @@ function App() {
         ) : (
           <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900">
             <Navbar alerts={alerts} onDismiss={(id) => setAlerts(prev => prev.filter(a => a.id !== id))} />
-            <div className="flex flex-1">
+            <div className="flex flex-1 relative">
               <Sidebar 
                 onToggleShortcuts={toggleShortcuts} 
                 showShortcuts={showShortcuts}
@@ -100,7 +100,7 @@ function App() {
               />
               <main 
                 ref={mainRef}
-                className="flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-800"
+                className={`flex-1 overflow-y-auto bg-gray-50 dark:bg-gray-800 h-[calc(100vh-4rem)] ${sidebarCollapsed ? 'md:ml-16' : 'md:ml-56'} transition-all duration-300`}
                 onClick={handleMainClick}
               >
                 <Routes>

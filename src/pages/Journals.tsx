@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, FileText, FileSpreadsheet } from 'lucide-react';
+import { RefreshCw, FileText, FileSpreadsheet, Search } from 'lucide-react';
 import { useTableSort } from '../hooks/useTableSort';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 import Button from '../components/Button';
@@ -17,6 +17,8 @@ interface Transaction {
   invoice_id: number;
   description: string;
   transaction_date: string;
+  Status: string;
+  row_num?: number;
 }
 
 const Journals: React.FC = () => {
@@ -24,10 +26,71 @@ const Journals: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+
   const { sortedItems: sortedTransactions, sortConfig, requestSort } = useTableSort(
-    transactions,
+    transactions.filter(transaction => {
+      const searchLower = searchQuery.toLowerCase();
+      return (
+        transaction.account_name.toLowerCase().includes(searchLower) ||
+        transaction.description.toLowerCase().includes(searchLower) ||
+        (transaction.Status || 'Pending').toLowerCase().includes(searchLower)
+      );
+    }),
     { key: 'transaction_date', direction: 'desc' }
   );
+
+  // Calculate pagination
+  const totalPages = Math.ceil(sortedTransactions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentTransactions = sortedTransactions.slice(startIndex, endIndex);
+
+  const getPageNumbers = () => {
+    const pageNumbers = [];
+    const maxVisiblePages = 5;
+    
+    if (totalPages <= maxVisiblePages) {
+      // Show all pages if total pages is less than max visible
+      for (let i = 1; i <= totalPages; i++) {
+        pageNumbers.push(i);
+      }
+    } else {
+      // Always show first page
+      pageNumbers.push(1);
+      
+      // Calculate start and end of visible pages
+      let startPage = Math.max(2, currentPage - 1);
+      let endPage = Math.min(totalPages - 1, startPage + 2);
+      
+      // Adjust if we're near the end
+      if (endPage === totalPages - 1) {
+        startPage = Math.max(2, endPage - 2);
+      }
+      
+      // Add ellipsis if needed
+      if (startPage > 2) {
+        pageNumbers.push('...');
+      }
+      
+      // Add middle pages
+      for (let i = startPage; i <= endPage; i++) {
+        pageNumbers.push(i);
+      }
+      
+      // Add ellipsis if needed
+      if (endPage < totalPages - 1) {
+        pageNumbers.push('...');
+      }
+      
+      // Always show last page
+      pageNumbers.push(totalPages);
+    }
+    
+    return pageNumbers;
+  };
 
   const fetchTransactions = async () => {
     try {
@@ -156,21 +219,35 @@ const Journals: React.FC = () => {
             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
-        <div className="flex items-center space-x-3">
-          <button
-            onClick={exportToPDF}
-            className="p-2 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
-            title="Export to PDF"
-          >
-            <FileText className="w-5 h-5" />
-          </button>
-          <button
-            onClick={exportToExcel}
-            className="p-2 text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
-            title="Export to Excel"
-          >
-            <FileSpreadsheet className="w-5 h-5" />
-          </button>
+        <div className="flex items-center space-x-4">
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-5 w-5 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by Account, Description, or Status..."
+              className="pl-10 pr-4 py-2 w-80 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+            />
+          </div>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={exportToPDF}
+              className="p-2 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+              title="Export to PDF"
+            >
+              <FileText className="w-5 h-5" />
+            </button>
+            <button
+              onClick={exportToExcel}
+              className="p-2 text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
+              title="Export to Excel"
+            >
+              <FileSpreadsheet className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -211,7 +288,7 @@ const Journals: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedTransactions.map((transaction) => (
+              {currentTransactions.map((transaction) => (
                 <TableRow key={transaction.id}>
                   <TableCell>
                     #{transaction.id}
@@ -267,7 +344,7 @@ const Journals: React.FC = () => {
               ))}
               {transactions.length === 0 && !loading && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center">
+                  <TableCell colSpan={9} className="text-center">
                     No transactions found
                   </TableCell>
                 </TableRow>
@@ -275,6 +352,49 @@ const Journals: React.FC = () => {
             </TableBody>
           </Table>
         </div>
+
+        {/* Pagination Controls */}
+        {transactions.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
+              Showing {startIndex + 1} to {Math.min(endIndex, sortedTransactions.length)} of {sortedTransactions.length} entries
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Previous
+              </button>
+              <div className="flex items-center space-x-1">
+                {getPageNumbers().map((page, index) => (
+                  <button
+                    key={index}
+                    onClick={() => typeof page === 'number' ? setCurrentPage(page) : null}
+                    disabled={typeof page !== 'number'}
+                    className={`px-3 py-1 rounded-md text-sm font-medium ${
+                      currentPage === page
+                        ? 'bg-blue-600 text-white'
+                        : typeof page === 'number'
+                        ? 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                        : 'text-gray-400 dark:text-gray-500 cursor-default'
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

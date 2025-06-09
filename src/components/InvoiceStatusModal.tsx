@@ -66,14 +66,14 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
       if (invoice.Status === 'Pending' && status === 'Paid') {
         const amount = invoice.InvoiceAmount || 0;
         
-        // Create transactions for payment
+        // Create new transactions for payment
         const transactions = [
           {
             transaction_date: new Date().toISOString(),
             account_id: settings.accounts_receivable_account,
             debit_amount: 0,
             credit_amount: amount,
-            description: `Payment for Invoice #${invoice.id} - ${invoice.Customer_name}`,
+            description: `Payment received for Invoice #${invoice.id} - ${invoice.Customer_name}`,
             invoice_id: invoice.id,
             bill_id: 0,
             row_num: 1,
@@ -85,7 +85,7 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
             account_id: settings.cash_account,
             debit_amount: amount,
             credit_amount: 0,
-            description: `Payment for Invoice #${invoice.id} - ${invoice.Customer_name}`,
+            description: `Payment received for Invoice #${invoice.id} - ${invoice.Customer_name}`,
             invoice_id: invoice.id,
             bill_id: 0,
             row_num: 2,
@@ -100,14 +100,6 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
 
         if (transactionError) throw transactionError;
       }
-
-      // Update status in existing transactions
-      const { error: transactionError } = await supabase
-        .from('Transaction')
-        .update({ Status: status })
-        .eq('invoice_id', invoice.id);
-
-      if (transactionError) throw transactionError;
 
       onSave();
       onAlert?.(`Invoice status updated to ${status}`, 'success');
