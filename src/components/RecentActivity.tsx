@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, FileText, Receipt, Wallet, UserPlus, Building2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ActivityCount {
   type: string;
   count: number;
   previousCount: number;
   change: number;
+  icon: React.ReactNode;
+  color: string;
 }
 
 type TimeRange = '1d' | '7d' | '30d';
@@ -16,6 +19,40 @@ const RecentActivity: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedRange, setSelectedRange] = useState<TimeRange>('1d');
+
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'Accounts':
+        return <Building2 className="w-5 h-5" />;
+      case 'Invoices':
+        return <FileText className="w-5 h-5" />;
+      case 'Bank Transactions':
+        return <Wallet className="w-5 h-5" />;
+      case 'Bills':
+        return <Receipt className="w-5 h-5" />;
+      case 'Customers':
+        return <UserPlus className="w-5 h-5" />;
+      default:
+        return <FileText className="w-5 h-5" />;
+    }
+  };
+
+  const getActivityColor = (type: string) => {
+    switch (type) {
+      case 'Accounts':
+        return 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300';
+      case 'Invoices':
+        return 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300';
+      case 'Bank Transactions':
+        return 'bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300';
+      case 'Bills':
+        return 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300';
+      case 'Customers':
+        return 'bg-pink-100 text-pink-700 dark:bg-pink-900/50 dark:text-pink-300';
+      default:
+        return 'bg-gray-100 text-gray-700 dark:bg-gray-900/50 dark:text-gray-300';
+    }
+  };
 
   const fetchRecentActivity = async (range: TimeRange) => {
     try {
@@ -70,38 +107,6 @@ const RecentActivity: React.FC = () => {
         .lt('created_at', previousEndDate.toISOString());
 
       if (accountError) throw accountError;
-
-      // Fetch new customers count
-    /*  const { count: customerCount, error: customerError } = await supabase
-        .from('Customer')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .gte('created_at', startDate.toISOString());
-
-      const { count: previousCustomerCount } = await supabase
-        .from('Customer')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .gte('created_at', previousStartDate.toISOString())
-        .lt('created_at', previousEndDate.toISOString());
-
-      if (customerError) throw customerError; */
-
-      // Fetch new sales items count
-     /* const { count: itemCount, error: itemError } = await supabase
-        .from('SaleItems')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .gte('created_at', startDate.toISOString());
-
-      const { count: previousItemCount } = await supabase
-        .from('SaleItems')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .gte('created_at', previousStartDate.toISOString())
-        .lt('created_at', previousEndDate.toISOString());
-
-      if (itemError) throw itemError;*/
 
       // Fetch new invoices count
       const { count: invoiceCount, error: invoiceError } = await supabase
@@ -158,34 +163,20 @@ const RecentActivity: React.FC = () => {
           type: 'Accounts',
           count: accountCount,
           previousCount: previousAccountCount || 0,
-          change: calculatePercentageChange(accountCount, previousAccountCount || 0)
+          change: calculatePercentageChange(accountCount, previousAccountCount || 0),
+          icon: getActivityIcon('Accounts'),
+          color: getActivityColor('Accounts')
         });
       }
-
-     /* if (customerCount && customerCount > 0) {
-        newActivities.push({
-          type: 'Customers',
-          count: customerCount,
-          previousCount: previousCustomerCount || 0,
-          change: calculatePercentageChange(customerCount, previousCustomerCount || 0)
-        });
-      }*/
-/*
-      if (itemCount && itemCount > 0) {
-        newActivities.push({
-          type: 'Sales Items',
-          count: itemCount,
-          previousCount: previousItemCount || 0,
-          change: calculatePercentageChange(itemCount, previousItemCount || 0)
-        });
-      }*/
 
       if (invoiceCount && invoiceCount > 0) {
         newActivities.push({
           type: 'Invoices',
           count: invoiceCount,
           previousCount: previousInvoiceCount || 0,
-          change: calculatePercentageChange(invoiceCount, previousInvoiceCount || 0)
+          change: calculatePercentageChange(invoiceCount, previousInvoiceCount || 0),
+          icon: getActivityIcon('Invoices'),
+          color: getActivityColor('Invoices')
         });
       }
 
@@ -194,7 +185,9 @@ const RecentActivity: React.FC = () => {
           type: 'Bank Transactions',
           count: transactionsCount,
           previousCount: previousTransactionsCount || 0,
-          change: calculatePercentageChange(transactionsCount, previousTransactionsCount || 0)
+          change: calculatePercentageChange(transactionsCount, previousTransactionsCount || 0),
+          icon: getActivityIcon('Bank Transactions'),
+          color: getActivityColor('Bank Transactions')
         });
       }
       
@@ -203,7 +196,9 @@ const RecentActivity: React.FC = () => {
           type: 'Bills',
           count: billsCount,
           previousCount: previousBillsCount || 0,
-          change: calculatePercentageChange(billsCount, previousBillsCount || 0)
+          change: calculatePercentageChange(billsCount, previousBillsCount || 0),
+          icon: getActivityIcon('Bills'),
+          color: getActivityColor('Bills')
         });
       }
 
@@ -229,7 +224,7 @@ const RecentActivity: React.FC = () => {
   }, [selectedRange]);
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden h-full">
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
           Recent Activity
@@ -237,7 +232,7 @@ const RecentActivity: React.FC = () => {
         <div className="flex space-x-2 text-sm">
           <button
             onClick={() => setSelectedRange('1d')}
-            className={`px-2 py-1 rounded transition-colors ${
+            className={`px-2 py-1 rounded-full transition-colors ${
               selectedRange === '1d'
                 ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
@@ -247,7 +242,7 @@ const RecentActivity: React.FC = () => {
           </button>
           <button
             onClick={() => setSelectedRange('7d')}
-            className={`px-2 py-1 rounded transition-colors ${
+            className={`px-2 py-1 rounded-full transition-colors ${
               selectedRange === '7d'
                 ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
@@ -257,7 +252,7 @@ const RecentActivity: React.FC = () => {
           </button>
           <button
             onClick={() => setSelectedRange('30d')}
-            className={`px-2 py-1 rounded transition-colors ${
+            className={`px-2 py-1 rounded-full transition-colors ${
               selectedRange === '30d'
                 ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
@@ -282,30 +277,47 @@ const RecentActivity: React.FC = () => {
         </div>
       ) : (
         <div className="divide-y divide-gray-200 dark:divide-gray-700">
-          {activities.map((activity) => (
-            <div key={activity.type} className="p-4 flex justify-between items-center hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-              <span className="text-gray-900 dark:text-white font-medium">New {activity.type}</span>
-              <div className="flex items-center space-x-3">
-                <span className="text-lg font-bold text-gray-900 dark:text-white">{activity.count}</span>
-                <div className={`flex items-center ${
-                  activity.change > 0 
-                    ? 'text-green-500 dark:text-green-400' 
-                    : activity.change < 0 
-                      ? 'text-red-500 dark:text-red-400'
-                      : 'text-gray-400 dark:text-gray-500'
-                }`}>
-                  {activity.change > 0 ? (
-                    <TrendingUp className="w-4 h-4 mr-1" />
-                  ) : (
-                    <TrendingDown className="w-4 h-4 mr-1" />
-                  )}
-                  <span className="text-sm font-medium">
-                    {activity.change > 0 ? '+' : ''}{activity.change}%
-                  </span>
-              </div>
-            </div>
-            </div>
-          ))}
+          <AnimatePresence>
+            {activities.map((activity) => (
+              <motion.div
+                key={activity.type}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className={`p-2 rounded-lg ${activity.color}`}>
+                      {activity.icon}
+                    </div>
+                    <div>
+                      <span className="text-gray-900 dark:text-white font-medium">New {activity.type}</span>
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {activity.count} {activity.count === 1 ? 'item' : 'items'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className={`flex items-center ${
+                    activity.change > 0 
+                      ? 'text-green-500 dark:text-green-400' 
+                      : activity.change < 0 
+                        ? 'text-red-500 dark:text-red-400'
+                        : 'text-gray-400 dark:text-gray-500'
+                  }`}>
+                    {activity.change > 0 ? (
+                      <TrendingUp className="w-4 h-4 mr-1" />
+                    ) : (
+                      <TrendingDown className="w-4 h-4 mr-1" />
+                    )}
+                    <span className="text-sm font-medium">
+                      {activity.change > 0 ? '+' : ''}{activity.change}%
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
       )}
     </div>
