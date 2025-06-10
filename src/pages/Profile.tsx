@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/ui/button';
 import { cn } from '../lib/utils';
-import { Save, X, AlertTriangle, Clock, Camera, Upload } from 'lucide-react';
+import { Save, X, AlertTriangle, Clock, Camera, Upload, Lock } from 'lucide-react';
 import { useToast } from '../components/ui/use-toast';
 import { Skeleton } from '../components/ui/skeleton';
 import { Label } from '../components/ui/label';
@@ -25,6 +25,12 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -274,6 +280,69 @@ export default function Profile() {
     }
   };
 
+  const handlePasswordChange = async () => {
+    try {
+      setPasswordError(null);
+      setPasswordSuccess(null);
+      
+      // Validate inputs
+      if (!currentPassword || !newPassword || !confirmPassword) {
+        setPasswordError('All fields are required');
+        return;
+      }
+
+      if (newPassword !== confirmPassword) {
+        setPasswordError('New passwords do not match');
+        return;
+      }
+
+      if (newPassword.length < 6) {
+        setPasswordError('New password must be at least 6 characters');
+        return;
+      }
+
+      // First, verify current password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: profile?.email || '',
+        password: currentPassword,
+      });
+
+      if (signInError) {
+        setPasswordError('Current password is incorrect');
+        return;
+      }
+
+      // Update password
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Clear form
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setIsChangingPassword(false);
+      setPasswordSuccess('Your password has been successfully updated. You will need to use this new password for your next login.');
+
+      toast({
+        title: "Password updated",
+        description: "Your password has been changed successfully.",
+        variant: "default",
+      });
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : 'Failed to update password');
+      toast({
+        title: "Error",
+        description: "Failed to update password. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading && !profile) {
     console.log('Rendering loading state');
     return (
@@ -314,15 +383,15 @@ export default function Profile() {
 
   console.log('Rendering profile with data:', profile);
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-8">
+    <div className="p-6 max-w-5xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Profile Settings</h1>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage your personal information and preferences</p>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent">Profile Settings</h1>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Manage your personal information and preferences</p>
         </div>
         {profile.updated_at && (
-          <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-            <Clock className="w-4 h-4 mr-1" />
+          <div className="flex items-center text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-1.5 rounded-full">
+            <Clock className="w-4 h-4 mr-1.5" />
             Last updated {new Date(profile.updated_at).toLocaleString()}
           </div>
         )}
@@ -335,12 +404,12 @@ export default function Profile() {
         </div>
       )}
 
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden">
         <div className="p-8 space-y-8">
           <div className="flex items-center space-x-6">
             <div 
               className={cn(
-                "relative w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 flex items-center justify-center cursor-pointer group",
+                "relative w-24 h-24 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 flex items-center justify-center cursor-pointer group shadow-lg",
                 isEditing && "hover:opacity-90"
               )}
               onClick={handleAvatarClick}
@@ -349,7 +418,7 @@ export default function Profile() {
                 <img
                   src={profile.avatar_url}
                   alt={profile.full_name}
-                  className="w-full h-full rounded-full object-cover"
+                  className="w-full h-full rounded-2xl object-cover"
                   onError={(e) => {
                     console.error('Error loading avatar image:', e);
                     const img = e.target as HTMLImageElement;
@@ -361,12 +430,12 @@ export default function Profile() {
                   }}
                 />
               ) : (
-                <span className="text-3xl font-semibold text-white">
+                <span className="text-4xl font-semibold text-white">
                   {profile.full_name.charAt(0).toUpperCase()}
                 </span>
               )}
               <div className={cn(
-                "absolute inset-0 flex items-center justify-center bg-black/50 rounded-full transition-opacity",
+                "absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl transition-opacity",
                 isEditing ? "opacity-0 group-hover:opacity-100" : "hidden"
               )}>
                 <div className="flex flex-col items-center">
@@ -384,8 +453,8 @@ export default function Profile() {
               />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">{profile.full_name}</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">{profile.email}</p>
+              <h2 className="text-2xl font-semibold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent">{profile.full_name}</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{profile.email}</p>
             </div>
           </div>
 
@@ -398,17 +467,17 @@ export default function Profile() {
                     type="text"
                     value={profile.full_name}
                     onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   />
                 ) : (
-                  <div className="px-4 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">
+                  <div className="px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">
                     {profile.full_name}
                   </div>
                 )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email</label>
-                <div className="px-4 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">
+                <div className="px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">
                   {profile.email}
                 </div>
               </div>
@@ -421,10 +490,10 @@ export default function Profile() {
                     type="tel"
                     value={profile.phone}
                     onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   />
                 ) : (
-                  <div className="px-4 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">
+                  <div className="px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">
                     {profile.phone}
                   </div>
                 )}
@@ -437,9 +506,10 @@ export default function Profile() {
                     value={profile.address || ''}
                     onChange={(e) => setProfile({ ...profile, address: e.target.value })}
                     placeholder="Enter your address"
+                    className="rounded-xl"
                   />
                 ) : (
-                  <div className="px-4 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">
+                  <div className="px-4 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">
                     {profile.address || 'No address provided'}
                   </div>
                 )}
@@ -453,14 +523,14 @@ export default function Profile() {
                 <Button
                   variant="outline"
                   onClick={() => setIsEditing(false)}
-                  className="px-6"
+                  className="px-6 rounded-xl"
                 >
                   <X className="w-4 h-4 mr-2" />
                   Cancel
                 </Button>
                 <Button
                   onClick={handleSave}
-                  className="px-6"
+                  className="px-6 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
                   disabled={loading}
                 >
                   <Save className="w-4 h-4 mr-2" />
@@ -470,10 +540,119 @@ export default function Profile() {
             ) : (
               <Button
                 onClick={() => setIsEditing(true)}
-                className="px-6"
+                className="px-6 rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
               >
                 Edit Profile
               </Button>
+            )}
+          </div>
+
+          {/* Password Change Section */}
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-8">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-xl font-semibold bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent">Password</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Update your password to keep your account secure</p>
+              </div>
+              {!isChangingPassword && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsChangingPassword(true);
+                    setPasswordSuccess(null);
+                  }}
+                  className="flex items-center bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:hover:bg-amber-900/30 dark:text-amber-400 dark:border-amber-800 rounded-xl"
+                >
+                  <Lock className="w-4 h-4 mr-2" />
+                  Change Password
+                </Button>
+              )}
+            </div>
+
+            {passwordSuccess && (
+              <div className="p-4 bg-green-50 dark:bg-green-900/50 border border-green-200 dark:border-green-700 rounded-xl text-green-700 dark:text-green-400 mb-4">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>{passwordSuccess}</span>
+                </div>
+              </div>
+            )}
+
+            {isChangingPassword && (
+              <div className="space-y-4">
+                {passwordError && (
+                  <div className="p-4 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-xl text-red-700 dark:text-red-400 flex items-center">
+                    <AlertTriangle className="w-5 h-5 mr-2" />
+                    {passwordError}
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="current-password">Current Password</Label>
+                    <Input
+                      id="current-password"
+                      type="password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      placeholder="Enter your current password"
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="new-password">New Password</Label>
+                    <Input
+                      id="new-password"
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      placeholder="Enter your new password"
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="confirm-password">Confirm New Password</Label>
+                    <Input
+                      id="confirm-password"
+                      type="password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm your new password"
+                      className="rounded-xl"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsChangingPassword(false);
+                      setCurrentPassword('');
+                      setNewPassword('');
+                      setConfirmPassword('');
+                      setPasswordError(null);
+                      setPasswordSuccess(null);
+                    }}
+                    className="rounded-xl"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handlePasswordChange}
+                    disabled={loading}
+                    className="rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Update Password
+                  </Button>
+                </div>
+              </div>
             )}
           </div>
         </div>
