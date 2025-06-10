@@ -89,7 +89,7 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
   };
 
   return (
-    <nav className="w-full h-16 sticky top-0 z-50 backdrop-blur-md bg-gradient-to-r from-white/95 to-white/90 dark:from-gray-900/95 dark:to-gray-900/90 border-b border-gray-200/50 dark:border-gray-700/50 shadow-sm">
+    <nav className="w-full h-16 sticky top-0 z-50 backdrop-blur-md bg-gradient-to-r from-white via-blue-100/50 to-white dark:from-gray-900 dark:via-blue-900/40 dark:to-gray-900 border-b border-gray-200/50 dark:border-gray-700/50 shadow-sm">
       <div className="h-full px-6 flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <div className="block md:hidden">
