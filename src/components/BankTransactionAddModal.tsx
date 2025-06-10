@@ -15,7 +15,7 @@ const BankTransactionAddModal: React.FC<BankTransactionAddModalProps> = ({
   onSave
 }) => {
   const [formData, setFormData] = useState({
-    date: new Date().toISOString(),
+    date: new Date().toISOString().split('T')[0],
     bank_name: '',
     description: '',
     amount: '',
@@ -87,9 +87,13 @@ const BankTransactionAddModal: React.FC<BankTransactionAddModalProps> = ({
                 Date *
               </label>
               <input
-                type="datetime-local"
-                value={formData.date.slice(0, 16)}
-                onChange={(e) => setFormData({ ...formData, date: new Date(e.target.value).toISOString() })}
+                type="date"
+                value={formData.date}
+                onChange={(e) => {
+                  const selectedDate = new Date(e.target.value);
+                  selectedDate.setHours(0, 0, 0, 0);
+                  setFormData({ ...formData, date: selectedDate.toISOString() });
+                }}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
                 required
               />
