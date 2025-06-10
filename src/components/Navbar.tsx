@@ -89,15 +89,15 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
   };
 
   return (
-    <nav className="w-full h-16 sticky top-0 z-50 backdrop-blur-md bg-white/80 dark:bg-gray-900/80 border-b border-gray-200/50 dark:border-gray-700/50">
+    <nav className="w-full h-16 sticky top-0 z-50 backdrop-blur-md bg-gradient-to-r from-white/95 to-white/90 dark:from-gray-900/95 dark:to-gray-900/90 border-b border-gray-200/50 dark:border-gray-700/50 shadow-sm">
       <div className="h-full px-6 flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <div className="block md:hidden">
-            <Menu className="w-5 h-5 text-gray-700 dark:text-gray-200" />
+            <Menu className="w-5 h-5 text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" />
           </div>
           <Logo />
-          <div className="hidden md:block h-6 w-px bg-gray-200 dark:bg-gray-700" />
-          <span className="hidden md:block text-sm text-gray-500 dark:text-gray-400">{companyName}</span>
+          <div className="hidden md:block h-6 w-px bg-gradient-to-b from-gray-200 to-gray-100 dark:from-gray-700 dark:to-gray-800" />
+          <span className="hidden md:block text-sm font-medium text-gray-600 dark:text-gray-300">{companyName}</span>
         </div>
         
         <div className="flex items-center space-x-3">
@@ -106,19 +106,19 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
           <div className="relative">
             <button
               onClick={() => setShowAlerts(!showAlerts)}
-              className="relative p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="relative p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
               title="Notifications"
             >
               <Bell className="w-4 h-4 text-gray-700 dark:text-gray-200" />
               {unreadCount > 0 && (
-                <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[16px] h-[16px] text-xs font-medium text-white bg-red-500 rounded-full px-1">
+                <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[16px] h-[16px] text-xs font-medium text-white bg-gradient-to-r from-red-500 to-red-600 rounded-full px-1 shadow-sm">
                   {unreadCount}
                 </span>
               )}
             </button>
             {showAlerts && (
               <div ref={alertsRef} className="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
-                <div className="p-3 border-b border-gray-200 dark:border-gray-700">
+                <div className="p-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900">
                   <h3 className="font-medium text-gray-900 dark:text-white">Notifications</h3>
                 </div>
                 <AlertList 
@@ -132,8 +132,8 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
 
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
-              <button className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors group">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <button className="p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 dark:from-blue-600 dark:via-blue-700 dark:to-blue-800 flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
                   <User className="w-4 h-4 text-white" />
                 </div>
               </button>
@@ -148,8 +148,8 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
                 <DropdownMenu.Item
                   className={cn(
                     "relative flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 outline-none cursor-pointer",
-                    "hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors",
-                    "focus:bg-gray-100 dark:focus:bg-gray-700"
+                    "hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors",
+                    "focus:bg-blue-50 dark:focus:bg-blue-900/20"
                   )}
                   onClick={() => navigate('/profile')}
                 >
@@ -159,15 +159,15 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
                 <DropdownMenu.Item
                   className={cn(
                     "relative flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 outline-none cursor-pointer",
-                    "hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors",
-                    "focus:bg-gray-100 dark:focus:bg-gray-700"
+                    "hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors",
+                    "focus:bg-blue-50 dark:focus:bg-blue-900/20"
                   )}
                   onClick={() => navigate('/settings')}
                 >
                   <Settings className="w-4 h-4 mr-2" />
                   <span>Settings</span>
                 </DropdownMenu.Item>
-                <DropdownMenu.Separator className="h-px my-1 bg-gray-200 dark:bg-gray-700" />
+                <DropdownMenu.Separator className="h-px my-1 bg-gradient-to-r from-gray-200 to-gray-100 dark:from-gray-700 dark:to-gray-800" />
                 <DropdownMenu.Item
                   className={cn(
                     "relative flex items-center px-3 py-2 text-sm text-red-600 dark:text-red-400 outline-none cursor-pointer",
