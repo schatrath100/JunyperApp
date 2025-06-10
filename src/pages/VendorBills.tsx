@@ -61,7 +61,11 @@ const VendorBills: React.FC<VendorBillsProps> = ({ onAlert }) => {
     // Prepare table data
     const tableData = sortedBills.map(bill => [
       `#${bill.id}`,
-      new Date(bill.Date).toLocaleDateString(),
+      new Date(bill.Date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }),
       bill.Vendor_name,
       bill.Description || '-',
       new Intl.NumberFormat('en-US', {
@@ -88,7 +92,11 @@ const VendorBills: React.FC<VendorBillsProps> = ({ onAlert }) => {
     // Prepare data
     const data = sortedBills.map(bill => ({
       'Bill #': bill.id,
-      'Date': new Date(bill.Date).toLocaleDateString(),
+      'Date': new Date(bill.Date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }),
       'Vendor': bill.Vendor_name,
       'Description': bill.Description || '-',
       'Amount': bill.Amount,
@@ -303,7 +311,11 @@ const VendorBills: React.FC<VendorBillsProps> = ({ onAlert }) => {
                     #{bill.id}
                   </TableCell>
                   <TableCell>
-                    {new Date(bill.Date).toLocaleDateString()}
+                    {new Date(bill.Date).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
                   </TableCell>
                   <TableCell>
                     {bill.Vendor_name}

@@ -258,15 +258,30 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     testConnection();
   }, []);
 
+  // Filter transactions based on search query
+  const filteredTransactions = transactions.filter(transaction => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      transaction.bank_name.toLowerCase().includes(searchLower) ||
+      transaction.description.toLowerCase().includes(searchLower) ||
+      transaction.account_number.toString().includes(searchLower) ||
+      transaction.credit_debit_indicator.toString().includes(searchLower)
+    );
+  });
+
+  // Calculate pagination for filtered transactions
   const totalPages = Math.ceil(totalCount / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalCount);
+  const currentTransactions = filteredTransactions;
 
   const handlePageChange = (page: number) => {
+    console.log('Changing to page:', page);
     setCurrentPage(page);
   };
 
-  // Calculate pagination
   const getPageNumbers = () => {
-    const pageNumbers = [];
+    const pageNumbers: (number | string)[] = [];
     const maxVisiblePages = 5;
     
     if (totalPages <= maxVisiblePages) {
@@ -292,7 +307,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
         pageNumbers.push('...');
       }
       
-      // Add middle pages
+      // Add visible pages
       for (let i = startPage; i <= endPage; i++) {
         pageNumbers.push(i);
       }
@@ -308,23 +323,6 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     
     return pageNumbers;
   };
-
-  // Filter transactions based on search query
-  const filteredTransactions = transactions.filter(transaction => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      transaction.bank_name.toLowerCase().includes(searchLower) ||
-      transaction.description.toLowerCase().includes(searchLower) ||
-      transaction.account_number.toString().includes(searchLower) ||
-      transaction.credit_debit_indicator.toString().includes(searchLower)
-    );
-  });
-
-  // Calculate pagination for filtered transactions
-  const totalPagesFiltered = Math.ceil(filteredTransactions.length / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = startIndex + pageSize;
-  const currentTransactions = filteredTransactions.slice(startIndex, endIndex);
 
   return (
     <div className="p-6">
@@ -614,11 +612,11 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
         {currentTransactions.length > 0 && (
           <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
             <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
-              Showing {startIndex + 1} to {Math.min(endIndex, filteredTransactions.length)} of {filteredTransactions.length} entries
+              Showing {startIndex + 1} to {endIndex} of {totalCount} entries
             </div>
             <div className="flex items-center space-x-2">
               <button
-                onClick={() => handlePageChange(1)}
+                onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
                 className="px-3 py-1 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -644,7 +642,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
               </div>
               <button
                 onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPagesFiltered}
+                disabled={currentPage === totalPages}
                 className="px-3 py-1 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Next
