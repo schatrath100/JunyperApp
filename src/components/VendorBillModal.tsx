@@ -11,10 +11,11 @@ interface VendorBill {
   id: number;
   Date: string;
   Vendor_name: string;
-  Description?: string;
+  Description: string | null;
   Amount: number;
   Status: string;
-  attachment_path?: string | null;
+  attachment_path: string | null;
+  last_updated_at: string;
 }
 
 interface Alert {
@@ -208,9 +209,16 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
         }`}
       >
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            {bill ? 'Edit Vendor Bill' : 'Add Vendor Bill'}
-          </h2>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+              {bill ? 'Edit Vendor Bill' : 'Add New Vendor Bill'}
+            </h2>
+            {bill && (
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                Last updated: {new Date(bill.last_updated_at).toLocaleString()}
+              </div>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 transition-colors"
