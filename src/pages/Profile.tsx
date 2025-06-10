@@ -5,6 +5,8 @@ import { cn } from '../lib/utils';
 import { Save, X, AlertTriangle, Clock, Camera, Upload } from 'lucide-react';
 import { useToast } from '../components/ui/use-toast';
 import { Skeleton } from '../components/ui/skeleton';
+import { Label } from '../components/ui/label';
+import { Input } from '../components/ui/input';
 
 interface UserProfile {
   id: string;
@@ -152,28 +154,107 @@ export default function Profile() {
       const file = event.target.files?.[0];
       if (!file || !profile) return;
 
-      const fileExt = file.name.split('.').pop();
-      const filePath = `${profile.auth_id}/avatar.${fileExt}`;
+      // Validate file
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        throw new Error('File size must be less than 5MB');
+      }
 
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+      if (!allowedTypes.includes(file.type)) {
+        throw new Error('Only JPEG, PNG, and GIF files are allowed');
+      }
+
+      console.log('Starting avatar upload process...');
+      console.log('File details:', {
+        name: file.name,
+        type: file.type,
+        size: file.size
+      });
+
+      // Get the current user's ID
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) throw new Error('No authenticated user found');
+
+      // First, try to remove the incorrectly named file
+      const incorrectPath = `${user.id}/avatar.ong`;
+      console.log('Attempting to remove incorrect file:', incorrectPath);
+      
+      const { error: removeError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, file, { upsert: true });
+        .remove([incorrectPath]);
 
-      if (uploadError) throw uploadError;
+      if (removeError) {
+        console.log('Error removing incorrect file (this is okay if file does not exist):', removeError);
+      } else {
+        console.log('Successfully removed incorrect file');
+      }
+
+      // Now check for any other existing avatar files
+      const { data: existingFiles, error: listError } = await supabase.storage
+        .from('avatars')
+        .list(user.id);
+
+      if (listError) {
+        console.error('Error listing existing files:', listError);
+      } else if (existingFiles && existingFiles.length > 0) {
+        console.log('Found existing files:', existingFiles);
+        // Delete all existing avatar files
+        for (const existingFile of existingFiles) {
+          const { error: deleteError } = await supabase.storage
+            .from('avatars')
+            .remove([`${user.id}/${existingFile.name}`]);
+          
+          if (deleteError) {
+            console.error('Error deleting existing file:', deleteError);
+          } else {
+            console.log('Successfully deleted existing file:', existingFile.name);
+          }
+        }
+      }
+
+      // Upload new avatar with correct extension
+      const filePath = `${user.id}/avatar.png`;
+      console.log('Uploading new avatar to:', filePath);
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { 
+          upsert: true,
+          cacheControl: '3600',
+          contentType: 'image/png'
+        });
+
+      if (uploadError) {
+        console.error('Storage upload error:', uploadError);
+        throw uploadError;
+      }
+      console.log('Upload successful:', uploadData);
 
       // Get the public URL
+      console.log('Getting public URL...');
       const { data: { publicUrl } } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
+      
+      console.log('Generated public URL:', publicUrl);
 
       // Update the user's profile in the users table
-      const { error: updateError } = await supabase
+      console.log('Updating user profile with new avatar URL...');
+      const { data: updateData, error: updateError } = await supabase
         .from('users')
-        .update({ avatar_url: publicUrl })
-        .eq('auth_id', profile.auth_id);
+        .update({ 
+          avatar_url: publicUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('auth_id', user.id)
+        .select();
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Profile update error:', updateError);
+        throw updateError;
+      }
+      console.log('Profile updated successfully:', updateData);
 
       setProfile({ ...profile, avatar_url: publicUrl });
       toast({
@@ -182,10 +263,10 @@ export default function Profile() {
         variant: "default",
       });
     } catch (err) {
-      console.error('Error uploading avatar:', err);
+      console.error('Error in handleFileChange:', err);
       toast({
         title: "Error",
-        description: "Failed to upload avatar. Please try again.",
+        description: err instanceof Error ? err.message : "Failed to upload avatar. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -269,6 +350,15 @@ export default function Profile() {
                   src={profile.avatar_url}
                   alt={profile.full_name}
                   className="w-full h-full rounded-full object-cover"
+                  onError={(e) => {
+                    console.error('Error loading avatar image:', e);
+                    const img = e.target as HTMLImageElement;
+                    console.log('Failed image URL:', img.src);
+                    img.src = ''; // Clear the src on error
+                  }}
+                  onLoad={() => {
+                    console.log('Avatar image loaded successfully');
+                  }}
                 />
               ) : (
                 <span className="text-3xl font-semibold text-white">
@@ -288,7 +378,7 @@ export default function Profile() {
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/gif"
                 onChange={handleFileChange}
                 disabled={!isEditing}
               />
@@ -339,18 +429,18 @@ export default function Profile() {
                   </div>
                 )}
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Address</label>
+              <div className="space-y-2">
+                <Label htmlFor="address">Address</Label>
                 {isEditing ? (
-                  <textarea
-                    value={profile.address}
+                  <Input
+                    id="address"
+                    value={profile.address || ''}
                     onChange={(e) => setProfile({ ...profile, address: e.target.value })}
-                    rows={3}
-                    className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                    placeholder="Enter your address"
                   />
                 ) : (
                   <div className="px-4 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white">
-                    {profile.address}
+                    {profile.address || 'No address provided'}
                   </div>
                 )}
               </div>
