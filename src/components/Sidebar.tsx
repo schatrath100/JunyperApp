@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutDashboard, BookOpen, ShoppingCart, Receipt, Bot, Settings, LogOut, Sparkles, ChevronDown, Users, FileText, Building2, ScrollText, Package, Boxes, BookOpenCheck, Wallet, Check, User2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutGrid, BookOpen, ShoppingCart, Receipt, Bot, Settings, LogOut, Sparkles, ChevronDown, Users, FileText, Building2, ScrollText, Package, Boxes, BookOpenCheck, Wallet, Check, User2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -141,7 +141,7 @@ const Sidebar: React.FC<{
         <div className="flex-1 p-4 overflow-y-auto">
           <div className="space-y-1">
             <NavItem 
-              icon={<LayoutDashboard className="w-5 h-5" />} 
+              icon={<LayoutGrid className="w-5 h-5" />} 
               label={collapsed ? "" : "Dashboard"}
               active={location.pathname === '/dashboard'} 
               onClick={() => {
