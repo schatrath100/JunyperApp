@@ -47,7 +47,7 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
-    billDate: new Date().toISOString().split('T')[0],
+    billDate: new Date().toISOString(),
     vendorName: '',
     description: '',
     amount: '',
@@ -90,7 +90,7 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
       });
     } else {
       setFormData({
-        billDate: new Date().toISOString().split('T')[0],
+        billDate: new Date().toISOString(),
         vendorName: '',
         description: '',
         amount: '',
@@ -238,8 +238,11 @@ const VendorBillModal: React.FC<VendorBillModalProps> = ({
               ) : (
                 <input
                   type="date"
-                  value={formData.billDate}
-                  onChange={(e) => setFormData({ ...formData, billDate: e.target.value })}
+                  value={formData.billDate.split('T')[0]}
+                  onChange={(e) => {
+                    const selectedDate = new Date(e.target.value);
+                    setFormData({ ...formData, billDate: selectedDate.toISOString() });
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
                   required
                 />
