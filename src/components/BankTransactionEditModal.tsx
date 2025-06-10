@@ -107,7 +107,7 @@ const BankTransactionEditModal: React.FC<BankTransactionEditModalProps> = ({
                 Date
               </label>
               <div className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-400">
-                {new Date(formData.date).toLocaleDateString()}
+                {new Date(formData.date).toLocaleString()}
               </div>
             </div>
 

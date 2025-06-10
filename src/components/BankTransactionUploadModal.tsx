@@ -121,7 +121,7 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
 
       // Transform and validate data
       const transactions = jsonData.map(row => ({
-        date: new Date(findColumnValue(row, columnMappings.date)).toISOString().split('T')[0],
+        date: new Date(findColumnValue(row, columnMappings.date)).toISOString(),
         amount: Math.abs(Number(findColumnValue(row, columnMappings.amount))),
         account_number: Number(findColumnValue(row, columnMappings.account_number)),
         bank_name: findColumnValue(row, columnMappings.bank_name),
