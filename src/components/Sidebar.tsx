@@ -111,6 +111,7 @@ const Sidebar: React.FC<{
     const fetchUserProfile = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
+        console.log('Current user:', user);
         if (!user) return;
 
         const { data, error } = await supabase
@@ -118,6 +119,9 @@ const Sidebar: React.FC<{
           .select('full_name')
           .eq('auth_id', user.id)
           .single();
+
+        console.log('User profile data:', data);
+        console.log('User profile error:', error);
 
         if (error) throw error;
         if (data) {
@@ -132,7 +136,7 @@ const Sidebar: React.FC<{
   }, []);
 
   return (
-    <aside className={`hidden md:flex flex-col fixed top-16 left-0 ${collapsed ? 'w-16' : 'w-56'} bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 h-[calc(100vh-4rem)] z-10`}>
+    <aside className={`hidden md:flex flex-col fixed top-16 left-0 ${collapsed ? 'w-16' : 'w-56'} bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-500 ease-in-out h-[calc(100vh-4rem)] z-10`}>
       <div className="flex flex-col h-full overflow-hidden">
         <div className="flex-1 p-4 overflow-y-auto">
           <div className="space-y-1">
@@ -311,66 +315,59 @@ const Sidebar: React.FC<{
       {!collapsed &&
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
           {/* User Profile with Company Settings */}
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger asChild>
-              <button className="w-full px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-lg hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-700 dark:hover:to-gray-800 transition-all duration-200 flex items-center group">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 flex items-center justify-center mr-3 group-hover:scale-105 transition-transform">
-                  <User2 className="w-4 h-4 text-white" />
-                </div>
-                <div className="flex flex-col items-start">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">{companyName}</span>
-                  <span className="truncate font-semibold">Hey {userName}</span>
-                </div>
-                <ChevronDown className="w-4 h-4 ml-auto text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
-              </button>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Portal>
-              <DropdownMenu.Content
-                className="w-[var(--radix-dropdown-menu-trigger-width)] bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 animate-in fade-in-0 zoom-in-95"
-                align="end"
-                side="top"
-                sideOffset={5}
+          <div className="relative">
+            <button 
+              className="w-full px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-lg hover:from-gray-100 hover:to-gray-200 dark:hover:from-gray-700 dark:hover:to-gray-800 transition-all duration-200 flex items-center group"
+              onClick={() => {
+                console.log('Button clicked');
+                const menu = document.getElementById('user-menu');
+                if (menu) {
+                  menu.classList.toggle('hidden');
+                }
+              }}
+            >
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 dark:from-blue-600 dark:to-blue-700 flex items-center justify-center mr-3 group-hover:scale-105 transition-transform">
+                <User2 className="w-4 h-4 text-white" />
+              </div>
+              <div className="flex flex-col items-start">
+                <span className="text-xs text-gray-500 dark:text-gray-400">{companyName}</span>
+                <span className="truncate font-semibold">Hey {userName}</span>
+              </div>
+              <ChevronDown className="w-4 h-4 ml-auto text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
+            </button>
+            
+            <div 
+              id="user-menu" 
+              className="hidden absolute bottom-full left-0 w-full mb-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50"
+              style={{ transform: 'translateY(-8px)' }}
+            >
+              <button
+                className="w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                onClick={() => navigate('/profile')}
               >
-                <DropdownMenu.Item
-                  className={cn(
-                    "relative flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 outline-none cursor-pointer",
-                    "hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors",
-                    "focus:bg-gray-100 dark:focus:bg-gray-700"
-                  )}
-                  onClick={() => navigate('/profile')}
-                >
-                  <User2 className="w-4 h-4 mr-2" />
-                  <span>Account</span>
-                </DropdownMenu.Item>
-                <DropdownMenu.Item
-                  className={cn(
-                    "relative flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 outline-none cursor-pointer",
-                    "hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors",
-                    "focus:bg-gray-100 dark:focus:bg-gray-700"
-                  )}
-                  onClick={() => navigate('/settings')}
-                >
-                  <Settings className="w-4 h-4 mr-2" />
-                  <span>Company Settings</span>
-                </DropdownMenu.Item>
-                <DropdownMenu.Separator className="h-px my-1 bg-gray-200 dark:bg-gray-700" />
-                <DropdownMenu.Item
-                  className={cn(
-                    "relative flex items-center px-3 py-2 text-sm text-red-600 dark:text-red-400 outline-none cursor-pointer",
-                    "hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors",
-                    "focus:bg-red-50 dark:focus:bg-red-900/20"
-                  )}
-                  onClick={async () => {
-                    await supabase.auth.signOut();
-                    navigate('/auth');
-                  }}
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  <span>Sign out</span>
-                </DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Portal>
-          </DropdownMenu.Root>
+                <User2 className="w-4 h-4 mr-2" />
+                <span>Account</span>
+              </button>
+              <button
+                className="w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
+                onClick={() => navigate('/settings')}
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                <span>Company Settings</span>
+              </button>
+              <div className="h-px my-1 bg-gray-200 dark:bg-gray-700" />
+              <button
+                className="w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center"
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  navigate('/auth');
+                }}
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                <span>Sign out</span>
+              </button>
+            </div>
+          </div>
         </div>
       }
     </aside>
