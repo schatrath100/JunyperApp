@@ -14,6 +14,7 @@ interface SidebarProps {
 
 interface AccountingSettings {
   company_legal_name: string;
+  display_name: string;
 }
 
 interface NavItemProps {
@@ -106,13 +107,13 @@ const Sidebar: React.FC<{
 
         const { data, error } = await supabase
           .from('accounting_settings')
-          .select('company_legal_name')
+          .select('display_name')
           .eq('user_id', user.id)
           .maybeSingle();
 
         if (error) throw error;
         if (data) {
-          setCompanyName(data.company_legal_name || 'My Company');
+          setCompanyName(data.display_name || 'My Company');
         }
       } catch (err) {
         console.error('Error fetching company name:', err);

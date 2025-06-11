@@ -43,12 +43,12 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
 
         const { data: settings } = await supabase
           .from('accounting_settings')
-          .select('company_legal_name')
+          .select('display_name')
           .eq('user_id', user.id)
           .maybeSingle();
 
         if (settings) {
-          setCompanyName(settings.company_legal_name || 'My Company');
+          setCompanyName(settings.display_name || 'My Company');
         }
       } catch (err) {
         console.error('Error fetching user profile:', err);

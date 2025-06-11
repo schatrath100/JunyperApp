@@ -327,8 +327,20 @@ const Settings: React.FC = () => {
         throw new Error('No authenticated user found');
       }
 
+      // Validate business details if saving business card
+      if (cardType === 'business') {
+        if (!settings.company_legal_name || !settings.display_name) {
+          toast({
+            title: "Validation Error",
+            description: "Company Legal Name and Display Name are required.",
+            variant: "destructive",
+          });
+          setIsSaving(false);
+          return;
+        }
+      }
+
       const updateData: Partial<AccountingSettings> = {
-        id: settings.id,
         user_id: session.user.id,
       };
 
@@ -339,6 +351,7 @@ const Settings: React.FC = () => {
         updateData.time_zone = settings.time_zone;
       } else if (cardType === 'business') {
         updateData.company_legal_name = settings.company_legal_name;
+        updateData.display_name = settings.display_name;
         updateData.business_type = settings.business_type;
         updateData.tax_id = settings.tax_id;
         updateData.corporate_ein = settings.corporate_ein;
@@ -348,7 +361,6 @@ const Settings: React.FC = () => {
         updateData.company_size = settings.company_size;
         updateData.founded_date = settings.founded_date;
         updateData.website = settings.website;
-        updateData.display_name = settings.display_name;
       } else if (cardType === 'accounts') {
         updateData.sales_revenue_account = settings.sales_revenue_account;
         updateData.purchases_account = settings.purchases_account;
@@ -365,15 +377,28 @@ const Settings: React.FC = () => {
 
       console.log('Saving data:', updateData);
 
-      const { data, error } = await supabase
-        .from('accounting_settings')
-        .upsert(updateData)
-        .select()
-        .single();
+      let data;
+      if (settings.id) {
+        // Update existing settings
+        const { data: updateResult, error: updateError } = await supabase
+          .from('accounting_settings')
+          .update(updateData)
+          .eq('id', settings.id)
+          .select()
+          .single();
 
-      if (error) {
-        console.error('Supabase error:', error);
-        throw error;
+        if (updateError) throw updateError;
+        data = updateResult;
+      } else {
+        // Insert new settings
+        const { data: insertResult, error: insertError } = await supabase
+          .from('accounting_settings')
+          .insert([updateData])
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+        data = insertResult;
       }
 
       if (data) {
@@ -436,7 +461,14 @@ const Settings: React.FC = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Company Settings</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Company Settings</h1>
+            {settings.updated_at && (
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                (Last updated: {new Date(settings.updated_at).toLocaleString()})
+              </span>
+            )}
+          </div>
         </div>
 
         {error && (
@@ -1025,15 +1057,25 @@ const Settings: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center">
+              <div className="flex items-center space-x-2">
                 <input
                   type="checkbox"
                   id="is_default_bank"
                   checked={settings.is_default_bank}
                   onChange={(e) => setSettings({ ...settings, is_default_bank: e.target.checked })}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  className={cn(
+                    "h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700",
+                    editingCard !== 'bank' && "opacity-50 cursor-not-allowed"
+                  )}
+                  disabled={editingCard !== 'bank'}
                 />
-                <label htmlFor="is_default_bank" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                <label
+                  htmlFor="is_default_bank"
+                  className={cn(
+                    "text-sm font-medium text-gray-700 dark:text-gray-300",
+                    editingCard !== 'bank' && "opacity-50"
+                  )}
+                >
                   Set as default bank account
                 </label>
               </div>
