@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet, PlusCircle, Pencil, Search, Trash2, ChevronDown, Sun, Moon, Bell, User } from 'lucide-react';
+import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet, PlusCircle, Pencil, Search, Trash2, ChevronDown, Sun, Moon, Bell, User, Landmark, Check, Download } from 'lucide-react';
 import Button from '../components/Button';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -13,6 +13,9 @@ import BankTransactionViewModal from '../components/BankTransactionViewModal';
 import BankTransactionAddModal from '../components/BankTransactionAddModal';
 import BankTransactionEditModal from '../components/BankTransactionEditModal';
 import type { Alert } from '../components/Alert';
+import { usePlaidLink } from 'react-plaid-link';
+import { format, subDays } from 'date-fns';
+import { Calendar } from 'lucide-react';
 
 interface BankTransaction {
   id: string;
@@ -52,6 +55,62 @@ interface BankTransactionEditModalProps {
   transaction: BankTransaction | null;
 }
 
+const PlaidLinkButton: React.FC<{ onSuccess: (public_token: string, metadata: any) => void }> = ({ onSuccess }) => {
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const plaidInitialized = useRef(false);
+
+  useEffect(() => {
+    const initializePlaid = async () => {
+      if (plaidInitialized.current) return;
+      
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('No authenticated user');
+
+        const response = await fetch('http://localhost:3001/api/create_link_token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ userId: user.id }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to create link token');
+        }
+
+        const { link_token } = await response.json();
+        setLinkToken(link_token);
+        plaidInitialized.current = true;
+      } catch (err) {
+        console.error('Error creating link token:', err);
+      }
+    };
+
+    initializePlaid();
+
+    return () => {
+      plaidInitialized.current = false;
+    };
+  }, []);
+
+  const { open, ready } = usePlaidLink({
+    token: linkToken,
+    onSuccess,
+  });
+
+  return (
+    <Button
+      onClick={() => open()}
+      disabled={!ready || !linkToken}
+      className="w-full"
+    >
+      Connect New Bank
+    </Button>
+  );
+};
+
 const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,6 +134,13 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'transactions' | 'statements'>('transactions');
+  const [plaidLinkToken, setPlaidLinkToken] = useState<string | null>(null);
+  const [selectedBank, setSelectedBank] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState<string>(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
+  const [endDate, setEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [isFetchingTransactions, setIsFetchingTransactions] = useState(false);
+  const [connectedBanks, setConnectedBanks] = useState<Array<{ id: string; name: string }>>([]);
+  const [isCreatingToken, setIsCreatingToken] = useState(false);
 
   const exportToPDF = () => {
     const doc = new jsPDF();
@@ -396,6 +462,157 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     };
   };
 
+  // Function to create a link token
+  const createLinkToken = async () => {
+    if (isCreatingToken || plaidLinkToken) return;
+    
+    try {
+      setIsCreatingToken(true);
+      console.log('Creating link token...');
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
+      const response = await fetch('http://localhost:3001/api/create_link_token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create link token');
+      }
+      
+      const { link_token } = await response.json();
+      console.log('Link token created:', link_token);
+      setPlaidLinkToken(link_token);
+    } catch (err) {
+      console.error('Error creating link token:', err);
+      onAlert?.('Failed to initialize bank connection. Please try again.', 'error');
+    } finally {
+      setIsCreatingToken(false);
+    }
+  };
+
+  // Function to fetch connected banks
+  const fetchConnectedBanks = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('connected_banks')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      setConnectedBanks(data || []);
+    } catch (err) {
+      console.error('Error fetching connected banks:', err);
+    }
+  };
+
+  // Function to fetch transactions
+  const fetchPlaidTransactions = async () => {
+    if (!selectedBank) {
+      onAlert?.('Please select a bank account first', 'warning');
+      return;
+    }
+
+    try {
+      setIsFetchingTransactions(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
+      const response = await fetch('/api/fetch_transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          bankId: selectedBank,
+          startDate,
+          endDate,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch transactions');
+      const { transactions } = await response.json();
+
+      // Process and save transactions
+      const { error } = await supabase
+        .from('bank_transactions')
+        .insert(
+          transactions.map((t: any) => ({
+            user_id: user.id,
+            date: t.date,
+            bank_name: t.bank_name,
+            description: t.name,
+            amount: t.amount,
+            account_number: t.account_id,
+            credit_debit_indicator: t.amount > 0 ? 'credit' : 'debit',
+          }))
+        );
+
+      if (error) throw error;
+      onAlert?.('Transactions fetched and saved successfully', 'success');
+      fetchTransactions(); // Refresh the transactions list
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+      onAlert?.('Failed to fetch transactions. Please try again.', 'error');
+    } finally {
+      setIsFetchingTransactions(false);
+    }
+  };
+
+  const handlePlaidSuccess = async (public_token: string, metadata: any) => {
+    try {
+      console.log('Plaid Link success:', { public_token, metadata });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
+      // Exchange public token for access token
+      const response = await fetch('http://localhost:3001/api/exchange_public_token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          public_token,
+          metadata,
+          userId: user.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to exchange token');
+      }
+
+      onAlert?.('Bank account connected successfully', 'success');
+      fetchConnectedBanks();
+    } catch (err) {
+      console.error('Error exchanging token:', err);
+      onAlert?.('Failed to connect bank account. Please try again.', 'error');
+    }
+  };
+
+  const handlePlaidExit = (err: any, metadata: any) => {
+    console.log('Plaid Link exit:', { err, metadata });
+    if (err) {
+      onAlert?.(`Bank connection cancelled: ${err.display_message || err.error_message}`, 'warning');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'statements') {
+      fetchConnectedBanks();
+    }
+  }, [activeTab]);
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -403,18 +620,6 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
       </div>
 
       <div className="flex mb-0 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('statements')}
-          style={getTabStyle('statements')}
-          className={`${activeTab === 'statements' ? 'shadow-sm' : ''} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
-        >
-          <div className="flex items-center space-x-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            <span>Bank Integration</span>
-          </div>
-        </button>
         <button
           onClick={() => setActiveTab('transactions')}
           style={getTabStyle('transactions')}
@@ -427,26 +632,125 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
             <span>Transactions</span>
           </div>
         </button>
+        <button
+          onClick={() => setActiveTab('statements')}
+          style={getTabStyle('statements')}
+          className={`${activeTab === 'statements' ? 'shadow-sm' : ''} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
+        >
+          <div className="flex items-center space-x-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span>Bank Integration</span>
+          </div>
+        </button>
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-b-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
         {activeTab === 'statements' ? (
           <div className="p-6">
-            <div className="flex flex-col items-center justify-center space-y-4">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Bank Integration</h2>
-              <p className="text-gray-600 dark:text-gray-400 text-center">
-                Connect your bank accounts and fetch statements directly.
-              </p>
-              <Button
-                variant="default"
-                className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5"
-                onClick={() => {
-                  // TODO: Implement bank statement fetching functionality
-                  onAlert?.('Bank integration functionality coming soon!', 'info');
-                }}
-              >
-                Fetch Bank Statements
-              </Button>
+            <div className="max-w-3xl mx-auto space-y-8">
+              <div className="text-center">
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Bank Integration</h2>
+                <p className="mt-2 text-gray-600 dark:text-gray-400">
+                  Connect your bank accounts and fetch transactions directly.
+                </p>
+              </div>
+
+              {/* Connected Banks Section */}
+              {connectedBanks.length > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Connected Banks</h3>
+                  <div className="space-y-4">
+                    {connectedBanks.map((bank) => (
+                      <div
+                        key={bank.id}
+                        className={`p-4 rounded-lg border ${
+                          selectedBank === bank.id
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-700'
+                        } cursor-pointer hover:border-blue-500 transition-colors`}
+                        onClick={() => setSelectedBank(bank.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                              <Landmark className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-gray-900 dark:text-white">{bank.name}</h4>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">Connected</p>
+                            </div>
+                          </div>
+                          {selectedBank === bank.id && (
+                            <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                              <Check className="w-3 h-3 text-white" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Date Range Selection */}
+              {selectedBank && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Select Date Range</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Start Date
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <Calendar className="absolute right-3 top-2.5 w-5 h-5 text-gray-400" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        End Date
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <Calendar className="absolute right-3 top-2.5 w-5 h-5 text-gray-400" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <PlaidLinkButton
+                  onSuccess={handlePlaidSuccess}
+                />
+                {selectedBank && (
+                  <button
+                    onClick={fetchPlaidTransactions}
+                    disabled={isFetchingTransactions}
+                    className="w-full sm:w-auto px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors"
+                  >
+                    {isFetchingTransactions ? (
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Download className="w-5 h-5" />
+                    )}
+                    <span>{isFetchingTransactions ? 'Fetching...' : 'Fetch Transactions'}</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         ) : (
