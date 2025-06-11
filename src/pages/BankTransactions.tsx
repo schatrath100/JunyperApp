@@ -37,6 +37,21 @@ interface BankTransactionsProps {
   onAlert?: (message: string, type: Alert['type']) => void;
 }
 
+interface BankTransactionAddModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onAlert?: (message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
+  onSave: () => Promise<void>;
+}
+
+interface BankTransactionEditModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onAlert?: (message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
+  onSave: () => Promise<void>;
+  transaction: BankTransaction | null;
+}
+
 const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +74,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'transactions' | 'statements'>('transactions');
 
   const exportToPDF = () => {
     const doc = new jsPDF();
@@ -258,22 +274,28 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     testConnection();
   }, []);
 
-  // Filter transactions based on search query
+  // Calculate pagination values
   const filteredTransactions = transactions.filter(transaction => {
     const searchLower = searchQuery.toLowerCase();
     return (
-      transaction.bank_name.toLowerCase().includes(searchLower) ||
       transaction.description.toLowerCase().includes(searchLower) ||
-      transaction.account_number.toString().includes(searchLower) ||
-      transaction.credit_debit_indicator.toString().includes(searchLower)
+      transaction.bank_name.toLowerCase().includes(searchLower) ||
+      transaction.account_number.toString().includes(searchLower)
     );
   });
 
-  // Calculate pagination for filtered transactions
   const totalPages = Math.ceil(totalCount / pageSize);
-  const startIndex = (currentPage - 1) * pageSize;
-  const endIndex = Math.min(startIndex + pageSize, totalCount);
   const currentTransactions = filteredTransactions;
+
+  // Reset to first page when search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
 
   const handlePageChange = (page: number) => {
     console.log('Changing to page:', page);
@@ -324,334 +346,447 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     return pageNumbers;
   };
 
+  const getTabStyle = (tab: 'transactions' | 'statements') => {
+    const colorSchemes = {
+      statements: {
+        background: activeTab === tab ? '#4F46E5' : '#EEF2FF',
+        text: activeTab === tab ? 'white' : '#4F46E5',
+        border: activeTab === tab ? 'transparent' : '#4F46E5',
+        hover: {
+          background: activeTab === tab ? '#4F46E5' : '#E0E7FF',
+          text: '#4F46E5'
+        },
+        shadow: activeTab === tab ? '0 4px 6px -1px rgba(79, 70, 229, 0.1), 0 2px 4px -1px rgba(79, 70, 229, 0.06)' : 'none'
+      },
+      transactions: {
+        background: activeTab === tab ? '#059669' : '#ECFDF5',
+        text: activeTab === tab ? 'white' : '#059669',
+        border: activeTab === tab ? 'transparent' : '#059669',
+        hover: {
+          background: activeTab === tab ? '#059669' : '#D1FAE5',
+          text: '#059669'
+        },
+        shadow: activeTab === tab ? '0 4px 6px -1px rgba(5, 150, 105, 0.1), 0 2px 4px -1px rgba(5, 150, 105, 0.06)' : 'none'
+      }
+    };
+
+    const scheme = colorSchemes[tab];
+
+    return {
+      padding: '0.875rem 1.75rem',
+      fontSize: '0.875rem',
+      fontWeight: activeTab === tab ? 600 : 500,
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      cursor: 'pointer',
+      border: `1px solid ${scheme.border}`,
+      borderBottom: activeTab === tab ? 'none' : `1px solid ${scheme.border}`,
+      borderTopLeftRadius: '0.5rem',
+      borderTopRightRadius: '0.5rem',
+      marginRight: '0.5rem',
+      marginBottom: '-1px',
+      background: scheme.background,
+      color: scheme.text,
+      boxShadow: scheme.shadow,
+      position: 'relative' as const,
+      '&:hover': {
+        background: scheme.hover.background,
+        color: scheme.hover.text,
+        transform: activeTab === tab ? 'none' : 'translateY(-1px)',
+      }
+    };
+  };
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Bank Transactions</h1>
-          <button
-            onClick={fetchTransactions}
-            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-            disabled={loading}
-            title="Refresh"
-          >
-            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-            title="Add transaction"
-          >
-            <PlusCircle className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="flex items-center space-x-4">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search transactions..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-64 px-4 py-2 pl-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-            />
-            <svg
-              className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          </div>
-          <Button
-            variant="default"
-            className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5"
-            onClick={() => setShowUploadModal(true)}
-            icon={<Upload className="w-4 h-4" />}
-          >
-            Upload Transactions
-          </Button>
-          <button
-            onClick={exportToPDF}
-            className="p-2 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
-            title="Export to PDF"
-          >
-            <FileText className="w-5 h-5" />
-          </button>
-          <button
-            onClick={exportToExcel}
-            className="p-2 text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
-            title="Export to Excel"
-          >
-            <FileSpreadsheet className="w-5 h-5" />
-          </button>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Banking</h1>
       </div>
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded p-4 mb-6 text-red-700">
-          {error}
-        </div>
-      )}
+      <div className="flex mb-0 overflow-x-auto">
+        <button
+          onClick={() => setActiveTab('statements')}
+          style={getTabStyle('statements')}
+          className={`${activeTab === 'statements' ? 'shadow-sm' : ''} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
+        >
+          <div className="flex items-center space-x-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span>Bank Integration</span>
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('transactions')}
+          style={getTabStyle('transactions')}
+          className={`${activeTab === 'transactions' ? 'shadow-sm' : ''} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500`}
+        >
+          <div className="flex items-center space-x-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <span>Transactions</span>
+          </div>
+        </button>
+      </div>
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
-                <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                  Date
-                </span>
-              </th>
-              <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
-                <div className="flex items-center space-x-1">
-                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                    Bank name
-                  </span>
-                  <button
-                    onClick={() => setShowBankFilter(!showBankFilter)}
-                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-                </div>
-                {showBankFilter && (
-                  <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
-                    <div className="p-2">
-                      <input
-                        type="text"
-                        value={filters.bankName}
-                        onChange={(e) => handleFilterChange('bankName', e.target.value)}
-                        placeholder="Filter bank..."
-                        className="w-full px-2 py-1 text-sm border rounded-md"
-                      />
-                    </div>
-                  </div>
-                )}
-              </th>
-              <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
-                <div className="flex items-center space-x-1">
-                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                    Description
-                  </span>
-                  <button
-                    onClick={() => setShowDescriptionFilter(!showDescriptionFilter)}
-                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-                </div>
-                {showDescriptionFilter && (
-                  <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
-                    <div className="p-2">
-                      <input
-                        type="text"
-                        value={filters.description}
-                        onChange={(e) => handleFilterChange('description', e.target.value)}
-                        placeholder="Filter description..."
-                        className="w-full px-2 py-1 text-sm border rounded-md"
-                      />
-                    </div>
-                  </div>
-                )}
-              </th>
-              <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
-                <div className="flex items-center space-x-1">
-                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                    Amount
-                  </span>
-                  <button
-                    onClick={() => setShowAmountFilter(!showAmountFilter)}
-                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-                </div>
-                {showAmountFilter && (
-                  <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
-                    <div className="p-2">
-                      <input
-                        type="number"
-                        value={filters.amountMin}
-                        onChange={(e) => handleFilterChange('amountMin', e.target.value)}
-                        placeholder="Min amount..."
-                        className="w-full px-2 py-1 text-sm border rounded-md"
-                      />
-                    </div>
-                  </div>
-                )}
-              </th>
-              <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
-                <div className="flex items-center space-x-1">
-                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                    Account number
-                  </span>
-                  <button
-                    onClick={() => setShowAccountFilter(!showAccountFilter)}
-                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-                </div>
-                {showAccountFilter && (
-                  <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
-                    <div className="p-2">
-                      <input
-                        type="text"
-                        value={filters.accountNumber}
-                        onChange={(e) => handleFilterChange('accountNumber', e.target.value)}
-                        placeholder="Filter account..."
-                        className="w-full px-2 py-1 text-sm border rounded-md"
-                      />
-                    </div>
-                  </div>
-                )}
-              </th>
-              <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
-                <div className="flex items-center space-x-1">
-                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                    Type
-                  </span>
-                  <button
-                    onClick={() => setShowTypeFilter(!showTypeFilter)}
-                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-                </div>
-                {showTypeFilter && (
-                  <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
-                    <div className="p-2">
-                      <select
-                        value={filters.type}
-                        onChange={(e) => handleFilterChange('type', e.target.value)}
-                        className="w-full px-2 py-1 text-sm border rounded-md"
-                      >
-                        <option value="">All</option>
-                        <option value="credit">Credit</option>
-                        <option value="debit">Debit</option>
-                      </select>
-                    </div>
-                  </div>
-                )}
-              </th>
-              <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
-                <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                  Actions
-                </span>
-              </th>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {currentTransactions.map((transaction) => (
-              <TableRow key={transaction.id}>
-                <TableCell>
-                  <span className="text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                    {new Date(transaction.date).toLocaleDateString('en-US', { 
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </span>
-                </TableCell>
-                <TableCell>{transaction.bank_name}</TableCell>
-                <TableCell>{transaction.description}</TableCell>
-                <TableCell>
-                  <span className={transaction.credit_debit_indicator === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                    {new Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: 'USD'
-                    }).format(transaction.amount)}
-                  </span>
-                </TableCell>
-                <TableCell>{transaction.account_number}</TableCell>
-                <TableCell>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                    transaction.credit_debit_indicator === 'credit'
-                      ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                      : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                  }`}>
-                    {transaction.credit_debit_indicator}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => {
-                        setSelectedTransaction(transaction);
-                        setShowViewModal(true);
-                      }}
-                      className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                      title="View details"
-                    >
-                      <Search className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        setSelectedTransaction(transaction);
-                        setShowDeleteConfirm(true);
-                      }}
-                      className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-                      title="Delete transaction"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-
-        {/* Pagination Controls */}
-        {currentTransactions.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
-              Showing {startIndex + 1} to {endIndex} of {totalCount} entries
+      <div className="bg-white dark:bg-gray-900 rounded-b-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
+        {activeTab === 'statements' ? (
+          <div className="p-6">
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Bank Integration</h2>
+              <p className="text-gray-600 dark:text-gray-400 text-center">
+                Connect your bank accounts and fetch statements directly.
+              </p>
+              <Button
+                variant="default"
+                className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5"
+                onClick={() => {
+                  // TODO: Implement bank statement fetching functionality
+                  onAlert?.('Bank integration functionality coming soon!', 'info');
+                }}
+              >
+                Fetch Bank Statements
+              </Button>
             </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="px-3 py-1 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              <div className="flex items-center space-x-1">
-                {getPageNumbers().map((page, index) => (
-                  <button
-                    key={index}
-                    onClick={() => typeof page === 'number' ? handlePageChange(page) : null}
-                    disabled={typeof page !== 'number'}
-                    className={`px-3 py-1 rounded-md text-sm font-medium ${
-                      currentPage === page
-                        ? 'bg-blue-600 text-white'
-                        : typeof page === 'number'
-                        ? 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                        : 'text-gray-400 dark:text-gray-500 cursor-default'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
+          </div>
+        ) : (
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={fetchTransactions}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+                  disabled={loading}
+                  title="Refresh"
+                >
+                  <RefreshCw 
+                    className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} 
+                  />
+                  <span>Refresh</span>
+                </button>
+                <button
+                  onClick={() => setShowAddModal(true)}
+                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                  title="Add transaction"
+                >
+                  <PlusCircle className="w-5 h-5" />
+                </button>
               </div>
-              <button
-                onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search transactions..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-64 px-4 py-2 pl-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                  />
+                  <svg
+                    className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </div>
+                <Button
+                  variant="default"
+                  className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5 flex items-center space-x-2"
+                  onClick={() => setShowUploadModal(true)}
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Upload Transactions</span>
+                </Button>
+                <button
+                  onClick={exportToPDF}
+                  className="p-2 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                  title="Export to PDF"
+                >
+                  <FileText className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={exportToExcel}
+                  className="p-2 text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
+                  title="Export to Excel"
+                >
+                  <FileSpreadsheet className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded p-4 mb-6 text-red-700">
+                {error}
+              </div>
+            )}
+
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                        Date
+                      </span>
+                    </th>
+                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                          Bank name
+                        </span>
+                        <button
+                          onClick={() => setShowBankFilter(!showBankFilter)}
+                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {showBankFilter && (
+                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                          <div className="p-2">
+                            <input
+                              type="text"
+                              value={filters.bankName}
+                              onChange={(e) => handleFilterChange('bankName', e.target.value)}
+                              placeholder="Filter bank..."
+                              className="w-full px-2 py-1 text-sm border rounded-md"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </th>
+                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                          Description
+                        </span>
+                        <button
+                          onClick={() => setShowDescriptionFilter(!showDescriptionFilter)}
+                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {showDescriptionFilter && (
+                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                          <div className="p-2">
+                            <input
+                              type="text"
+                              value={filters.description}
+                              onChange={(e) => handleFilterChange('description', e.target.value)}
+                              placeholder="Filter description..."
+                              className="w-full px-2 py-1 text-sm border rounded-md"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </th>
+                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                          Amount
+                        </span>
+                        <button
+                          onClick={() => setShowAmountFilter(!showAmountFilter)}
+                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {showAmountFilter && (
+                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                          <div className="p-2">
+                            <input
+                              type="number"
+                              value={filters.amountMin}
+                              onChange={(e) => handleFilterChange('amountMin', e.target.value)}
+                              placeholder="Min amount..."
+                              className="w-full px-2 py-1 text-sm border rounded-md"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </th>
+                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                          Account number
+                        </span>
+                        <button
+                          onClick={() => setShowAccountFilter(!showAccountFilter)}
+                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {showAccountFilter && (
+                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                          <div className="p-2">
+                            <input
+                              type="text"
+                              value={filters.accountNumber}
+                              onChange={(e) => handleFilterChange('accountNumber', e.target.value)}
+                              placeholder="Filter account..."
+                              className="w-full px-2 py-1 text-sm border rounded-md"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </th>
+                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                          Type
+                        </span>
+                        <button
+                          onClick={() => setShowTypeFilter(!showTypeFilter)}
+                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {showTypeFilter && (
+                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                          <div className="p-2">
+                            <select
+                              value={filters.type}
+                              onChange={(e) => handleFilterChange('type', e.target.value)}
+                              className="w-full px-2 py-1 text-sm border rounded-md"
+                            >
+                              <option value="">All</option>
+                              <option value="credit">Credit</option>
+                              <option value="debit">Debit</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </th>
+                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                        Actions
+                      </span>
+                    </th>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {currentTransactions.map((transaction) => (
+                    <TableRow key={transaction.id}>
+                      <TableCell>
+                        <span className="text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                          {new Date(transaction.date).toLocaleDateString('en-US', { 
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </span>
+                      </TableCell>
+                      <TableCell>{transaction.bank_name}</TableCell>
+                      <TableCell>{transaction.description}</TableCell>
+                      <TableCell>
+                        <span className={transaction.credit_debit_indicator === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                          {new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD'
+                          }).format(transaction.amount)}
+                        </span>
+                      </TableCell>
+                      <TableCell>{transaction.account_number}</TableCell>
+                      <TableCell>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          transaction.credit_debit_indicator === 'credit'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                        }`}>
+                          {transaction.credit_debit_indicator}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => {
+                              setSelectedTransaction(transaction);
+                              setShowViewModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                            title="View details"
+                          >
+                            <Search className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedTransaction(transaction);
+                              setShowDeleteConfirm(true);
+                            }}
+                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                            title="Delete transaction"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination Controls */}
+              {currentTransactions.length > 0 && (
+                <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      {totalCount > 0 ? (
+                        `Showing ${((currentPage - 1) * pageSize) + 1} to ${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} entries`
+                      ) : (
+                        'No entries to display'
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      First
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      Page {currentPage} of {Math.max(1, totalPages)}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Last
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
       </div>
-      
+
       <BankTransactionUploadModal
         isOpen={showUploadModal}
         onClose={() => setShowUploadModal(false)}

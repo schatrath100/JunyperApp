@@ -278,7 +278,7 @@ const RecentActivity: React.FC = () => {
       ) : (
         <div className="divide-y divide-gray-200 dark:divide-gray-700">
           <AnimatePresence>
-            {activities.map((activity) => (
+          {activities.map((activity) => (
               <motion.div
                 key={activity.type}
                 initial={{ opacity: 0, y: 20 }}
@@ -292,31 +292,31 @@ const RecentActivity: React.FC = () => {
                       {activity.icon}
                     </div>
                     <div>
-                      <span className="text-gray-900 dark:text-white font-medium">New {activity.type}</span>
+              <span className="text-gray-900 dark:text-white font-medium">New {activity.type}</span>
                       <div className="text-sm text-gray-500 dark:text-gray-400">
                         {activity.count} {activity.count === 1 ? 'item' : 'items'}
                       </div>
                     </div>
                   </div>
-                  <div className={`flex items-center ${
-                    activity.change > 0 
-                      ? 'text-green-500 dark:text-green-400' 
-                      : activity.change < 0 
-                        ? 'text-red-500 dark:text-red-400'
-                        : 'text-gray-400 dark:text-gray-500'
-                  }`}>
-                    {activity.change > 0 ? (
-                      <TrendingUp className="w-4 h-4 mr-1" />
-                    ) : (
-                      <TrendingDown className="w-4 h-4 mr-1" />
-                    )}
-                    <span className="text-sm font-medium">
-                      {activity.change > 0 ? '+' : ''}{activity.change}%
-                    </span>
-                  </div>
-                </div>
+                <div className={`flex items-center ${
+                  activity.change > 0 
+                    ? 'text-green-500 dark:text-green-400' 
+                    : activity.change < 0 
+                      ? 'text-red-500 dark:text-red-400'
+                      : 'text-gray-400 dark:text-gray-500'
+                }`}>
+                  {activity.change > 0 ? (
+                    <TrendingUp className="w-4 h-4 mr-1" />
+                  ) : (
+                    <TrendingDown className="w-4 h-4 mr-1" />
+                  )}
+                  <span className="text-sm font-medium">
+                    {activity.change > 0 ? '+' : ''}{activity.change}%
+                  </span>
+              </div>
+            </div>
               </motion.div>
-            ))}
+          ))}
           </AnimatePresence>
         </div>
       )}

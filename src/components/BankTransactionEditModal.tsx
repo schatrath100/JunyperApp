@@ -16,15 +16,17 @@ interface BankTransaction {
 interface BankTransactionEditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  transaction: BankTransaction | null;
+  onAlert?: (message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
   onSave: () => void;
+  transaction: BankTransaction | null;
 }
 
 const BankTransactionEditModal: React.FC<BankTransactionEditModalProps> = ({
   isOpen,
   onClose,
-  transaction,
-  onSave
+  onAlert,
+  onSave,
+  transaction
 }) => {
   const [formData, setFormData] = useState<Omit<BankTransaction, 'id'>>({
     date: '',

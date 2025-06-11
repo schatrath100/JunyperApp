@@ -6,12 +6,14 @@ import { supabase } from '../lib/supabase';
 interface BankTransactionAddModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onAlert?: (message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
   onSave: () => void;
 }
 
 const BankTransactionAddModal: React.FC<BankTransactionAddModalProps> = ({
   isOpen,
   onClose,
+  onAlert,
   onSave
 }) => {
   const [formData, setFormData] = useState({
@@ -179,7 +181,7 @@ const BankTransactionAddModal: React.FC<BankTransactionAddModalProps> = ({
             </Button>
             <Button
               type="submit"
-              variant="primary"
+              variant="default"
               className="bg-black hover:bg-black/90 text-white"
               disabled={loading}
             >

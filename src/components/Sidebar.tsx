@@ -83,6 +83,7 @@ const Sidebar: React.FC<{
   const [purchasesOpen, setPurchasesOpen] = useState(false);
   const [companyName, setCompanyName] = useState<string>('');
   const [userName, setUserName] = useState<string>('');
+  const [userAvatar, setUserAvatar] = useState<string>('');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = React.useRef<HTMLDivElement>(null);
 
@@ -127,21 +128,18 @@ const Sidebar: React.FC<{
     const fetchUserProfile = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        console.log('Current user:', user);
         if (!user) return;
 
         const { data, error } = await supabase
           .from('users')
-          .select('full_name')
+          .select('full_name, avatar_url')
           .eq('auth_id', user.id)
           .single();
-
-        console.log('User profile data:', data);
-        console.log('User profile error:', error);
 
         if (error) throw error;
         if (data) {
           setUserName(data.full_name || 'User');
+          setUserAvatar(data.avatar_url || '');
         }
       } catch (err) {
         console.error('Error fetching user profile:', err);
@@ -334,8 +332,21 @@ const Sidebar: React.FC<{
               className="w-full px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 flex items-center group"
               onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
             >
-              <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center mr-3 group-hover:scale-105 transition-transform">
-                <User2 className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+              <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center mr-3 group-hover:scale-105 transition-transform overflow-hidden">
+                {userAvatar ? (
+                  <img
+                    src={userAvatar}
+                    alt={userName}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const img = e.target as HTMLImageElement;
+                      img.src = ''; // Clear the src on error
+                      setUserAvatar(''); // Reset avatar URL on error
+                    }}
+                  />
+                ) : (
+                  <User2 className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+                )}
               </div>
               <div className="flex flex-col items-start">
                 <span className="text-xs text-gray-500 dark:text-gray-400">{companyName}</span>
