@@ -21,6 +21,7 @@ interface AccountingSettings {
   time_zone: string;
   business_type: string;
   tax_id: string;
+  corporate_ein: string;
   business_address: string;
   business_phone: string;
   sales_revenue_account: string;
@@ -35,6 +36,11 @@ interface AccountingSettings {
   is_default_bank: boolean;
   created_at: string;
   updated_at: string;
+  industry: string;
+  company_size: string;
+  founded_date: string;
+  website: string;
+  display_name: string;
 }
 
 const ACCOUNTING_METHODS = [
@@ -62,6 +68,7 @@ const DEFAULT_SETTINGS: AccountingSettings = {
   time_zone: 'US/Eastern',
   business_type: '',
   tax_id: '',
+  corporate_ein: '',
   business_address: '',
   business_phone: '',
   sales_revenue_account: '',
@@ -76,6 +83,11 @@ const DEFAULT_SETTINGS: AccountingSettings = {
   is_default_bank: false,
   created_at: '',
   updated_at: '',
+  industry: '',
+  company_size: '',
+  founded_date: '',
+  website: '',
+  display_name: '',
 };
 
 const MAX_RETRIES = 3;
@@ -329,8 +341,14 @@ const Settings: React.FC = () => {
         updateData.company_legal_name = settings.company_legal_name;
         updateData.business_type = settings.business_type;
         updateData.tax_id = settings.tax_id;
+        updateData.corporate_ein = settings.corporate_ein;
         updateData.business_address = settings.business_address;
         updateData.business_phone = settings.business_phone;
+        updateData.industry = settings.industry;
+        updateData.company_size = settings.company_size;
+        updateData.founded_date = settings.founded_date;
+        updateData.website = settings.website;
+        updateData.display_name = settings.display_name;
       } else if (cardType === 'accounts') {
         updateData.sales_revenue_account = settings.sales_revenue_account;
         updateData.purchases_account = settings.purchases_account;
@@ -379,6 +397,30 @@ const Settings: React.FC = () => {
       });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const saveBusinessDetails = async () => {
+    try {
+      if (!settings.company_legal_name || !settings.display_name) {
+        alert('Company Legal Name and Display Name are required.');
+        return;
+      }
+      const { error } = await supabase
+        .from('accounting_settings')
+        .update({
+          company_legal_name: settings.company_legal_name,
+          display_name: settings.display_name,
+          industry: settings.industry,
+          company_size: settings.company_size,
+          founded_date: settings.founded_date,
+          website: settings.website,
+        })
+        .eq('user_id', user?.id);
+      if (error) throw error;
+      setEditingCard(null);
+    } catch (error) {
+      console.error('Error saving business details:', error);
     }
   };
 
@@ -563,91 +605,123 @@ const Settings: React.FC = () => {
               </div>
             </div>
             <div className="p-3 space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Business Name
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.company_legal_name}
-                    onChange={(e) => setSettings({ ...settings, company_legal_name: e.target.value })}
-                    className={cn(
-                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
-                      editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Company Legal Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.company_legal_name}
+                      onChange={(e) => setSettings({ ...settings, company_legal_name: e.target.value })}
+                      className={cn(
+                        "w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent dark:bg-gray-800 dark:text-white",
+                        editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                      )}
+                      disabled={editingCard !== 'business'}
+                      placeholder="Enter company legal name"
+                      required
+                    />
+                    {!settings.company_legal_name && editingCard === 'business' && (
+                      <p className="mt-1 text-sm text-red-500">Company Legal Name is required</p>
                     )}
-                    disabled={editingCard !== 'business'}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Business Type
-                  </label>
-                  <select
-                    value={settings.business_type}
-                    onChange={(e) => setSettings({ ...settings, business_type: e.target.value })}
-                    className={cn(
-                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
-                      editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Display Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.display_name}
+                      onChange={(e) => setSettings({ ...settings, display_name: e.target.value })}
+                      className={cn(
+                        "w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent dark:bg-gray-800 dark:text-white",
+                        editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                      )}
+                      disabled={editingCard !== 'business'}
+                      placeholder="Enter company display name"
+                      required
+                    />
+                    {!settings.display_name && editingCard === 'business' && (
+                      <p className="mt-1 text-sm text-red-500">Display Name is required</p>
                     )}
-                    disabled={editingCard !== 'business'}
-                  >
-                    <option value="">Select type</option>
-                    <option value="Sole Proprietorship">Sole Proprietorship</option>
-                    <option value="Partnership">Partnership</option>
-                    <option value="Corporation">Corporation</option>
-                    <option value="LLC">LLC</option>
-                    <option value="Non-Profit">Non-Profit</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Tax ID/VAT Number
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.tax_id}
-                    onChange={(e) => setSettings({ ...settings, tax_id: e.target.value })}
-                    className={cn(
-                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
-                      editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
-                    )}
-                    disabled={editingCard !== 'business'}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Business Phone
-                  </label>
-                  <input
-                    type="tel"
-                    value={settings.business_phone}
-                    onChange={(e) => setSettings({ ...settings, business_phone: e.target.value })}
-                    className={cn(
-                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
-                      editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
-                    )}
-                    disabled={editingCard !== 'business'}
-                  />
-                </div>
-
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Business Address
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.business_address}
-                    onChange={(e) => setSettings({ ...settings, business_address: e.target.value })}
-                    className={cn(
-                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
-                      editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
-                    )}
-                    disabled={editingCard !== 'business'}
-                  />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Industry
+                    </label>
+                    <select
+                      value={settings.industry}
+                      onChange={(e) => setSettings({ ...settings, industry: e.target.value })}
+                      className={cn(
+                        "w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent dark:bg-gray-800 dark:text-white",
+                        editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                      )}
+                      disabled={editingCard !== 'business'}
+                      required
+                    >
+                      <option value="">Select Industry</option>
+                      <option value="Technology">Technology</option>
+                      <option value="Healthcare">Healthcare</option>
+                      <option value="Retail">Retail</option>
+                      <option value="Finance">Finance</option>
+                      <option value="Manufacturing">Manufacturing</option>
+                      <option value="Education">Education</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Company Size
+                    </label>
+                    <select
+                      value={settings.company_size || ''}
+                      onChange={(e) => setSettings({ ...settings, company_size: e.target.value })}
+                      className={cn(
+                        "w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent dark:bg-gray-800 dark:text-white",
+                        editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                      )}
+                      disabled={editingCard !== 'business'}
+                    >
+                      <option value="">Select Company Size</option>
+                      <option value="Small">Small</option>
+                      <option value="Medium">Medium</option>
+                      <option value="Large">Large</option>
+                      <option value="Enterprise">Enterprise</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Founded Date
+                    </label>
+                    <input
+                      type="date"
+                      value={settings.founded_date || ''}
+                      onChange={(e) => setSettings({ ...settings, founded_date: e.target.value })}
+                      className={cn(
+                        "w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent dark:bg-gray-800 dark:text-white",
+                        editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                      )}
+                      disabled={editingCard !== 'business'}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      Website
+                    </label>
+                    <input
+                      type="url"
+                      value={settings.website || ''}
+                      onChange={(e) => setSettings({ ...settings, website: e.target.value })}
+                      className={cn(
+                        "w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent dark:bg-gray-800 dark:text-white",
+                        editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                      )}
+                      disabled={editingCard !== 'business'}
+                      placeholder="https://example.com"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

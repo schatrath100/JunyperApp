@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, BookOpen, ShoppingCart, Receipt, Bot, Settings, LogOut, Sparkles, ChevronDown, Users, FileText, Building2, ScrollText, Package, Boxes, BookOpenCheck, Wallet, Check, User2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LayoutGrid, Landmark, Receipt, Bot, Settings, LogOut, Sparkles, ChevronDown, Users, FileText, Building2, ScrollText, Package, Boxes, BookOpenCheck, Wallet, Check, User2, ChevronLeft, ChevronRight, BarChart3, UserCircle2, ReceiptText, PackageSearch, ShoppingBag, Store } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -82,6 +82,21 @@ const Sidebar: React.FC<{
   const [purchasesOpen, setPurchasesOpen] = useState(false);
   const [companyName, setCompanyName] = useState<string>('');
   const [userName, setUserName] = useState<string>('');
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchCompanyName = async () => {
@@ -156,14 +171,14 @@ const Sidebar: React.FC<{
               isDashboard={true}
             />
             <NavItem 
-              icon={<BookOpen className="w-5 h-5" />} 
+              icon={<Landmark className="w-5 h-5" />} 
               label={collapsed ? "" : "Accounts"}
               active={location.pathname === '/accounts'} 
               onClick={() => navigate('/accounts')}
               collapsed={collapsed}
             />
             <NavItem 
-              icon={<ShoppingCart className="w-5 h-5" />} 
+              icon={<BarChart3 className="w-5 h-5" />} 
               label={collapsed ? "" : "Sales"}
               active={location.pathname.startsWith('/sales')}
               onClick={() => setSalesOpen(!salesOpen)}
@@ -184,7 +199,7 @@ const Sidebar: React.FC<{
                       navigate('/sales/customers');
                     }}
                   >
-                    <Users className="w-4 h-4" />
+                    <UserCircle2 className="w-4 h-4" />
                     <span>Customers</span>
                   </button>
                   <button
@@ -197,7 +212,7 @@ const Sidebar: React.FC<{
                       navigate('/sales/invoices');
                     }}
                   >
-                    <FileText className="w-4 h-4" />
+                    <Receipt className="w-4 h-4" />
                     <span>Invoices</span>
                   </button>
                   <button
@@ -210,14 +225,14 @@ const Sidebar: React.FC<{
                       navigate('/sales/items');
                     }}
                   >
-                    <Package className="w-4 h-4" />
+                    <PackageSearch className="w-4 h-4" />
                     <span>Sale Items</span>
                   </button>
                 </div>
               )}
             </NavItem>
             <NavItem 
-              icon={<Receipt className="w-5 h-5" />} 
+              icon={<ShoppingBag className="w-5 h-5" />} 
               label={collapsed ? "" : "Purchases"}
               active={location.pathname.startsWith('/purchases')}
               onClick={() => setPurchasesOpen(!purchasesOpen)}
@@ -238,7 +253,7 @@ const Sidebar: React.FC<{
                       navigate('/purchases/vendors');
                     }}
                   >
-                    <Building2 className="w-4 h-4" />
+                    <Store className="w-4 h-4" />
                     <span>Vendors</span>
                   </button>
                   <button
@@ -251,7 +266,7 @@ const Sidebar: React.FC<{
                       navigate('/purchases/bills');
                     }}
                   >
-                    <ScrollText className="w-4 h-4" />
+                    <FileText className="w-4 h-4" />
                     <span>Bills</span>
                   </button>
                   <button
@@ -264,19 +279,16 @@ const Sidebar: React.FC<{
                       navigate('/purchases/items');
                     }}
                   >
-                    <Boxes className="w-4 h-4" />
+                    <Package className="w-4 h-4" />
                     <span>Purchase Items</span>
                   </button>
                 </div>
               )}
             </NavItem>
             <NavItem 
-              icon={<Bot className="w-5 h-5" />} 
+              icon={<Bot className="w-5 h-5 text-gradient-to-r from-blue-500 to-teal-400 animate-pulse" />} 
               label={
-                collapsed ? "" : <div className="flex items-center">
-                  <span className="font-medium italic font-bold text-teal-600 dark:text-teal-400">Sydney AI</span>
-                  <span className="ml-2 px-1.5 py-0.5 text-xs bg-teal-100 dark:bg-teal-900 text-teal-800 dark:text-teal-200 rounded-full">New</span>
-                </div>
+                collapsed ? "" : <span className="font-medium italic font-bold bg-gradient-to-r from-blue-500 to-teal-400 bg-clip-text text-transparent">Sydney AI</span>
               }
               active={location.pathname === '/sydney-ai'}
               onClick={() => navigate('/sydney-ai')}
@@ -316,16 +328,10 @@ const Sidebar: React.FC<{
       {/* Footer */}
       {!collapsed &&
         <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-          <div className="relative">
+          <div className="relative" ref={userMenuRef}>
             <button 
               className="w-full px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 flex items-center group"
-              onClick={() => {
-                console.log('Button clicked');
-                const menu = document.getElementById('user-menu');
-                if (menu) {
-                  menu.classList.toggle('hidden');
-                }
-              }}
+              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
             >
               <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center mr-3 group-hover:scale-105 transition-transform">
                 <User2 className="w-4 h-4 text-gray-600 dark:text-gray-300" />
@@ -334,24 +340,28 @@ const Sidebar: React.FC<{
                 <span className="text-xs text-gray-500 dark:text-gray-400">{companyName}</span>
                 <span className="truncate font-semibold">Hey {userName}</span>
               </div>
-              <ChevronDown className="w-4 h-4 ml-auto text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors" />
+              <ChevronDown className={`w-4 h-4 ml-auto text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors ${isUserMenuOpen ? 'transform rotate-180' : ''}`} />
             </button>
             
             <div 
-              id="user-menu" 
-              className="hidden absolute bottom-full left-0 w-full mb-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50"
-              style={{ transform: 'translateY(-8px)' }}
+              className={`absolute bottom-full left-0 w-full mb-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 transition-all duration-200 ${isUserMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}
             >
               <button
                 className="w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-                onClick={() => navigate('/profile')}
+                onClick={() => {
+                  navigate('/profile');
+                  setIsUserMenuOpen(false);
+                }}
               >
                 <User2 className="w-4 h-4 mr-2" />
                 <span>Account</span>
               </button>
               <button
                 className="w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-                onClick={() => navigate('/settings')}
+                onClick={() => {
+                  navigate('/settings');
+                  setIsUserMenuOpen(false);
+                }}
               >
                 <Settings className="w-4 h-4 mr-2" />
                 <span>Company Settings</span>

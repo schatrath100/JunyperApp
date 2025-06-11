@@ -3,7 +3,7 @@
 
   1. Security Changes
     - Enable RLS on Account table
-    - Add policy for authenticated users to read all accounts
+    - Add policy for authenticated users to read only their own accounts
     - Add policy for authenticated users to insert their own accounts
     - Add policy for authenticated users to update their own accounts
 
@@ -20,12 +20,17 @@ ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT now();
 -- Enable RLS
 ALTER TABLE "Account" ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can view all accounts" ON "Account";
+DROP POLICY IF EXISTS "Users can insert their own accounts" ON "Account";
+DROP POLICY IF EXISTS "Users can update their own accounts" ON "Account";
+
 -- Create policies
-CREATE POLICY "Users can view all accounts"
+CREATE POLICY "Users can view their own accounts"
 ON "Account"
 FOR SELECT
 TO authenticated
-USING (true);
+USING (auth.uid() = user_id);
 
 CREATE POLICY "Users can insert their own accounts"
 ON "Account"

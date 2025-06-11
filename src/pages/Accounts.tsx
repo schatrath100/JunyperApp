@@ -49,7 +49,6 @@ const ACCOUNT_TYPES = [
 ];
 
 const Accounts: React.FC = () => {
-  console.log('Accounts component rendered');
   const [selectedType, setSelectedType] = useState('All');
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -89,6 +88,7 @@ const Accounts: React.FC = () => {
       let query = supabase
         .from('Account')
         .select('*')
+        .eq('user_id', user.id)
         .order('id');
 
       // Only apply account type filter if not 'All'
@@ -270,9 +270,8 @@ const Accounts: React.FC = () => {
   };
 
   useEffect(() => {
-    console.log('Accounts useEffect triggered');
     fetchAccounts();
-  }, []);
+  }, [selectedType]);
 
   const getTabStyle = (type: string) => {
     const colorSchemes = {
@@ -342,15 +341,14 @@ const Accounts: React.FC = () => {
           variant="default"
           className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5"
           onClick={() => {
-            console.log('New Account button clicked');
-            setIsFormOpen(true);
-            setEditingAccountId(null);
             setFormData({
               account_name: '',
               account_group: '',
               account_description: '',
               account_type: '',
             });
+            setEditingAccountId(null);
+            setIsFormOpen(true);
           }}
         >
           <Plus className="w-4 h-4 mr-2" />
@@ -448,11 +446,9 @@ const Accounts: React.FC = () => {
       {/* Sliding Form Panel */}
       {isFormOpen && (
         <div 
-          className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-50 transition-all duration-1000"
+          className="fixed inset-0 bg-black/60 backdrop-blur-[2px] z-50 transition-all duration-300"
           onClick={(e) => {
-            console.log('Backdrop clicked');
             if (e.target === e.currentTarget) {
-              console.log('Closing panel');
               setIsFormOpen(false);
               setEditingAccountId(null);
               setFormData({
@@ -465,12 +461,9 @@ const Accounts: React.FC = () => {
           }}
         >
           <div 
-            className={`fixed inset-y-0 right-0 w-[500px] bg-white dark:bg-gray-900 shadow-[0_0_50px_rgba(0,0,0,0.2)] transform transition-all duration-1000 ease-in-out ${
+            className={`fixed inset-y-0 right-0 w-[500px] bg-white dark:bg-gray-900 shadow-[0_0_50px_rgba(0,0,0,0.2)] transform transition-all duration-300 ease-in-out ${
               isFormOpen ? 'translate-x-0' : 'translate-x-full'
             }`}
-            onTransitionEnd={() => {
-              console.log('Panel transition ended');
-            }}
           >
             <div className="flex flex-col h-full">
               {/* Header */}
