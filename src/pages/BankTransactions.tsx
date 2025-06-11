@@ -104,9 +104,9 @@ const PlaidLinkButton: React.FC<{ onSuccess: (public_token: string, metadata: an
     <Button
       onClick={() => open()}
       disabled={!ready || !linkToken}
-      className="w-full"
+      className="px-3 py-1 text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all duration-150 font-medium"
     >
-      Connect New Bank
+      Connect bank account
     </Button>
   );
 };
