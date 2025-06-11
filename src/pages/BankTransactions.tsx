@@ -570,33 +570,48 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
 
   const handlePlaidSuccess = async (public_token: string, metadata: any) => {
     try {
-      console.log('Plaid Link success:', { public_token, metadata });
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No authenticated user');
+      console.log('1. Plaid Link success:', { public_token, metadata, institution: metadata.institution?.name });
+      
+      // Get the authenticated user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('Error getting user:', userError);
+        throw new Error('Failed to get authenticated user');
+      }
+      console.log('2. Got authenticated user:', user.id);
 
-      // Exchange public token for access token
+      // Exchange the public token
+      const requestBody = {
+        public_token,
+        metadata,
+        userId: user.id
+      };
+      console.log('3. Sending request to exchange token:', requestBody);
+
       const response = await fetch('http://localhost:3001/api/exchange_public_token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          public_token,
-          metadata,
-          userId: user.id,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to exchange token');
+        console.error('4. Server error response:', errorData);
+        throw new Error(errorData.details || errorData.error || 'Failed to exchange token');
       }
 
-      onAlert?.('Bank account connected successfully', 'success');
-      fetchConnectedBanks();
-    } catch (err) {
-      console.error('Error exchanging token:', err);
-      onAlert?.('Failed to connect bank account. Please try again.', 'error');
+      const data = await response.json();
+      console.log('5. Successfully exchanged token:', data);
+
+      // Update the connected banks list
+      setConnectedBanks(prev => [...prev, data.bank]);
+      setShowPlaidLink(false);
+      setLinkToken(null);
+    } catch (error) {
+      console.error('Error in handlePlaidSuccess:', error);
+      setError(error instanceof Error ? error.message : 'Failed to connect bank account');
     }
   };
 
