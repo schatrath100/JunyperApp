@@ -59,7 +59,6 @@ const PlaidLinkButton: React.FC<{ onSuccess: (public_token: string, metadata: an
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
   const mounted = useRef(true);
   const initializationAttempted = useRef(false);
   const linkTokenRef = useRef<string | null>(null);
