@@ -59,10 +59,10 @@ const PlaidLinkButton: React.FC<{ onSuccess: (public_token: string, metadata: an
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
   const mounted = useRef(true);
   const initializationAttempted = useRef(false);
   const linkTokenRef = useRef<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(false);
 
   const initializePlaid = useCallback(async () => {
     if (initializationAttempted.current || !mounted.current || isInitializing) return;
@@ -617,13 +617,6 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
       onAlert?.(`Bank connection cancelled: ${err.display_message || err.error_message}`, 'warning');
     }
   };
-
-  const handlePlaidExit = useCallback((err: any, metadata: any) => {
-    console.log('Plaid Link exit:', { err, metadata });
-    if (err) {
-      onAlert?.(`Bank connection cancelled: ${err.display_message || err.error_message}`, 'warning');
-    }
-  }, [onAlert]);
 
   useEffect(() => {
     if (activeTab === 'statements') {
