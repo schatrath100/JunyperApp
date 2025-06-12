@@ -244,6 +244,23 @@ export default function Profile() {
         .getPublicUrl(filePath);
       
       console.log('Generated public URL:', publicUrl);
+      console.log('URL components:', {
+        bucket: 'avatars',
+        path: filePath,
+        fullUrl: publicUrl
+      });
+
+      // Test URL accessibility
+      try {
+        const response = await fetch(publicUrl, { method: 'HEAD' });
+        console.log('URL accessibility test:', {
+          status: response.status,
+          ok: response.ok,
+          headers: Object.fromEntries(response.headers.entries())
+        });
+      } catch (err) {
+        console.error('URL accessibility test failed:', err);
+      }
 
       // Update the user's profile in the users table
       console.log('Updating user profile with new avatar URL...');

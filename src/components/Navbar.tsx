@@ -8,6 +8,7 @@ import AlertList from './AlertList';
 import { Alert as AlertType } from './Alert';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { cn } from '../lib/utils';
+import { useUserProfile } from '../hooks/useUserProfile';
 
 interface NavbarProps {
   alerts: AlertType[];
@@ -17,10 +18,10 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
   const [showAlerts, setShowAlerts] = useState(false);
   const [readAlerts, setReadAlerts] = useState<Set<string>>(new Set());
-  const [userName, setUserName] = useState<string>('');
   const [companyName, setCompanyName] = useState<string>('');
   const navigate = useNavigate();
   const alertsRef = React.useRef<HTMLDivElement>(null);
+  const { userName, userAvatar, setUserAvatar } = useUserProfile();
 
   const unreadCount = alerts.filter(alert => !readAlerts.has(alert.id)).length;
 
@@ -30,15 +31,23 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
+        console.log('[Navbar] Fetching profile for user:', user.id);
         const { data, error } = await supabase
           .from('users')
-          .select('full_name')
+          .select('full_name, avatar_url')
           .eq('auth_id', user.id)
           .single();
 
-        if (error) throw error;
+        if (error) {
+          console.error('[Navbar] Error fetching profile:', error);
+          throw error;
+        }
+        
         if (data) {
-          setUserName(data.full_name || 'User');
+          console.log('[Navbar] Profile data:', data);
+          console.log('[Navbar] Avatar URL before setting:', data.avatar_url);
+          setUserAvatar(data.avatar_url || '');
+          console.log('[Navbar] Avatar URL after setting:', data.avatar_url);
         }
 
         const { data: settings } = await supabase
@@ -51,7 +60,7 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
           setCompanyName(settings.display_name || 'My Company');
         }
       } catch (err) {
-        console.error('Error fetching user profile:', err);
+        console.error('[Navbar] Error fetching user profile:', err);
       }
     };
 
@@ -87,6 +96,12 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
       console.error('Error logging out:', err);
     }
   };
+
+  // Debug: Log avatar and name whenever they change
+  React.useEffect(() => {
+    console.log('[Navbar] userName:', userName);
+    console.log('[Navbar] userAvatar:', userAvatar);
+  }, [userName, userAvatar]);
 
   return (
     <nav className="w-full h-16 sticky top-0 z-50 backdrop-blur-md bg-gradient-to-r from-white via-blue-100/50 to-white dark:from-gray-900 dark:via-blue-900/40 dark:to-gray-900 border-b border-gray-200/50 dark:border-gray-700/50 shadow-sm">
@@ -133,8 +148,47 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
           <DropdownMenu.Root>
             <DropdownMenu.Trigger asChild>
               <button className="p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 dark:from-blue-600 dark:via-blue-700 dark:to-blue-800 flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm">
-                  <User className="w-4 h-4 text-white" />
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 dark:from-blue-600 dark:via-blue-700 dark:to-blue-800 flex items-center justify-center group-hover:scale-105 transition-transform shadow-sm overflow-hidden">
+                  {userAvatar ? (
+                    <img
+                      src={userAvatar}
+                      alt={userName}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        console.error('[Navbar] Error loading avatar image:', e);
+                        const img = e.target as HTMLImageElement;
+                        console.log('[Navbar] Failed image URL:', img.src);
+                        console.log('[Navbar] Current userAvatar state:', userAvatar);
+                        
+                        // Test URL accessibility
+                        fetch(img.src, { method: 'HEAD' })
+                          .then(response => {
+                            console.log('[Navbar] URL accessibility test:', {
+                              status: response.status,
+                              ok: response.ok,
+                              headers: Object.fromEntries(response.headers.entries())
+                            });
+                          })
+                          .catch(err => {
+                            console.error('[Navbar] URL accessibility test failed:', err);
+                          });
+                        
+                        img.src = ''; // Clear the src on error
+                        setUserAvatar(''); // Reset avatar URL on error
+                      }}
+                      onLoad={(e: React.SyntheticEvent<HTMLImageElement>) => {
+                        console.log('[Navbar] Avatar image loaded successfully');
+                        console.log('[Navbar] Loaded image URL:', userAvatar);
+                        console.log('[Navbar] Image element:', {
+                          src: e.currentTarget.src,
+                          naturalWidth: e.currentTarget.naturalWidth,
+                          naturalHeight: e.currentTarget.naturalHeight
+                        });
+                      }}
+                    />
+                  ) : (
+                    <User className="w-4 h-4 text-white" />
+                  )}
                 </div>
               </button>
             </DropdownMenu.Trigger>
@@ -145,6 +199,10 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
                 side="bottom"
                 sideOffset={5}
               >
+                <div className="px-3 py-2 text-sm text-gray-700 dark:text-gray-200">
+                  Hey {userName.split(' ')[0]}
+                </div>
+                <DropdownMenu.Separator className="h-px my-1 bg-gradient-to-r from-gray-200 to-gray-100 dark:from-gray-700 dark:to-gray-800" />
                 <DropdownMenu.Item
                   className={cn(
                     "relative flex items-center px-3 py-2 text-sm text-gray-700 dark:text-gray-200 outline-none cursor-pointer",

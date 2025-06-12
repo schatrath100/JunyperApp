@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, Landmark, Receipt, Bot, Settings, LogOut, Sparkles, ChevronDown, Users, FileText, Building2, ScrollText, Package, Boxes, BookOpenCheck, Wallet, Check, User2, ChevronLeft, ChevronRight, BarChart3, UserCircle2, ReceiptText, PackageSearch, ShoppingBag, Store } from 'lucide-react';
+import { LayoutGrid, Landmark, Receipt, Bot, Settings, LogOut, Sparkles, ChevronDown, Users, FileText, Building2, ScrollText, Package, Boxes, BookOpenCheck, Wallet, Check, User2, ChevronLeft, ChevronRight, BarChart3, UserCircle2, PackageSearch, ShoppingBag, Store } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { cn } from '../lib/utils';
+import { useUserProfile } from '../hooks/useUserProfile';
 
 interface SidebarProps {
   onToggleShortcuts: () => void;
@@ -19,13 +20,14 @@ interface AccountingSettings {
 
 interface NavItemProps {
   icon: React.ReactNode;
-  label: string;
+  label: React.ReactNode;
   active?: boolean;
   onClick?: () => void;
   rightIcon?: React.ReactNode;
   className?: string;
   collapsed?: boolean;
   isDashboard?: boolean;
+  children?: React.ReactNode;
 }
 
 const NavItem: React.FC<NavItemProps> = ({ 
@@ -43,31 +45,33 @@ const NavItem: React.FC<NavItemProps> = ({
     e.preventDefault();
     e.stopPropagation();
     if (isDashboard || !onClick) {
-      e.currentTarget.blur();
+      if (e.currentTarget instanceof HTMLElement) {
+        e.currentTarget.blur();
+      }
     }
     onClick?.();
   };
 
   return (
-  <div>
-    <button 
-      className={`
-        w-full flex items-center justify-between px-3 py-2 rounded-lg
-        ${active ? 'bg-green-50 dark:bg-green-900/50 text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
-        transition-colors duration-150
-        ${className}
-      `}
-      onClick={handleClick}
-      title={typeof label === 'string' ? label : "I'm Sydney—ask me anything about your books!"}
-    >
-      <div className={`flex items-center ${collapsed ? 'justify-center w-8 h-8' : 'space-x-3'}`}>
-        {icon}
-        {!collapsed && <span className="font-medium">{label}</span>}
-      </div>
-      {rightIcon}
-    </button>
-    {children}
-  </div>
+    <div>
+      <button 
+        className={`
+          w-full flex items-center justify-between px-3 py-2 rounded-lg
+          ${active ? 'bg-green-50 dark:bg-green-900/50 text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
+          transition-colors duration-150
+          ${className}
+        `}
+        onClick={handleClick}
+        title={typeof label === 'string' ? label : "I'm Sydney—ask me anything about your books!"}
+      >
+        <div className={`flex items-center ${collapsed ? 'justify-center w-8 h-8' : 'space-x-3'}`}>
+          {icon}
+          {!collapsed && <span className="font-medium">{label}</span>}
+        </div>
+        {rightIcon}
+      </button>
+      {children}
+    </div>
   );
 };
 
@@ -82,8 +86,7 @@ const Sidebar: React.FC<{
   const [salesOpen, setSalesOpen] = useState(false);
   const [purchasesOpen, setPurchasesOpen] = useState(false);
   const [companyName, setCompanyName] = useState<string>('');
-  const [userName, setUserName] = useState<string>('');
-  const [userAvatar, setUserAvatar] = useState<string>('');
+  const { userName } = useUserProfile();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = React.useRef<HTMLDivElement>(null);
 
@@ -124,31 +127,6 @@ const Sidebar: React.FC<{
     fetchCompanyName();
   }, []);
 
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-
-        const { data, error } = await supabase
-          .from('users')
-          .select('full_name, avatar_url')
-          .eq('auth_id', user.id)
-          .single();
-
-        if (error) throw error;
-        if (data) {
-          setUserName(data.full_name || 'User');
-          setUserAvatar(data.avatar_url || '');
-        }
-      } catch (err) {
-        console.error('Error fetching user profile:', err);
-      }
-    };
-
-    fetchUserProfile();
-  }, []);
-
   return (
     <aside className={`hidden md:flex flex-col fixed top-16 left-0 ${collapsed ? 'w-16' : 'w-56'} bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-500 ease-in-out h-[calc(100vh-4rem)] z-10`}>
       <div className="flex flex-col h-full overflow-hidden">
@@ -172,118 +150,60 @@ const Sidebar: React.FC<{
             <NavItem 
               icon={<Landmark className="w-5 h-5" />} 
               label={collapsed ? "" : "Accounts"}
-              active={location.pathname === '/accounts'} 
               onClick={() => navigate('/accounts')}
               collapsed={collapsed}
             />
+            <div className="my-2 border-t border-gray-200 dark:border-gray-700" />
+            <div className="px-4 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+              {collapsed ? "" : "Sales"}
+            </div>
             <NavItem 
-              icon={<BarChart3 className="w-5 h-5" />} 
-              label={collapsed ? "" : "Sales"}
-              active={location.pathname.startsWith('/sales')}
-              onClick={() => setSalesOpen(!salesOpen)}
-              rightIcon={!collapsed && (
-                <ChevronDown className={`w-4 h-4 transition-transform ${salesOpen ? 'transform rotate-180' : ''}`} />
-              )}
+              icon={<UserCircle2 className="w-5 h-5" />} 
+              label={collapsed ? "" : "Customers"}
+              active={location.pathname === '/sales/customers'}
+              onClick={() => navigate('/sales/customers')}
               collapsed={collapsed}
-            >
-              {salesOpen && !collapsed && (
-                <div className="ml-6 space-y-1 mt-1">
-                  <button
-                    className={`
-                      w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm
-                      ${location.pathname === '/sales/customers' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
-                    `}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate('/sales/customers');
-                    }}
-                  >
-                    <UserCircle2 className="w-4 h-4" />
-                    <span>Customers</span>
-                  </button>
-                  <button
-                    className={`
-                      w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm
-                      ${location.pathname === '/sales/invoices' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
-                    `}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate('/sales/invoices');
-                    }}
-                  >
-                    <Receipt className="w-4 h-4" />
-                    <span>Invoices</span>
-                  </button>
-                  <button
-                    className={`
-                      w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm
-                      ${location.pathname === '/sales/items' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
-                    `}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate('/sales/items');
-                    }}
-                  >
-                    <PackageSearch className="w-4 h-4" />
-                    <span>Sale Items</span>
-                  </button>
-                </div>
-              )}
-            </NavItem>
+            />
             <NavItem 
-              icon={<ShoppingBag className="w-5 h-5" />} 
-              label={collapsed ? "" : "Purchases"}
-              active={location.pathname.startsWith('/purchases')}
-              onClick={() => setPurchasesOpen(!purchasesOpen)}
-              rightIcon={!collapsed && (
-                <ChevronDown className={`w-4 h-4 transition-transform ${purchasesOpen ? 'transform rotate-180' : ''}`} />
-              )}
+              icon={<Receipt className="w-5 h-5" />} 
+              label={collapsed ? "" : "Invoices"}
+              active={location.pathname === '/sales/invoices'}
+              onClick={() => navigate('/sales/invoices')}
               collapsed={collapsed}
-            >
-              {purchasesOpen && !collapsed && (
-                <div className="ml-6 space-y-1 mt-1">
-                  <button
-                    className={`
-                      w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm
-                      ${location.pathname === '/purchases/vendors' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
-                    `}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate('/purchases/vendors');
-                    }}
-                  >
-                    <Store className="w-4 h-4" />
-                    <span>Vendors</span>
-                  </button>
-                  <button
-                    className={`
-                      w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm
-                      ${location.pathname === '/purchases/bills' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
-                    `}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate('/purchases/bills');
-                    }}
-                  >
-                    <FileText className="w-4 h-4" />
-                    <span>Bills</span>
-                  </button>
-                  <button
-                    className={`
-                      w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-sm
-                      ${location.pathname === '/purchases/items' ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
-                    `}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate('/purchases/items');
-                    }}
-                  >
-                    <Package className="w-4 h-4" />
-                    <span>Purchase Items</span>
-                  </button>
-                </div>
-              )}
-            </NavItem>
+            />
+            <NavItem 
+              icon={<PackageSearch className="w-5 h-5" />} 
+              label={collapsed ? "" : "Sale Items"}
+              active={location.pathname === '/sales/items'}
+              onClick={() => navigate('/sales/items')}
+              collapsed={collapsed}
+            />
+            <div className="my-2 border-t border-gray-200 dark:border-gray-700" />
+            <div className="px-4 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+              {collapsed ? "" : "Purchases"}
+            </div>
+            <NavItem 
+              icon={<Store className="w-5 h-5" />} 
+              label={collapsed ? "" : "Vendors"}
+              active={location.pathname === '/purchases/vendors'}
+              onClick={() => navigate('/purchases/vendors')}
+              collapsed={collapsed}
+            />
+            <NavItem 
+              icon={<Receipt className="w-5 h-5" />} 
+              label={collapsed ? "" : "Bills"}
+              active={location.pathname === '/purchases/bills'}
+              onClick={() => navigate('/purchases/bills')}
+              collapsed={collapsed}
+            />
+            <NavItem 
+              icon={<PackageSearch className="w-5 h-5" />} 
+              label={collapsed ? "" : "Purchase Items"}
+              active={location.pathname === '/purchases/items'}
+              onClick={() => navigate('/purchases/items')}
+              collapsed={collapsed}
+            />
+            <div className="my-2 border-t border-gray-200 dark:border-gray-700" />
             <NavItem 
               icon={<Bot className="w-5 h-5 text-gradient-to-r from-blue-500 to-teal-400 animate-pulse" />} 
               label={
@@ -323,76 +243,6 @@ const Sidebar: React.FC<{
           </div>
         </div>
       </div>
-      
-      {/* Footer */}
-      {!collapsed &&
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
-          <div className="relative" ref={userMenuRef}>
-            <button 
-              className="w-full px-3 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-200 flex items-center group"
-              onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-            >
-              <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center mr-3 group-hover:scale-105 transition-transform overflow-hidden">
-                {userAvatar ? (
-                  <img
-                    src={userAvatar}
-                    alt={userName}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      const img = e.target as HTMLImageElement;
-                      img.src = ''; // Clear the src on error
-                      setUserAvatar(''); // Reset avatar URL on error
-                    }}
-                  />
-                ) : (
-                  <User2 className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-                )}
-              </div>
-              <div className="flex flex-col items-start">
-                <span className="text-xs text-gray-500 dark:text-gray-400">{companyName}</span>
-                <span className="truncate font-semibold">Hey {userName}</span>
-              </div>
-              <ChevronDown className={`w-4 h-4 ml-auto text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors ${isUserMenuOpen ? 'transform rotate-180' : ''}`} />
-            </button>
-            
-            <div 
-              className={`absolute bottom-full left-0 w-full mb-2 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 transition-all duration-200 ${isUserMenuOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}
-            >
-              <button
-                className="w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-                onClick={() => {
-                  navigate('/profile');
-                  setIsUserMenuOpen(false);
-                }}
-              >
-                <User2 className="w-4 h-4 mr-2" />
-                <span>Account</span>
-              </button>
-              <button
-                className="w-full px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center"
-                onClick={() => {
-                  navigate('/settings');
-                  setIsUserMenuOpen(false);
-                }}
-              >
-                <Settings className="w-4 h-4 mr-2" />
-                <span>Company Settings</span>
-              </button>
-              <div className="h-px my-1 bg-gray-200 dark:bg-gray-700" />
-              <button
-                className="w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center"
-                onClick={async () => {
-                  await supabase.auth.signOut();
-                  navigate('/auth');
-                }}
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                <span>Sign out</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      }
     </aside>
   );
 };

@@ -8,13 +8,10 @@ export default defineConfig({
     exclude: ['lucide-react'],
   },
   server: {
-    watch: {
-      // Increase debounce time to prevent rapid restarts
-      restartDebounce: 300
-    },
-    // Add hmr configuration to make hot module replacement more stable
+    // Enhance hmr configuration for better responsiveness
     hmr: {
-      timeout: 5000
+      timeout: 3000,
+      overlay: true
     }
   }
 });
