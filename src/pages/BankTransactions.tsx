@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet, PlusCircle, Pencil, Search, Trash2, ChevronDown, Sun, Moon, Bell, User, Landmark, Check, Download } from 'lucide-react';
 import Button from '../components/Button';
@@ -55,18 +55,20 @@ interface BankTransactionEditModalProps {
   transaction: BankTransaction | null;
 }
 
-const PlaidLinkButton: React.FC<{ onSuccess: (public_token: string, metadata: any) => void }> = ({ onSuccess }) => {
+const PlaidLinkButton: React.FC<{ onSuccess: (public_token: string, metadata: any) => void; onExit?: (err: any, metadata: any) => void }> = ({ onSuccess, onExit }) => {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const plaidInitialized = useRef(false);
+  const [isInitializing, setIsInitializing] = useState(false);
   const mounted = useRef(true);
+  const initializationAttempted = useRef(false);
   const linkTokenRef = useRef<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(false);
 
-  const initializePlaid = async () => {
-    if (plaidInitialized.current || !mounted.current || isInitializing) return;
+  const initializePlaid = useCallback(async () => {
+    if (initializationAttempted.current || !mounted.current || isInitializing) return;
     
     try {
+      initializationAttempted.current = true;
       setIsInitializing(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
@@ -74,7 +76,6 @@ const PlaidLinkButton: React.FC<{ onSuccess: (public_token: string, metadata: an
         return;
       }
 
-      // Only create a new link token if we don't have one
       if (!linkTokenRef.current) {
         const response = await fetch('http://localhost:3001/api/create_link_token', {
           method: 'POST',
@@ -93,7 +94,6 @@ const PlaidLinkButton: React.FC<{ onSuccess: (public_token: string, metadata: an
         if (mounted.current) {
           linkTokenRef.current = link_token;
           setLinkToken(link_token);
-          plaidInitialized.current = true;
           setError(null);
         }
       }
@@ -103,7 +103,7 @@ const PlaidLinkButton: React.FC<{ onSuccess: (public_token: string, metadata: an
     } finally {
       setIsInitializing(false);
     }
-  };
+  }, [isInitializing]);
 
   useEffect(() => {
     return () => {
@@ -115,15 +115,10 @@ const PlaidLinkButton: React.FC<{ onSuccess: (public_token: string, metadata: an
     token: linkToken,
     onSuccess: (public_token, metadata) => {
       onSuccess(public_token, metadata);
-      // Reset initialization after successful connection
-      plaidInitialized.current = false;
-      linkTokenRef.current = null;
-      setLinkToken(null);
     },
-    onExit: () => {
-      // Only reset if the user actually exited without connecting
-      if (!linkTokenRef.current) {
-        plaidInitialized.current = false;
+    onExit: (err, metadata) => {
+      if (onExit) {
+        onExit(err, metadata);
       }
     }
   });
@@ -141,7 +136,7 @@ const PlaidLinkButton: React.FC<{ onSuccess: (public_token: string, metadata: an
         disabled={isInitializing || (!ready && !linkToken)}
         className="px-3 py-1 text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all duration-150 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {isInitializing ? 'Initializing...' : error ? 'Error connecting to bank' : 'Connect bank account'}
+        {isInitializing ? 'Initializing...' : error ? 'Retry Connection' : 'Connect bank account'}
       </Button>
       {error && (
         <p className="text-sm text-red-500">{error}</p>
@@ -623,6 +618,13 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     }
   };
 
+  const handlePlaidExit = useCallback((err: any, metadata: any) => {
+    console.log('Plaid Link exit:', { err, metadata });
+    if (err) {
+      onAlert?.(`Bank connection cancelled: ${err.display_message || err.error_message}`, 'warning');
+    }
+  }, [onAlert]);
+
   useEffect(() => {
     if (activeTab === 'statements') {
       fetchConnectedBanks();
@@ -751,6 +753,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <PlaidLinkButton
                   onSuccess={handlePlaidSuccess}
+                  onExit={handlePlaidExit}
                 />
                 {selectedBank && (
                   <button
