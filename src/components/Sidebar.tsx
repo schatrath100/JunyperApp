@@ -56,7 +56,7 @@ const NavItem: React.FC<NavItemProps> = ({
     <div>
       <button 
         className={`
-          w-full flex items-center justify-between px-3 py-2 rounded-lg
+          w-full flex items-center justify-between px-3 py-1.5 rounded-lg
           ${active ? 'bg-green-50 dark:bg-green-900/50 text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
           transition-colors duration-150
           ${className}

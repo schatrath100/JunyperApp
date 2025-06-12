@@ -36,20 +36,28 @@ const createLinkTokenHandler: RequestHandler = async (req, res) => {
 const exchangePublicTokenHandler: RequestHandler = async (req, res) => {
   try {
     const { public_token, metadata, userId } = req.body;
-    await exchangePublicToken(public_token);
+    const response = await exchangePublicToken(public_token);
     
     // Save bank data to Supabase
     const { error } = await supabase
-      .from('bank_accounts')
+      .from('connected_banks')
       .insert({
         user_id: userId,
-        metadata: metadata,
+        item_id: response.item_id,
+        access_token: response.access_token,
+        institution_name: metadata.institution?.name || 'Unknown Institution',
         created_at: new Date().toISOString()
       });
 
     if (error) throw error;
     
-    res.json({ success: true });
+    res.json({ 
+      success: true,
+      bank: {
+        id: response.item_id,
+        name: metadata.institution?.name || 'Unknown Institution'
+      }
+    });
   } catch (error) {
     console.error('Error exchanging public token:', error);
     res.status(500).json({ error: 'Failed to exchange public token' });

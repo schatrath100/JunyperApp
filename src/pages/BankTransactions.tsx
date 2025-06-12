@@ -57,16 +57,25 @@ interface BankTransactionEditModalProps {
 
 const PlaidLinkButton: React.FC<{ onSuccess: (public_token: string, metadata: any) => void }> = ({ onSuccess }) => {
   const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const plaidInitialized = useRef(false);
+  const mounted = useRef(true);
+  const linkTokenRef = useRef<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(false);
 
-  useEffect(() => {
-    const initializePlaid = async () => {
-      if (plaidInitialized.current) return;
-      
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('No authenticated user');
+  const initializePlaid = async () => {
+    if (plaidInitialized.current || !mounted.current || isInitializing) return;
+    
+    try {
+      setIsInitializing(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setError('Please sign in to connect a bank account');
+        return;
+      }
 
+      // Only create a new link token if we don't have one
+      if (!linkTokenRef.current) {
         const response = await fetch('http://localhost:3001/api/create_link_token', {
           method: 'POST',
           headers: {
@@ -81,33 +90,63 @@ const PlaidLinkButton: React.FC<{ onSuccess: (public_token: string, metadata: an
         }
 
         const { link_token } = await response.json();
-        setLinkToken(link_token);
-        plaidInitialized.current = true;
-      } catch (err) {
-        console.error('Error creating link token:', err);
+        if (mounted.current) {
+          linkTokenRef.current = link_token;
+          setLinkToken(link_token);
+          plaidInitialized.current = true;
+          setError(null);
+        }
       }
-    };
+    } catch (err) {
+      console.error('Error creating link token:', err);
+      setError(err instanceof Error ? err.message : 'Failed to initialize Plaid');
+    } finally {
+      setIsInitializing(false);
+    }
+  };
 
-    initializePlaid();
-
+  useEffect(() => {
     return () => {
-      plaidInitialized.current = false;
+      mounted.current = false;
     };
   }, []);
 
   const { open, ready } = usePlaidLink({
     token: linkToken,
-    onSuccess,
+    onSuccess: (public_token, metadata) => {
+      onSuccess(public_token, metadata);
+      // Reset initialization after successful connection
+      plaidInitialized.current = false;
+      linkTokenRef.current = null;
+      setLinkToken(null);
+    },
+    onExit: () => {
+      // Only reset if the user actually exited without connecting
+      if (!linkTokenRef.current) {
+        plaidInitialized.current = false;
+      }
+    }
   });
 
   return (
-    <Button
-      onClick={() => open()}
-      disabled={!ready || !linkToken}
-      className="px-3 py-1 text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all duration-150 font-medium"
-    >
-      Connect bank account
-    </Button>
+    <div className="flex flex-col items-center gap-2">
+      <Button
+        onClick={() => {
+          if (!linkToken) {
+            initializePlaid();
+          } else if (ready) {
+            open();
+          }
+        }}
+        disabled={isInitializing || (!ready && !linkToken)}
+        className="px-3 py-1 text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all duration-150 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {isInitializing ? 'Initializing...' : error ? 'Error connecting to bank' : 'Connect bank account'}
+      </Button>
+      {error && (
+        <p className="text-sm text-red-500">{error}</p>
+      )}
+    </div>
   );
 };
 
@@ -134,13 +173,11 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState<'transactions' | 'statements'>('transactions');
-  const [plaidLinkToken, setPlaidLinkToken] = useState<string | null>(null);
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [isFetchingTransactions, setIsFetchingTransactions] = useState(false);
   const [connectedBanks, setConnectedBanks] = useState<Array<{ id: string; name: string }>>([]);
-  const [isCreatingToken, setIsCreatingToken] = useState(false);
 
   const exportToPDF = () => {
     const doc = new jsPDF();
@@ -462,40 +499,6 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     };
   };
 
-  // Function to create a link token
-  const createLinkToken = async () => {
-    if (isCreatingToken || plaidLinkToken) return;
-    
-    try {
-      setIsCreatingToken(true);
-      console.log('Creating link token...');
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No authenticated user');
-
-      const response = await fetch('http://localhost:3001/api/create_link_token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: user.id }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create link token');
-      }
-      
-      const { link_token } = await response.json();
-      console.log('Link token created:', link_token);
-      setPlaidLinkToken(link_token);
-    } catch (err) {
-      console.error('Error creating link token:', err);
-      onAlert?.('Failed to initialize bank connection. Please try again.', 'error');
-    } finally {
-      setIsCreatingToken(false);
-    }
-  };
-
   // Function to fetch connected banks
   const fetchConnectedBanks = async () => {
     try {
@@ -574,7 +577,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
       
       // Get the authenticated user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) {
+      if (userError || !user) {
         console.error('Error getting user:', userError);
         throw new Error('Failed to get authenticated user');
       }
@@ -607,8 +610,6 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
 
       // Update the connected banks list
       setConnectedBanks(prev => [...prev, data.bank]);
-      setShowPlaidLink(false);
-      setLinkToken(null);
     } catch (error) {
       console.error('Error in handlePlaidSuccess:', error);
       setError(error instanceof Error ? error.message : 'Failed to connect bank account');
@@ -783,13 +784,16 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
                   />
                   <span>Refresh</span>
                 </button>
-                <button
-                  onClick={() => setShowAddModal(true)}
-                  className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
-                  title="Add transaction"
-                >
-                  <PlusCircle className="w-5 h-5" />
-                </button>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    onClick={() => setShowAddModal(true)}
+                    variant="default"
+                    className="px-3 py-1 text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all duration-150 font-medium"
+                  >
+                    <PlusCircle className="w-5 h-5 mr-2" />
+                    Add Transaction
+                  </Button>
+                </div>
               </div>
               <div className="flex items-center space-x-4">
                 <div className="relative">
