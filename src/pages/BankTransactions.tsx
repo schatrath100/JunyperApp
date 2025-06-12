@@ -617,13 +617,6 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     }
   };
 
-  const handlePlaidExit = useCallback((err: any, metadata: any) => {
-    console.log('Plaid Link exit:', { err, metadata });
-    if (err) {
-      onAlert?.(`Bank connection cancelled: ${err.display_message || err.error_message}`, 'warning');
-    }
-  }, [onAlert]);
-
   useEffect(() => {
     if (activeTab === 'statements') {
       fetchConnectedBanks();
@@ -741,4 +734,15 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
                           onChange={(e) => setEndDate(e.target.value)}
                           className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         />
-                        <Calendar className="absolute right-3 top-2.5 w-5 h-5 text-gray-
+                        <Calendar className="absolute right-3 top-2.5 w-5 h-5 text-gray-400" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <PlaidLinkButton
+                  onSuccess={handlePlaidSuccess}
+                
