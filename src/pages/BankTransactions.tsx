@@ -58,17 +58,17 @@ interface BankTransactionEditModalProps {
 const PlaidLinkButton: React.FC<{ onSuccess: (public_token: string, metadata: any) => void; onExit?: (err: any, metadata: any) => void }> = ({ onSuccess, onExit }) => {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(false);
+  const [isPlaidInitializing, setIsPlaidInitializing] = useState(false);
   const mounted = useRef(true);
   const initializationAttempted = useRef(false);
   const linkTokenRef = useRef<string | null>(null);
 
   const initializePlaid = useCallback(async () => {
-    if (initializationAttempted.current || !mounted.current || isInitializing) return;
+    if (initializationAttempted.current || !mounted.current || isPlaidInitializing) return;
     
     try {
       initializationAttempted.current = true;
-      setIsInitializing(true);
+      setIsPlaidInitializing(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         setError('Please sign in to connect a bank account');
@@ -100,9 +100,9 @@ const PlaidLinkButton: React.FC<{ onSuccess: (public_token: string, metadata: an
       console.error('Error creating link token:', err);
       setError(err instanceof Error ? err.message : 'Failed to initialize Plaid');
     } finally {
-      setIsInitializing(false);
+      setIsPlaidInitializing(false);
     }
-  }, [isInitializing]);
+  }, [isPlaidInitializing]);
 
   useEffect(() => {
     return () => {
@@ -132,10 +132,10 @@ const PlaidLinkButton: React.FC<{ onSuccess: (public_token: string, metadata: an
             open();
           }
         }}
-        disabled={isInitializing || (!ready && !linkToken)}
+        disabled={isPlaidInitializing || (!ready && !linkToken)}
         className="px-3 py-1 text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all duration-150 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {isInitializing ? 'Initializing...' : error ? 'Retry Connection' : 'Connect bank account'}
+        {isPlaidInitializing ? 'Initializing...' : error ? 'Retry Connection' : 'Connect bank account'}
       </Button>
       {error && (
         <p className="text-sm text-red-500">{error}</p>
