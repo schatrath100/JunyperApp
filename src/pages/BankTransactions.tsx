@@ -1173,5 +1173,3 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
 };
 
 export default BankTransactions;
-
-export default BankTransactions
