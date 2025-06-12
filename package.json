@@ -2,12 +2,13 @@
   "name": "accounting-app",
   "private": true,
   "version": "0.0.0",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "server": "ts-node --project tsconfig.server.json server/index.ts",
+    "server": "NODE_OPTIONS='--loader ts-node/esm' ts-node --esm --project tsconfig.server.json server/index.ts",
     "server:build": "tsc --project tsconfig.server.json",
     "server:start": "node dist/server/index.js"
   },

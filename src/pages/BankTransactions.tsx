@@ -13,7 +13,7 @@ import BankTransactionViewModal from '../components/BankTransactionViewModal';
 import BankTransactionAddModal from '../components/BankTransactionAddModal';
 import BankTransactionEditModal from '../components/BankTransactionEditModal';
 import type { Alert } from '../components/Alert';
-import { usePlaidLink } from 'react-plaid-link';
+import { usePlaidLink, PlaidLinkOptions } from 'react-plaid-link';
 import { format, subDays } from 'date-fns';
 import { Calendar } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -56,6 +56,29 @@ interface BankTransactionEditModalProps {
   transaction: BankTransaction | null;
 }
 
+interface PlaidSuccessMetadata {
+  institution?: {
+    name: string;
+    institution_id: string;
+  };
+  accounts: Array<{
+    id: string;
+    name: string;
+    mask: string;
+  }>;
+  link_session_id: string;
+}
+
+interface PlaidError {
+  display_message?: string;
+  error_code?: string;
+  error_message?: string;
+  error_type?: string;
+}
+
+// Singleton for Plaid Link initialization
+let plaidLinkInstance: any = null;
+
 const PlaidLinkButton = () => {
   const { user } = useAuth();
   const [linkToken, setLinkToken] = useState<string | null>(null);
@@ -65,35 +88,17 @@ const PlaidLinkButton = () => {
   const mounted = useRef(true);
   const initializationAttempted = useRef(false);
   const linkTokenRef = useRef<string | null>(null);
+  const tokenExpirationRef = useRef<number | null>(null);
 
   useEffect(() => {
-    console.log('PlaidLinkButton mounted');
+    mounted.current = true;
     return () => {
-      console.log('PlaidLinkButton unmounting');
       mounted.current = false;
     };
   }, []);
 
   const initializePlaid = async () => {
-    console.log('Initializing Plaid...', {
-      isInitializing,
-      hasLinkToken: !!linkTokenRef.current,
-      isMounted: mounted.current,
-      isAuthenticated: !!user
-    });
-
-    if (isInitializing || linkTokenRef.current || !mounted.current) {
-      console.log('Skipping initialization:', {
-        isInitializing,
-        hasLinkToken: !!linkTokenRef.current,
-        isMounted: mounted.current
-      });
-      return;
-    }
-
-    if (!user) {
-      console.log('User not authenticated');
-      setError('Please sign in to connect your bank account');
+    if (isInitializing || !mounted.current || !user) {
       return;
     }
 
@@ -109,7 +114,7 @@ const PlaidLinkButton = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        throw new Error('Failed to create link token');
       }
 
       const data = await response.json();
@@ -119,6 +124,7 @@ const PlaidLinkButton = () => {
         linkTokenRef.current = data.link_token;
         setLinkToken(data.link_token);
         plaidInitialized.current = true;
+        tokenExpirationRef.current = Date.now() + 30 * 60 * 1000;
       }
     } catch (err) {
       console.error('Error creating link token:', err);
@@ -126,57 +132,75 @@ const PlaidLinkButton = () => {
         setError(err instanceof Error ? err.message : 'Failed to initialize Plaid');
       }
     } finally {
-      if (mounted.current) {
-        setIsInitializing(false);
-      }
+      setIsInitializing(false);
     }
   };
 
+  // Initialize Plaid only once when component mounts
+  useEffect(() => {
+    if (!plaidLinkInstance && !initializationAttempted.current && user) {
+      initializationAttempted.current = true;
+      initializePlaid();
+    }
+  }, [user]);
+
+  // Check token expiration
+  useEffect(() => {
+    const checkTokenExpiration = () => {
+      if (tokenExpirationRef.current && Date.now() >= tokenExpirationRef.current) {
+        console.log('Link token expired, refreshing...');
+        initializePlaid();
+      }
+    };
+
+    const interval = setInterval(checkTokenExpiration, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   const { open, ready } = usePlaidLink({
     token: linkToken,
-    onSuccess: (public_token, metadata) => {
+    onSuccess: (public_token: string, metadata: any) => {
       console.log('Plaid Link success:', { public_token, metadata });
       plaidInitialized.current = false;
       linkTokenRef.current = null;
       setLinkToken(null);
+      tokenExpirationRef.current = null;
     },
-    onExit: (err, metadata) => {
+    onExit: (err: PlaidError | null, metadata: any) => {
       console.log('Plaid Link exit:', { error: err, metadata });
       plaidInitialized.current = false;
       linkTokenRef.current = null;
       setLinkToken(null);
+      tokenExpirationRef.current = null;
     },
   });
 
   const handleClick = async () => {
-    console.log('Button clicked:', {
-      hasLinkToken: !!linkTokenRef.current,
-      isReady: ready,
-      isInitializing
-    });
+    if (!ready) {
+      console.log('Plaid Link not ready');
+      return;
+    }
 
-    if (!linkTokenRef.current) {
+    if (!linkToken) {
+      console.log('No link token, initializing...');
       await initializePlaid();
-    } else if (ready) {
+    }
+
+    if (linkToken) {
+      console.log('Opening Plaid Link...');
       open();
     }
   };
 
   return (
-    <div className="flex flex-col items-center gap-2">
-      <button
-        onClick={handleClick}
-        disabled={!ready || !linkToken || isInitializing}
-        className={`px-4 py-2 rounded-md text-white font-medium transition-colors ${
-          !ready || !linkToken || isInitializing
-            ? 'bg-gray-400 cursor-not-allowed'
-            : 'bg-blue-600 hover:bg-blue-700'
-        }`}
-      >
-        {isInitializing ? 'Initializing...' : 'Connect bank account'}
-      </button>
-      {error && <p className="text-red-500 text-sm">{error}</p>}
-    </div>
+    <Button
+      onClick={handleClick}
+      disabled={!ready || isInitializing}
+      className="w-full"
+      variant="default"
+    >
+      {isInitializing ? 'Connecting...' : 'Connect bank account'}
+    </Button>
   );
 };
 
@@ -703,6 +727,11 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
                 </p>
               </div>
 
+              {/* Connect New Bank Button */}
+              <div className="flex justify-center">
+                <PlaidLinkButton />
+              </div>
+
               {/* Connected Banks Section */}
               {connectedBanks.length > 0 && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -779,7 +808,6 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <PlaidLinkButton />
                 {selectedBank && (
                   <button
                     onClick={fetchPlaidTransactions}
