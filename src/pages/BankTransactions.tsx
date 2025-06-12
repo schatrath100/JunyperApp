@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet, PlusCircle, Pencil, Search, Trash2, ChevronDown, Sun, Moon, Bell, User, Landmark, Check, Download } from 'lucide-react';
 import Button from '../components/Button';
@@ -63,6 +63,7 @@ const PlaidLinkButton = () => {
   const [isInitializing, setIsInitializing] = useState(false);
   const plaidInitialized = useRef(false);
   const mounted = useRef(true);
+  const initializationAttempted = useRef(false);
   const linkTokenRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -174,9 +175,7 @@ const PlaidLinkButton = () => {
       >
         {isInitializing ? 'Initializing...' : 'Connect bank account'}
       </button>
-      {error && (
-        <p className="text-red-500 text-sm mt-2">{error}</p>
-      )}
+      {error && <p className="text-red-500 text-sm">{error}</p>}
     </div>
   );
 };
