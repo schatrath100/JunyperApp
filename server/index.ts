@@ -1,26 +1,11 @@
 import 'dotenv/config';
 import express, { Request, Response, RequestHandler } from 'express';
 import cors from 'cors';
-import { createLinkToken, exchangePublicToken, fetchTransactions } from '../src/lib/plaid';
 import { supabase } from './supabase';
-import { Configuration, PlaidApi, PlaidEnvironments, CountryCode } from 'plaid';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
-// Initialize Plaid client
-const plaidConfig = new Configuration({
-  basePath: PlaidEnvironments.sandbox,
-  baseOptions: {
-    headers: {
-      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID,
-      'PLAID-SECRET': process.env.PLAID_SECRET,
-    },
-  },
-});
-
-const plaidClient = new PlaidApi(plaidConfig);
 
 const createLinkTokenHandler: RequestHandler = async (req, res) => {
   try {
