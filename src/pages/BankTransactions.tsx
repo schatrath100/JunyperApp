@@ -13,6 +13,10 @@ import BankTransactionViewModal from '../components/BankTransactionViewModal';
 import BankTransactionAddModal from '../components/BankTransactionAddModal';
 import BankTransactionEditModal from '../components/BankTransactionEditModal';
 import type { Alert } from '../components/Alert';
+import { usePlaidLink } from 'react-plaid-link';
+import { format, subDays } from 'date-fns';
+import { Calendar } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 interface BankTransaction {
   id: string;
@@ -51,6 +55,131 @@ interface BankTransactionEditModalProps {
   onSave: () => Promise<void>;
   transaction: BankTransaction | null;
 }
+
+const PlaidLinkButton = () => {
+  const { user } = useAuth();
+  const [linkToken, setLinkToken] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const plaidInitialized = useRef(false);
+  const mounted = useRef(true);
+  const linkTokenRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    console.log('PlaidLinkButton mounted');
+    return () => {
+      console.log('PlaidLinkButton unmounting');
+      mounted.current = false;
+    };
+  }, []);
+
+  const initializePlaid = async () => {
+    console.log('Initializing Plaid...', {
+      isInitializing,
+      hasLinkToken: !!linkTokenRef.current,
+      isMounted: mounted.current,
+      isAuthenticated: !!user
+    });
+
+    if (isInitializing || linkTokenRef.current || !mounted.current) {
+      console.log('Skipping initialization:', {
+        isInitializing,
+        hasLinkToken: !!linkTokenRef.current,
+        isMounted: mounted.current
+      });
+      return;
+    }
+
+    if (!user) {
+      console.log('User not authenticated');
+      setError('Please sign in to connect your bank account');
+      return;
+    }
+
+    try {
+      setIsInitializing(true);
+      console.log('Creating link token...');
+      const response = await fetch('http://localhost:3001/api/create_link_token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: user.id }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Link token created:', { success: !!data.link_token });
+      
+      if (mounted.current) {
+        linkTokenRef.current = data.link_token;
+        setLinkToken(data.link_token);
+        plaidInitialized.current = true;
+      }
+    } catch (err) {
+      console.error('Error creating link token:', err);
+      if (mounted.current) {
+        setError(err instanceof Error ? err.message : 'Failed to initialize Plaid');
+      }
+    } finally {
+      if (mounted.current) {
+        setIsInitializing(false);
+      }
+    }
+  };
+
+  const { open, ready } = usePlaidLink({
+    token: linkToken,
+    onSuccess: (public_token, metadata) => {
+      console.log('Plaid Link success:', { public_token, metadata });
+      plaidInitialized.current = false;
+      linkTokenRef.current = null;
+      setLinkToken(null);
+    },
+    onExit: (err, metadata) => {
+      console.log('Plaid Link exit:', { error: err, metadata });
+      plaidInitialized.current = false;
+      linkTokenRef.current = null;
+      setLinkToken(null);
+    },
+  });
+
+  const handleClick = async () => {
+    console.log('Button clicked:', {
+      hasLinkToken: !!linkTokenRef.current,
+      isReady: ready,
+      isInitializing
+    });
+
+    if (!linkTokenRef.current) {
+      await initializePlaid();
+    } else if (ready) {
+      open();
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <button
+        onClick={handleClick}
+        disabled={!ready || !linkToken || isInitializing}
+        className={`px-4 py-2 rounded-md text-white font-medium transition-colors ${
+          !ready || !linkToken || isInitializing
+            ? 'bg-gray-400 cursor-not-allowed'
+            : 'bg-blue-600 hover:bg-blue-700'
+        }`}
+      >
+        {isInitializing ? 'Initializing...' : 'Connect bank account'}
+      </button>
+      {error && (
+        <p className="text-red-500 text-sm mt-2">{error}</p>
+      )}
+    </div>
+  );
+};
 
 const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
@@ -401,6 +530,136 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     };
   };
 
+  // Function to fetch connected banks
+  const fetchConnectedBanks = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('connected_banks')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      setConnectedBanks(data || []);
+    } catch (err) {
+      console.error('Error fetching connected banks:', err);
+    }
+  };
+
+  // Function to fetch transactions
+  const fetchPlaidTransactions = async () => {
+    if (!selectedBank) {
+      onAlert?.('Please select a bank account first', 'warning');
+      return;
+    }
+
+    try {
+      setIsFetchingTransactions(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
+      const response = await fetch('/api/fetch_transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          bankId: selectedBank,
+          startDate,
+          endDate,
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to fetch transactions');
+      const { transactions } = await response.json();
+
+      // Process and save transactions
+      const { error } = await supabase
+        .from('bank_transactions')
+        .insert(
+          transactions.map((t: any) => ({
+            user_id: user.id,
+            date: t.date,
+            bank_name: t.bank_name,
+            description: t.name,
+            amount: t.amount,
+            account_number: t.account_id,
+            credit_debit_indicator: t.amount > 0 ? 'credit' : 'debit',
+          }))
+        );
+
+      if (error) throw error;
+      onAlert?.('Transactions fetched and saved successfully', 'success');
+      fetchTransactions(); // Refresh the transactions list
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+      onAlert?.('Failed to fetch transactions. Please try again.', 'error');
+    } finally {
+      setIsFetchingTransactions(false);
+    }
+  };
+
+  const handlePlaidSuccess = async (public_token: string, metadata: any) => {
+    try {
+      console.log('1. Plaid Link success:', { public_token, metadata, institution: metadata.institution?.name });
+      
+      // Get the authenticated user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('Error getting user:', userError);
+        throw new Error('Failed to get authenticated user');
+      }
+      console.log('2. Got authenticated user:', user.id);
+
+      // Exchange the public token
+      const requestBody = {
+        public_token,
+        metadata,
+        userId: user.id
+      };
+      console.log('3. Sending request to exchange token:', requestBody);
+
+      const response = await fetch('http://localhost:3001/api/exchange_public_token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('4. Server error response:', errorData);
+        throw new Error(errorData.details || errorData.error || 'Failed to exchange token');
+      }
+
+      const data = await response.json();
+      console.log('5. Successfully exchanged token:', data);
+
+      // Update the connected banks list
+      setConnectedBanks(prev => [...prev, data.bank]);
+    } catch (error) {
+      console.error('Error in handlePlaidSuccess:', error);
+      setError(error instanceof Error ? error.message : 'Failed to connect bank account');
+    }
+  };
+
+  const handlePlaidExit = (err: any, metadata: any) => {
+    console.log('Plaid Link exit:', { err, metadata });
+    if (err) {
+      onAlert?.(`Bank connection cancelled: ${err.display_message || err.error_message}`, 'warning');
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'statements') {
+      fetchConnectedBanks();
+    }
+  }, [activeTab]);
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -420,346 +679,464 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
             <span>Transactions</span>
           </div>
         </button>
+        <button
+          onClick={() => setActiveTab('statements')}
+          style={getTabStyle('statements')}
+          className={`${activeTab === 'statements' ? 'shadow-sm' : ''} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
+        >
+          <div className="flex items-center space-x-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span>Bank Integration</span>
+          </div>
+        </button>
       </div>
 
       <div className="bg-white dark:bg-gray-900 rounded-b-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={fetchTransactions}
-                className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-                disabled={loading}
-                title="Refresh"
-              >
-                <RefreshCw 
-                  className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} 
-                />
-                <span>Refresh</span>
-              </button>
-              <div className="flex items-center space-x-2">
-                <Button
-                  onClick={() => setShowAddModal(true)}
-                  variant="default"
-                  className="px-3 py-1 text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all duration-150 font-medium"
-                >
-                  <PlusCircle className="w-5 h-5 mr-2" />
-                  Add Transaction
-                </Button>
+        {activeTab === 'statements' ? (
+          <div className="p-6">
+            <div className="max-w-3xl mx-auto space-y-8">
+              <div className="text-center">
+                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Bank Integration</h2>
+                <p className="mt-2 text-gray-600 dark:text-gray-400">
+                  Connect your bank accounts and fetch transactions directly.
+                </p>
               </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search transactions..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-64 px-4 py-2 pl-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                />
-                <svg
-                  className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
+
+              {/* Connected Banks Section */}
+              {connectedBanks.length > 0 && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Connected Banks</h3>
+                  <div className="space-y-4">
+                    {connectedBanks.map((bank) => (
+                      <div
+                        key={bank.id}
+                        className={`p-4 rounded-lg border ${
+                          selectedBank === bank.id
+                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-700'
+                        } cursor-pointer hover:border-blue-500 transition-colors`}
+                        onClick={() => setSelectedBank(bank.id)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                              <Landmark className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-gray-900 dark:text-white">{bank.name}</h4>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">Connected</p>
+                            </div>
+                          </div>
+                          {selectedBank === bank.id && (
+                            <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
+                              <Check className="w-3 h-3 text-white" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Date Range Selection */}
+              {selectedBank && (
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Select Date Range</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Start Date
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          value={startDate}
+                          onChange={(e) => setStartDate(e.target.value)}
+                          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <Calendar className="absolute right-3 top-2.5 w-5 h-5 text-gray-400" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        End Date
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="date"
+                          value={endDate}
+                          onChange={(e) => setEndDate(e.target.value)}
+                          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                        <Calendar className="absolute right-3 top-2.5 w-5 h-5 text-gray-400" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <PlaidLinkButton />
+                {selectedBank && (
+                  <button
+                    onClick={fetchPlaidTransactions}
+                    disabled={isFetchingTransactions}
+                    className="w-full sm:w-auto px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors"
+                  >
+                    {isFetchingTransactions ? (
+                      <RefreshCw className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Download className="w-5 h-5" />
+                    )}
+                    <span>{isFetchingTransactions ? 'Fetching...' : 'Fetch Transactions'}</span>
+                  </button>
+                )}
               </div>
-              <Button
-                variant="default"
-                className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5 flex items-center space-x-2"
-                onClick={() => setShowUploadModal(true)}
-              >
-                <Upload className="w-4 h-4" />
-                <span>Upload Transactions</span>
-              </Button>
-              <button
-                onClick={exportToPDF}
-                className="p-2 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
-                title="Export to PDF"
-              >
-                <FileText className="w-5 h-5" />
-              </button>
-              <button
-                onClick={exportToExcel}
-                className="p-2 text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
-                title="Export to Excel"
-              >
-                <FileSpreadsheet className="w-5 h-5" />
-              </button>
             </div>
           </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded p-4 mb-6 text-red-700">
-              {error}
+        ) : (
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={fetchTransactions}
+                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+                  disabled={loading}
+                  title="Refresh"
+                >
+                  <RefreshCw 
+                    className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} 
+                  />
+                  <span>Refresh</span>
+                </button>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    onClick={() => setShowAddModal(true)}
+                    variant="default"
+                    className="px-3 py-1 text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all duration-150 font-medium"
+                  >
+                    <PlusCircle className="w-5 h-5 mr-2" />
+                    Add Transaction
+                  </Button>
+                </div>
+              </div>
+              <div className="flex items-center space-x-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search transactions..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-64 px-4 py-2 pl-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                  />
+                  <svg
+                    className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
+                  </svg>
+                </div>
+                <Button
+                  variant="default"
+                  className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5 flex items-center space-x-2"
+                  onClick={() => setShowUploadModal(true)}
+                >
+                  <Upload className="w-4 h-4" />
+                  <span>Upload Transactions</span>
+                </Button>
+                <button
+                  onClick={exportToPDF}
+                  className="p-2 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                  title="Export to PDF"
+                >
+                  <FileText className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={exportToExcel}
+                  className="p-2 text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
+                  title="Export to Excel"
+                >
+                  <FileSpreadsheet className="w-5 h-5" />
+                </button>
+              </div>
             </div>
-          )}
 
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
-                    <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                      Date
-                    </span>
-                  </th>
-                  <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
-                    <div className="flex items-center space-x-1">
-                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                        Bank name
-                      </span>
-                      <button
-                        onClick={() => setShowBankFilter(!showBankFilter)}
-                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {showBankFilter && (
-                      <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
-                        <div className="p-2">
-                          <input
-                            type="text"
-                            value={filters.bankName}
-                            onChange={(e) => handleFilterChange('bankName', e.target.value)}
-                            placeholder="Filter bank..."
-                            className="w-full px-2 py-1 text-sm border rounded-md"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </th>
-                  <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
-                    <div className="flex items-center space-x-1">
-                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                        Description
-                      </span>
-                      <button
-                        onClick={() => setShowDescriptionFilter(!showDescriptionFilter)}
-                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {showDescriptionFilter && (
-                      <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
-                        <div className="p-2">
-                          <input
-                            type="text"
-                            value={filters.description}
-                            onChange={(e) => handleFilterChange('description', e.target.value)}
-                            placeholder="Filter description..."
-                            className="w-full px-2 py-1 text-sm border rounded-md"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </th>
-                  <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
-                    <div className="flex items-center space-x-1">
-                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                        Amount
-                      </span>
-                      <button
-                        onClick={() => setShowAmountFilter(!showAmountFilter)}
-                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {showAmountFilter && (
-                      <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
-                        <div className="p-2">
-                          <input
-                            type="number"
-                            value={filters.amountMin}
-                            onChange={(e) => handleFilterChange('amountMin', e.target.value)}
-                            placeholder="Min amount..."
-                            className="w-full px-2 py-1 text-sm border rounded-md"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </th>
-                  <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
-                    <div className="flex items-center space-x-1">
-                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                        Account number
-                      </span>
-                      <button
-                        onClick={() => setShowAccountFilter(!showAccountFilter)}
-                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {showAccountFilter && (
-                      <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
-                        <div className="p-2">
-                          <input
-                            type="text"
-                            value={filters.accountNumber}
-                            onChange={(e) => handleFilterChange('accountNumber', e.target.value)}
-                            placeholder="Filter account..."
-                            className="w-full px-2 py-1 text-sm border rounded-md"
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </th>
-                  <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
-                    <div className="flex items-center space-x-1">
-                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                        Type
-                      </span>
-                      <button
-                        onClick={() => setShowTypeFilter(!showTypeFilter)}
-                        className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {showTypeFilter && (
-                      <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
-                        <div className="p-2">
-                          <select
-                            value={filters.type}
-                            onChange={(e) => handleFilterChange('type', e.target.value)}
-                            className="w-full px-2 py-1 text-sm border rounded-md"
-                          >
-                            <option value="">All</option>
-                            <option value="credit">Credit</option>
-                            <option value="debit">Debit</option>
-                          </select>
-                        </div>
-                      </div>
-                    )}
-                  </th>
-                  <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
-                    <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                      Actions
-                    </span>
-                  </th>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {currentTransactions.map((transaction) => (
-                  <TableRow key={transaction.id}>
-                    <TableCell>
-                      <span className="text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                        {new Date(transaction.date).toLocaleDateString('en-US', { 
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </span>
-                    </TableCell>
-                    <TableCell>{transaction.bank_name}</TableCell>
-                    <TableCell>{transaction.description}</TableCell>
-                    <TableCell>
-                      <span className={transaction.credit_debit_indicator === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                        {new Intl.NumberFormat('en-US', {
-                          style: 'currency',
-                          currency: 'USD'
-                        }).format(transaction.amount)}
-                      </span>
-                    </TableCell>
-                    <TableCell>{transaction.account_number}</TableCell>
-                    <TableCell>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        transaction.credit_debit_indicator === 'credit'
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                      }`}>
-                        {transaction.credit_debit_indicator}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => {
-                            setSelectedTransaction(transaction);
-                            setShowViewModal(true);
-                          }}
-                          className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                          title="View details"
-                        >
-                          <Search className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedTransaction(transaction);
-                            setShowDeleteConfirm(true);
-                          }}
-                          className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-                          title="Delete transaction"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-
-            {/* Pagination Controls */}
-            {currentTransactions.length > 0 && (
-              <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    {totalCount > 0 ? (
-                      `Showing ${((currentPage - 1) * pageSize) + 1} to ${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} entries`
-                    ) : (
-                      'No entries to display'
-                    )}
-                  </span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setCurrentPage(1)}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    First
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={currentPage === 1}
-                    className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  <span className="text-sm text-gray-700 dark:text-gray-300">
-                    Page {currentPage} of {Math.max(1, totalPages)}
-                  </span>
-                  <button
-                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                  <button
-                    onClick={() => setCurrentPage(totalPages)}
-                    disabled={currentPage === totalPages}
-                    className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Last
-                  </button>
-                </div>
+            {error && (
+              <div className="bg-red-50 border border-red-200 rounded p-4 mb-6 text-red-700">
+                {error}
               </div>
             )}
+
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                        Date
+                      </span>
+                    </th>
+                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                          Bank name
+                        </span>
+                        <button
+                          onClick={() => setShowBankFilter(!showBankFilter)}
+                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {showBankFilter && (
+                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                          <div className="p-2">
+                            <input
+                              type="text"
+                              value={filters.bankName}
+                              onChange={(e) => handleFilterChange('bankName', e.target.value)}
+                              placeholder="Filter bank..."
+                              className="w-full px-2 py-1 text-sm border rounded-md"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </th>
+                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                          Description
+                        </span>
+                        <button
+                          onClick={() => setShowDescriptionFilter(!showDescriptionFilter)}
+                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {showDescriptionFilter && (
+                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                          <div className="p-2">
+                            <input
+                              type="text"
+                              value={filters.description}
+                              onChange={(e) => handleFilterChange('description', e.target.value)}
+                              placeholder="Filter description..."
+                              className="w-full px-2 py-1 text-sm border rounded-md"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </th>
+                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                          Amount
+                        </span>
+                        <button
+                          onClick={() => setShowAmountFilter(!showAmountFilter)}
+                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {showAmountFilter && (
+                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                          <div className="p-2">
+                            <input
+                              type="number"
+                              value={filters.amountMin}
+                              onChange={(e) => handleFilterChange('amountMin', e.target.value)}
+                              placeholder="Min amount..."
+                              className="w-full px-2 py-1 text-sm border rounded-md"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </th>
+                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                          Account number
+                        </span>
+                        <button
+                          onClick={() => setShowAccountFilter(!showAccountFilter)}
+                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {showAccountFilter && (
+                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                          <div className="p-2">
+                            <input
+                              type="text"
+                              value={filters.accountNumber}
+                              onChange={(e) => handleFilterChange('accountNumber', e.target.value)}
+                              placeholder="Filter account..."
+                              className="w-full px-2 py-1 text-sm border rounded-md"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </th>
+                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                          Type
+                        </span>
+                        <button
+                          onClick={() => setShowTypeFilter(!showTypeFilter)}
+                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {showTypeFilter && (
+                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                          <div className="p-2">
+                            <select
+                              value={filters.type}
+                              onChange={(e) => handleFilterChange('type', e.target.value)}
+                              className="w-full px-2 py-1 text-sm border rounded-md"
+                            >
+                              <option value="">All</option>
+                              <option value="credit">Credit</option>
+                              <option value="debit">Debit</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
+                    </th>
+                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                        Actions
+                      </span>
+                    </th>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {currentTransactions.map((transaction) => (
+                    <TableRow key={transaction.id}>
+                      <TableCell>
+                        <span className="text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                          {new Date(transaction.date).toLocaleDateString('en-US', { 
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          })}
+                        </span>
+                      </TableCell>
+                      <TableCell>{transaction.bank_name}</TableCell>
+                      <TableCell>{transaction.description}</TableCell>
+                      <TableCell>
+                        <span className={transaction.credit_debit_indicator === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                          {new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD'
+                          }).format(transaction.amount)}
+                        </span>
+                      </TableCell>
+                      <TableCell>{transaction.account_number}</TableCell>
+                      <TableCell>
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          transaction.credit_debit_indicator === 'credit'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+                        }`}>
+                          {transaction.credit_debit_indicator}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2">
+                          <button
+                            onClick={() => {
+                              setSelectedTransaction(transaction);
+                              setShowViewModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                            title="View details"
+                          >
+                            <Search className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedTransaction(transaction);
+                              setShowDeleteConfirm(true);
+                            }}
+                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
+                            title="Delete transaction"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {/* Pagination Controls */}
+              {currentTransactions.length > 0 && (
+                <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      {totalCount > 0 ? (
+                        `Showing ${((currentPage - 1) * pageSize) + 1} to ${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} entries`
+                      ) : (
+                        'No entries to display'
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => setCurrentPage(1)}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      First
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      Page {currentPage} of {Math.max(1, totalPages)}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                    <button
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Last
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <BankTransactionUploadModal

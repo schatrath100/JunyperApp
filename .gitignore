@@ -1,14 +1,14 @@
 # Dependencies
-node_modules/
-.pnp/
+/node_modules
+/.pnp
 .pnp.js
 
 # Testing
-coverage/
+/coverage
 
 # Production
-dist/
-build/
+/build
+/dist
 
 # Environment variables
 .env
@@ -23,11 +23,22 @@ yarn-debug.log*
 yarn-error.log*
 
 # Editor directories and files
-.idea/
-.vscode/
-*.swp
-*.swo
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # TypeScript
 *.tsbuildinfo
