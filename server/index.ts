@@ -11,7 +11,7 @@ import { createClient } from '@supabase/supabase-js';
 // Load environment variables
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-config({ path: new URL('../.env', import.meta.url).pathname });
+config();
 
 // Validate required environment variables
 const requiredEnvVars = [
@@ -19,7 +19,8 @@ const requiredEnvVars = [
   'PLAID_SECRET',
   'PLAID_ENV',
   'VITE_SUPABASE_URL',
-  'VITE_SUPABASE_ANON_KEY'
+  'VITE_SUPABASE_ANON_KEY',
+  'SUPABASE_SERVICE_ROLE_KEY'
 ];
 
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -96,34 +97,35 @@ const createLinkTokenHandler: RequestHandler = async (req: Request, res: Respons
 const exchangePublicTokenHandler: RequestHandler = async (req: Request, res: Response): Promise<void> => {
   try {
     console.log('Received request to exchange public token');
-    const { publicToken, userId } = req.body;
-    if (!publicToken || !userId) {
+    const { public_token, userId, institutionName } = req.body;
+    if (!public_token || !userId || !institutionName) {
       console.error('Missing required fields in request');
-      res.status(400).json({ error: 'publicToken and userId are required' });
+      res.status(400).json({ error: 'public_token, userId, and institutionName are required' });
       return;
     }
 
     console.log('Exchanging public token for access token');
-    const response = await exchangePublicToken(publicToken);
+    const response = await exchangePublicToken(public_token);
     
-    console.log('Storing access token in Supabase');
+    console.log('Storing access token and institution name in Supabase');
     const { error } = await supabase
-      .from('plaid_items')
+      .from('connected_banks')
       .upsert({
         user_id: userId,
         item_id: response.item_id,
         access_token: response.access_token,
+        institution_name: institutionName,
         updated_at: new Date().toISOString()
       });
 
     if (error) {
-      console.error('Error storing access token:', error);
-      res.status(500).json({ error: 'Failed to store access token' });
+      console.error('Error storing connected bank:', error);
+      res.status(500).json({ error: 'Failed to store connected bank details' });
       return;
     }
 
-    console.log('Public token exchanged successfully');
-    res.json({ success: true });
+    console.log('Public token exchanged and bank details stored successfully');
+    res.json({ success: true, item_id: response.item_id, access_token: response.access_token });
   } catch (error: any) {
     console.error('Error exchanging public token:', error?.response?.data || error);
     res.status(500).json({ 

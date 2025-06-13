@@ -195,7 +195,7 @@ const Sidebar: React.FC<{
                 onToggleCollapse={onToggleCollapse}
               />
               <NavItem 
-                icon={<PackageSearch className="w-5 h-5" />} 
+                icon={<ShoppingBag className="w-5 h-5" />} 
                 label={collapsed ? "" : "Sale Items"}
                 active={location.pathname === '/sales/items'}
                 onClick={() => navigate('/sales/items')}
@@ -223,7 +223,7 @@ const Sidebar: React.FC<{
                 onToggleCollapse={onToggleCollapse}
               />
               <NavItem 
-                icon={<PackageSearch className="w-5 h-5" />} 
+                icon={<Boxes className="w-5 h-5" />} 
                 label={collapsed ? "" : "Purchase Items"}
                 active={location.pathname === '/purchases/items'}
                 onClick={() => navigate('/purchases/items')}

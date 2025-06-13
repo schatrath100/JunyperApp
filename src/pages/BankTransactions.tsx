@@ -188,32 +188,18 @@ const PlaidLinkButton = () => {
           body: JSON.stringify({
             public_token,
             metadata,
-            userId: user.id
+            userId: user.id,
+            institutionName: metadata.institution?.name || 'Unknown Institution'
           }),
         });
 
         if (!response.ok) {
           const errorData = await response.json();
           console.error('Server error response:', errorData);
-          throw new Error('Failed to exchange public token');
+          throw new Error(errorData.details || 'Failed to exchange public token');
         }
 
         const data = await response.json();
-
-        // Save the connected bank details to the database
-        const { error: insertError } = await supabase
-          .from('connected_banks')
-          .insert({
-            user_id: user.id,
-            item_id: data.item_id,
-            access_token: data.access_token,
-            institution_name: metadata.institution?.name || 'Unknown Institution'
-          });
-
-        if (insertError) {
-          console.error('Error saving connected bank:', insertError);
-          throw new Error('Failed to save connected bank details');
-        }
 
         // Reset Plaid state
         plaidInitialized.current = false;
@@ -686,75 +672,6 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
       onAlert?.('Failed to fetch transactions. Please try again.', 'error');
     } finally {
       setIsFetchingTransactions(false);
-    }
-  };
-
-  const handlePlaidSuccess = async (public_token: string, metadata: any) => {
-    try {
-      console.log('1. Plaid Link success:', { public_token, metadata, institution: metadata.institution?.name });
-      
-      // Get the authenticated user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        console.error('Error getting user:', userError);
-        throw new Error('Failed to get authenticated user');
-      }
-      console.log('2. Got authenticated user:', user.id);
-
-      // Exchange the public token
-      const requestBody = {
-        public_token,
-        metadata,
-        userId: user.id
-      };
-      console.log('3. Sending request to exchange token:', requestBody);
-
-      const response = await fetch('http://localhost:3001/api/exchange_public_token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('4. Server error response:', errorData);
-        throw new Error(errorData.details || errorData.error || 'Failed to exchange token');
-      }
-
-      const data = await response.json();
-      console.log('5. Successfully exchanged token:', data);
-
-      // Save the connected bank details to the database
-      const { error: insertError } = await supabase
-        .from('connected_banks')
-        .insert({
-          user_id: user.id,
-          item_id: data.item_id,
-          access_token: data.access_token,
-          institution_name: metadata.institution?.name || 'Unknown Institution'
-        });
-
-      if (insertError) {
-        console.error('Error saving connected bank:', insertError);
-        throw new Error('Failed to save connected bank details');
-      }
-
-      // Update the connected banks list
-      await fetchConnectedBanks();
-      onAlert?.('Bank account connected successfully', 'success');
-    } catch (error) {
-      console.error('Error in handlePlaidSuccess:', error);
-      setError(error instanceof Error ? error.message : 'Failed to connect bank account');
-      onAlert?.(error instanceof Error ? error.message : 'Failed to connect bank account', 'error');
-    }
-  };
-
-  const handlePlaidExit = (err: any, metadata: any) => {
-    console.log('Plaid Link exit:', { err, metadata });
-    if (err) {
-      onAlert?.(`Bank connection cancelled: ${err.display_message || err.error_message}`, 'warning');
     }
   };
 
@@ -1321,7 +1238,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
                 Cancel
               </Button>
               <Button
-                variant="primary"
+                variant="default"
                 className="!bg-red-500 hover:!bg-red-600"
                 onClick={handleDelete}
                 disabled={deleteLoading}
