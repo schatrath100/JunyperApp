@@ -1,4 +1,6 @@
-import 'dotenv/config';
+import { config } from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 import express, { Request, Response, RequestHandler } from 'express';
 import cors from 'cors';
 import { createLinkToken, exchangePublicToken, fetchTransactions } from '../src/lib/plaid';
@@ -6,13 +8,18 @@ import { supabase } from './supabase';
 import { Configuration, PlaidApi, PlaidEnvironments, CountryCode } from 'plaid';
 import { createClient } from '@supabase/supabase-js';
 
+// Load environment variables
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+config({ path: new URL('../.env', import.meta.url).pathname });
+
 // Validate required environment variables
 const requiredEnvVars = [
   'PLAID_CLIENT_ID',
   'PLAID_SECRET',
   'PLAID_ENV',
-  'SUPABASE_URL',
-  'SUPABASE_ANON_KEY'
+  'VITE_SUPABASE_URL',
+  'VITE_SUPABASE_ANON_KEY'
 ];
 
 const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -26,11 +33,11 @@ console.log('Environment configuration:');
 console.log('- Plaid environment:', process.env.PLAID_ENV);
 console.log('- Plaid client ID present:', !!process.env.PLAID_CLIENT_ID);
 console.log('- Plaid secret present:', !!process.env.PLAID_SECRET);
-console.log('- Supabase URL:', process.env.SUPABASE_URL);
+console.log('- Supabase URL:', process.env.VITE_SUPABASE_URL);
 
 // Initialize Supabase client
-const supabaseUrl = process.env.SUPABASE_URL!;
-const supabaseKey = process.env.SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.VITE_SUPABASE_URL!;
+const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY!;
 console.log('Initializing Supabase client with URL:', supabaseUrl);
 
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -55,7 +62,7 @@ const plaidClient = new PlaidApi(plaidConfig);
 // Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: Function) => {
   console.error('Unhandled error:', err);
-  res.status(500).json({ error: 'Internal server error' });
+  res.status(500).json({ error: 'Internal server error', details: err.message });
 });
 
 // Health check endpoint

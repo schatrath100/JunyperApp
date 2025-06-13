@@ -76,6 +76,16 @@ interface PlaidError {
   error_type?: string;
 }
 
+interface ConnectedBank {
+  id: string;
+  user_id: string;
+  item_id: string;
+  access_token: string;
+  institution_name: string;
+  created_at: string;
+  updated_at: string;
+}
+
 // Singleton for Plaid Link initialization
 let plaidLinkInstance: any = null;
 
@@ -159,12 +169,64 @@ const PlaidLinkButton = () => {
 
   const { open, ready } = usePlaidLink({
     token: linkToken,
-    onSuccess: (public_token: string, metadata: any) => {
+    onSuccess: async (public_token: string, metadata: any) => {
       console.log('Plaid Link success:', { public_token, metadata });
-      plaidInitialized.current = false;
-      linkTokenRef.current = null;
-      setLinkToken(null);
-      tokenExpirationRef.current = null;
+      try {
+        // Get the authenticated user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+          console.error('Error getting user:', userError);
+          throw new Error('Failed to get authenticated user');
+        }
+
+        // Exchange the public token
+        const response = await fetch('http://localhost:3001/api/exchange_public_token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            public_token,
+            metadata,
+            userId: user.id
+          }),
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          console.error('Server error response:', errorData);
+          throw new Error('Failed to exchange public token');
+        }
+
+        const data = await response.json();
+
+        // Save the connected bank details to the database
+        const { error: insertError } = await supabase
+          .from('connected_banks')
+          .insert({
+            user_id: user.id,
+            item_id: data.item_id,
+            access_token: data.access_token,
+            institution_name: metadata.institution?.name || 'Unknown Institution'
+          });
+
+        if (insertError) {
+          console.error('Error saving connected bank:', insertError);
+          throw new Error('Failed to save connected bank details');
+        }
+
+        // Reset Plaid state
+        plaidInitialized.current = false;
+        linkTokenRef.current = null;
+        setLinkToken(null);
+        tokenExpirationRef.current = null;
+
+        // Refresh the page to show the new connected bank
+        window.location.reload();
+      } catch (error) {
+        console.error('Error in Plaid success handler:', error);
+        setError(error instanceof Error ? error.message : 'Failed to connect bank account');
+      }
     },
     onExit: (err: PlaidError | null, metadata: any) => {
       console.log('Plaid Link exit:', { error: err, metadata });
@@ -226,12 +288,12 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'transactions' | 'statements'>('transactions');
+  const [activeTab, setActiveTab] = useState<'transactions' | 'statements'>('statements');
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
   const [startDate, setStartDate] = useState<string>(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const [isFetchingTransactions, setIsFetchingTransactions] = useState(false);
-  const [connectedBanks, setConnectedBanks] = useState<Array<{ id: string; name: string }>>([]);
+  const [connectedBanks, setConnectedBanks] = useState<ConnectedBank[]>([]);
 
   const exportToPDF = () => {
     const doc = new jsPDF();
@@ -562,12 +624,14 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
       const { data, error } = await supabase
         .from('connected_banks')
         .select('*')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
       if (error) throw error;
       setConnectedBanks(data || []);
     } catch (err) {
       console.error('Error fetching connected banks:', err);
+      onAlert?.('Failed to fetch connected banks', 'error');
     }
   };
 
@@ -662,11 +726,28 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
       const data = await response.json();
       console.log('5. Successfully exchanged token:', data);
 
+      // Save the connected bank details to the database
+      const { error: insertError } = await supabase
+        .from('connected_banks')
+        .insert({
+          user_id: user.id,
+          item_id: data.item_id,
+          access_token: data.access_token,
+          institution_name: metadata.institution?.name || 'Unknown Institution'
+        });
+
+      if (insertError) {
+        console.error('Error saving connected bank:', insertError);
+        throw new Error('Failed to save connected bank details');
+      }
+
       // Update the connected banks list
-      setConnectedBanks(prev => [...prev, data.bank]);
+      await fetchConnectedBanks();
+      onAlert?.('Bank account connected successfully', 'success');
     } catch (error) {
       console.error('Error in handlePlaidSuccess:', error);
       setError(error instanceof Error ? error.message : 'Failed to connect bank account');
+      onAlert?.(error instanceof Error ? error.message : 'Failed to connect bank account', 'error');
     }
   };
 
@@ -691,18 +772,6 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
 
       <div className="flex mb-0 overflow-x-auto">
         <button
-          onClick={() => setActiveTab('transactions')}
-          style={getTabStyle('transactions')}
-          className={`${activeTab === 'transactions' ? 'shadow-sm' : ''} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500`}
-        >
-          <div className="flex items-center space-x-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <span>Transactions</span>
-          </div>
-        </button>
-        <button
           onClick={() => setActiveTab('statements')}
           style={getTabStyle('statements')}
           className={`${activeTab === 'statements' ? 'shadow-sm' : ''} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
@@ -712,6 +781,18 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
             <span>Bank Integration</span>
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('transactions')}
+          style={getTabStyle('transactions')}
+          className={`${activeTab === 'transactions' ? 'shadow-sm' : ''} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500`}
+        >
+          <div className="flex items-center space-x-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <span>Transactions</span>
           </div>
         </button>
       </div>
@@ -740,28 +821,50 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
                     {connectedBanks.map((bank) => (
                       <div
                         key={bank.id}
-                        className={`p-4 rounded-lg border ${
-                          selectedBank === bank.id
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
-                            : 'border-gray-200 dark:border-gray-700'
-                        } cursor-pointer hover:border-blue-500 transition-colors`}
-                        onClick={() => setSelectedBank(bank.id)}
+                        className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                              <Landmark className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                            </div>
-                            <div>
-                              <h4 className="font-medium text-gray-900 dark:text-white">{bank.name}</h4>
-                              <p className="text-sm text-gray-500 dark:text-gray-400">Connected</p>
-                            </div>
+                        <div className="flex items-center space-x-4">
+                          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                            <Landmark className="w-5 h-5 text-blue-600 dark:text-blue-300" />
                           </div>
-                          {selectedBank === bank.id && (
-                            <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center">
-                              <Check className="w-3 h-3 text-white" />
-                            </div>
-                          )}
+                          <div>
+                            <h4 className="font-medium text-gray-900 dark:text-white">{bank.institution_name}</h4>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Connected on {new Date(bank.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => {
+                              setSelectedBank(bank.id);
+                              setActiveTab('transactions');
+                            }}
+                            className="px-3 py-1 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
+                          >
+                            View Transactions
+                          </button>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const { error } = await supabase
+                                  .from('connected_banks')
+                                  .delete()
+                                  .eq('id', bank.id);
+                                
+                                if (error) throw error;
+                                
+                                await fetchConnectedBanks();
+                                onAlert?.('Bank account disconnected successfully', 'success');
+                              } catch (err) {
+                                console.error('Error disconnecting bank:', err);
+                                onAlert?.('Failed to disconnect bank account', 'error');
+                              }
+                            }}
+                            className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     ))}

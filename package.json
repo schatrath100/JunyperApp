@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
-    "server": "NODE_OPTIONS='--loader ts-node/esm' ts-node --esm --project tsconfig.server.json server/index.ts",
+    "server": "tsx watch server/index.ts",
     "server:build": "tsc --project tsconfig.server.json",
     "server:start": "node dist/server/index.js"
   },
@@ -57,6 +57,7 @@
     "postcss": "^8.4.23",
     "tailwindcss": "^3.3.2",
     "ts-node": "^10.9.2",
+    "tsx": "^4.20.2",
     "typescript": "^5.0.2",
     "vite": "^4.3.2"
   }

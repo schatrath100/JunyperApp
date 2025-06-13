@@ -24,12 +24,12 @@ interface AccountingSettings {
   corporate_ein: string;
   business_address: string;
   business_phone: string;
-  sales_revenue_account: string;
-  purchases_account: string;
-  accounts_receivable_account: string;
-  accounts_payable_account: string;
-  taxes_payable_account: string;
-  cash_account: string;
+  sales_revenue_account: number | null;
+  purchases_account: number | null;
+  accounts_receivable_account: number | null;
+  accounts_payable_account: number | null;
+  taxes_payable_account: number | null;
+  cash_account: number | null;
   bank_name: string;
   branch_name: string;
   account_number: string;
@@ -71,12 +71,12 @@ const DEFAULT_SETTINGS: AccountingSettings = {
   corporate_ein: '',
   business_address: '',
   business_phone: '',
-  sales_revenue_account: '',
-  purchases_account: '',
-  accounts_receivable_account: '',
-  accounts_payable_account: '',
-  taxes_payable_account: '',
-  cash_account: '',
+  sales_revenue_account: null,
+  purchases_account: null,
+  accounts_receivable_account: null,
+  accounts_payable_account: null,
+  taxes_payable_account: null,
+  cash_account: null,
   bank_name: '',
   branch_name: '',
   account_number: '',
@@ -208,19 +208,21 @@ const Settings: React.FC = () => {
     const errors: string[] = [];
 
     // Required account fields with their display names
-    const requiredFields = {
+    type RequiredAccountKeys = 'sales_revenue_account' | 'purchases_account' | 'accounts_receivable_account' | 'accounts_payable_account' | 'taxes_payable_account' | 'cash_account';
+    const requiredFields: Record<RequiredAccountKeys, string> = {
       sales_revenue_account: 'Sales Revenue Account',
       purchases_account: 'Purchases Account', 
       accounts_receivable_account: 'Accounts Receivable Account',
       accounts_payable_account: 'Accounts Payable Account',
-      taxes_payable_account: 'Taxes Payable Account'
+      taxes_payable_account: 'Taxes Payable Account',
+      cash_account: 'Cash Account'
     };
 
     // Check each required field
     for (const [field, displayName] of Object.entries(requiredFields)) {
-      if (!settings[field]) {
+      if (!settings[field as keyof AccountingSettings]) {
         errors.push(`${displayName} is required`);
-      } else if (!accounts.some(acc => acc.id === settings[field])) {
+      } else if (!accounts.some(acc => acc.id === settings[field as keyof AccountingSettings])) {
         errors.push(`Selected ${displayName} is invalid or no longer exists`);
       }
     }
@@ -250,20 +252,25 @@ const Settings: React.FC = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No authenticated user');
 
-      const settingsToSave = {
+      // Create settingsToSave object, conditionally including id
+      const baseSettingsToSave: Partial<AccountingSettings> = {
         ...settings,
         user_id: user.id,
-        // Convert empty string selections to null
+        // Convert empty string selections to null for accounts
         sales_revenue_account: settings.sales_revenue_account || null,
         purchases_account: settings.purchases_account || null,
         accounts_receivable_account: settings.accounts_receivable_account || null,
         accounts_payable_account: settings.accounts_payable_account || null,
         taxes_payable_account: settings.taxes_payable_account || null,
+        cash_account: settings.cash_account || null,
       };
 
-      // Remove the id field if it's null (for new records)
-      if (!settingsToSave.id) {
-        delete settingsToSave.id;
+      let settingsToSave: Partial<AccountingSettings>;
+      if (baseSettingsToSave.id) { // If id exists (not empty string), include it
+        settingsToSave = baseSettingsToSave;
+      } else { // If id is empty, omit it for insertion
+        const { id, ...rest } = baseSettingsToSave;
+        settingsToSave = rest;
       }
 
       let data;
@@ -282,7 +289,7 @@ const Settings: React.FC = () => {
         // Insert new settings
         const { data: insertData, error: insertError } = await supabase
           .from('accounting_settings')
-          .insert([settingsToSave])
+          .insert([settingsToSave]) // `settingsToSave` will not have `id` if it was empty
           .select()
           .single();
 
@@ -411,6 +418,7 @@ const Settings: React.FC = () => {
           console.log('Clearing saved state for card:', cardType);
           setSavedCard(null);
           setEditingCard(null);
+          setIsSaving(false);
         }, 2000);
       }
     } catch (error: any) {
@@ -420,13 +428,15 @@ const Settings: React.FC = () => {
         description: error.message || "Failed to save settings. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setIsSaving(false);
     }
   };
 
   const saveBusinessDetails = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('No authenticated user found');
+      }
       if (!settings.company_legal_name || !settings.display_name) {
         alert('Company Legal Name and Display Name are required.');
         return;
@@ -441,7 +451,7 @@ const Settings: React.FC = () => {
           founded_date: settings.founded_date,
           website: settings.website,
         })
-        .eq('user_id', user?.id);
+        .eq('user_id', user.id);
       if (error) throw error;
       setEditingCard(null);
     } catch (error) {
@@ -538,9 +548,9 @@ const Settings: React.FC = () => {
                     onChange={(e) => setSettings({ ...settings, base_currency: e.target.value })}
                     className={cn(
                       "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700",
-                      editingCard !== 'general' && "bg-gray-50 dark:bg-gray-700"
+                      (editingCard !== 'general' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={editingCard !== 'general'}
+                    disabled={editingCard !== 'general' || isSaving}
                   >
                     <option value="USD">USD (US Dollar)</option>
                   </select>
@@ -555,9 +565,9 @@ const Settings: React.FC = () => {
                     onChange={(e) => setSettings({ ...settings, accounting_method: e.target.value })}
                     className={cn(
                       "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
-                      editingCard !== 'general' && "bg-gray-50 dark:bg-gray-700"
+                      (editingCard !== 'general' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={editingCard !== 'general'}
+                    disabled={editingCard !== 'general' || isSaving}
                   >
                     <option value="Accrual">Accrual</option>
                     <option value="Cash">Cash</option>
@@ -573,9 +583,9 @@ const Settings: React.FC = () => {
                     onChange={(e) => setSettings({ ...settings, time_zone: e.target.value })}
                     className={cn(
                       "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
-                      editingCard !== 'general' && "bg-gray-50 dark:bg-gray-700"
+                      (editingCard !== 'general' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={editingCard !== 'general'}
+                    disabled={editingCard !== 'general' || isSaving}
                   >
                     <option value="US/Eastern">US/Eastern</option>
                     <option value="US/Central">US/Central</option>
@@ -649,9 +659,9 @@ const Settings: React.FC = () => {
                       onChange={(e) => setSettings({ ...settings, company_legal_name: e.target.value })}
                       className={cn(
                         "w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent dark:bg-gray-800 dark:text-white",
-                        editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                        (editingCard !== 'business' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                       )}
-                      disabled={editingCard !== 'business'}
+                      disabled={editingCard !== 'business' || isSaving}
                       placeholder="Enter company legal name"
                       required
                     />
@@ -669,9 +679,9 @@ const Settings: React.FC = () => {
                       onChange={(e) => setSettings({ ...settings, display_name: e.target.value })}
                       className={cn(
                         "w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent dark:bg-gray-800 dark:text-white",
-                        editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                        (editingCard !== 'business' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                       )}
-                      disabled={editingCard !== 'business'}
+                      disabled={editingCard !== 'business' || isSaving}
                       placeholder="Enter company display name"
                       required
                     />
@@ -688,9 +698,9 @@ const Settings: React.FC = () => {
                       onChange={(e) => setSettings({ ...settings, industry: e.target.value })}
                       className={cn(
                         "w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent dark:bg-gray-800 dark:text-white",
-                        editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                        (editingCard !== 'business' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                       )}
-                      disabled={editingCard !== 'business'}
+                      disabled={editingCard !== 'business' || isSaving}
                       required
                     >
                       <option value="">Select Industry</option>
@@ -712,9 +722,9 @@ const Settings: React.FC = () => {
                       onChange={(e) => setSettings({ ...settings, company_size: e.target.value })}
                       className={cn(
                         "w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent dark:bg-gray-800 dark:text-white",
-                        editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                        (editingCard !== 'business' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                       )}
-                      disabled={editingCard !== 'business'}
+                      disabled={editingCard !== 'business' || isSaving}
                     >
                       <option value="">Select Company Size</option>
                       <option value="Small">Small</option>
@@ -733,9 +743,9 @@ const Settings: React.FC = () => {
                       onChange={(e) => setSettings({ ...settings, founded_date: e.target.value })}
                       className={cn(
                         "w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent dark:bg-gray-800 dark:text-white",
-                        editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                        (editingCard !== 'business' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                       )}
-                      disabled={editingCard !== 'business'}
+                      disabled={editingCard !== 'business' || isSaving}
                     />
                   </div>
                   <div>
@@ -748,9 +758,9 @@ const Settings: React.FC = () => {
                       onChange={(e) => setSettings({ ...settings, website: e.target.value })}
                       className={cn(
                         "w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-green-500 dark:focus:ring-green-400 focus:border-transparent dark:bg-gray-800 dark:text-white",
-                        editingCard !== 'business' && "bg-gray-50 dark:bg-gray-700"
+                        (editingCard !== 'business' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                       )}
-                      disabled={editingCard !== 'business'}
+                      disabled={editingCard !== 'business' || isSaving}
                       placeholder="https://example.com"
                     />
                   </div>
@@ -816,14 +826,14 @@ const Settings: React.FC = () => {
                   </label>
                   <select
                     value={settings.sales_revenue_account || ''}
-                    onChange={(e) => setSettings({ ...settings, sales_revenue_account: e.target.value })}
+                    onChange={(e) => setSettings({ ...settings, sales_revenue_account: e.target.value === '' ? null : Number(e.target.value) })}
                     className={cn(
                       "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
-                      !editingCard && "bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={!editingCard}
+                    disabled={editingCard !== 'accounts' || isSaving}
                   >
-                    <option value="">Select account</option>
+                    <option value="">Select a Revenue Account</option>
                     {accounts
                       .filter(account => account.account_type === 'Revenue')
                       .map(account => (
@@ -840,14 +850,14 @@ const Settings: React.FC = () => {
                   </label>
                   <select
                     value={settings.purchases_account || ''}
-                    onChange={(e) => setSettings({ ...settings, purchases_account: e.target.value })}
+                    onChange={(e) => setSettings({ ...settings, purchases_account: e.target.value === '' ? null : Number(e.target.value) })}
                     className={cn(
                       "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
-                      !editingCard && "bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={!editingCard}
+                    disabled={editingCard !== 'accounts' || isSaving}
                   >
-                    <option value="">Select account</option>
+                    <option value="">Select an Expense Account</option>
                     {accounts
                       .filter(account => account.account_type === 'Expense')
                       .map(account => (
@@ -864,14 +874,14 @@ const Settings: React.FC = () => {
                   </label>
                   <select
                     value={settings.accounts_receivable_account || ''}
-                    onChange={(e) => setSettings({ ...settings, accounts_receivable_account: e.target.value })}
+                    onChange={(e) => setSettings({ ...settings, accounts_receivable_account: e.target.value === '' ? null : Number(e.target.value) })}
                     className={cn(
                       "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
-                      !editingCard && "bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={!editingCard}
+                    disabled={editingCard !== 'accounts' || isSaving}
                   >
-                    <option value="">Select account</option>
+                    <option value="">Select an Asset Account</option>
                     {accounts
                       .filter(account => account.account_type === 'Asset')
                       .map(account => (
@@ -888,14 +898,14 @@ const Settings: React.FC = () => {
                   </label>
                   <select
                     value={settings.accounts_payable_account || ''}
-                    onChange={(e) => setSettings({ ...settings, accounts_payable_account: e.target.value })}
+                    onChange={(e) => setSettings({ ...settings, accounts_payable_account: e.target.value === '' ? null : Number(e.target.value) })}
                     className={cn(
                       "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
-                      !editingCard && "bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={!editingCard}
+                    disabled={editingCard !== 'accounts' || isSaving}
                   >
-                    <option value="">Select account</option>
+                    <option value="">Select a Liability Account</option>
                     {accounts
                       .filter(account => account.account_type === 'Liability')
                       .map(account => (
@@ -912,14 +922,14 @@ const Settings: React.FC = () => {
                   </label>
                   <select
                     value={settings.taxes_payable_account || ''}
-                    onChange={(e) => setSettings({ ...settings, taxes_payable_account: e.target.value })}
+                    onChange={(e) => setSettings({ ...settings, taxes_payable_account: e.target.value === '' ? null : Number(e.target.value) })}
                     className={cn(
                       "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
-                      !editingCard && "bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={!editingCard}
+                    disabled={editingCard !== 'accounts' || isSaving}
                   >
-                    <option value="">Select account</option>
+                    <option value="">Select a Liability Account</option>
                     {accounts
                       .filter(account => account.account_type === 'Liability')
                       .map(account => (
@@ -936,14 +946,14 @@ const Settings: React.FC = () => {
                   </label>
                   <select
                     value={settings.cash_account || ''}
-                    onChange={(e) => setSettings({ ...settings, cash_account: e.target.value })}
+                    onChange={(e) => setSettings({ ...settings, cash_account: e.target.value === '' ? null : Number(e.target.value) })}
                     className={cn(
                       "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
-                      !editingCard && "bg-gray-100 dark:bg-gray-800 cursor-not-allowed"
+                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={!editingCard}
+                    disabled={editingCard !== 'accounts' || isSaving}
                   >
-                    <option value="">Select account</option>
+                    <option value="">Select an Asset Account</option>
                     {accounts
                       .filter(account => account.account_name.toLowerCase().includes('cash'))
                       .map(account => (
@@ -1017,10 +1027,10 @@ const Settings: React.FC = () => {
                     value={settings.bank_name}
                     onChange={(e) => setSettings({ ...settings, bank_name: e.target.value })}
                     className={cn(
-                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
-                      editingCard !== 'bank' && "bg-gray-50 dark:bg-gray-700"
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 focus:border-transparent dark:bg-gray-800 dark:text-white",
+                      (editingCard !== 'bank' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={editingCard !== 'bank'}
+                    disabled={editingCard !== 'bank' || isSaving}
                   />
                 </div>
 
@@ -1033,10 +1043,10 @@ const Settings: React.FC = () => {
                     value={settings.branch_name}
                     onChange={(e) => setSettings({ ...settings, branch_name: e.target.value })}
                     className={cn(
-                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
-                      editingCard !== 'bank' && "bg-gray-50 dark:bg-gray-700"
+                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 focus:border-transparent dark:bg-gray-800 dark:text-white",
+                      (editingCard !== 'bank' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={editingCard !== 'bank'}
+                    disabled={editingCard !== 'bank' || isSaving}
                   />
                 </div>
               </div>
@@ -1050,10 +1060,10 @@ const Settings: React.FC = () => {
                   value={settings.account_number}
                   onChange={(e) => setSettings({ ...settings, account_number: e.target.value })}
                   className={cn(
-                    "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
-                    editingCard !== 'bank' && "bg-gray-50 dark:bg-gray-700"
+                    "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400 focus:border-transparent dark:bg-gray-800 dark:text-white",
+                    (editingCard !== 'bank' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                   )}
-                  disabled={editingCard !== 'bank'}
+                  disabled={editingCard !== 'bank' || isSaving}
                 />
               </div>
 
@@ -1064,16 +1074,16 @@ const Settings: React.FC = () => {
                   checked={settings.is_default_bank}
                   onChange={(e) => setSettings({ ...settings, is_default_bank: e.target.checked })}
                   className={cn(
-                    "h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700",
-                    editingCard !== 'bank' && "opacity-50 cursor-not-allowed"
+                    "form-checkbox h-4 w-4 text-purple-600 dark:text-purple-400 transition duration-150 ease-in-out",
+                    (editingCard !== 'bank' || isSaving) && "opacity-50 cursor-not-allowed"
                   )}
-                  disabled={editingCard !== 'bank'}
+                  disabled={editingCard !== 'bank' || isSaving}
                 />
                 <label
                   htmlFor="is_default_bank"
                   className={cn(
                     "text-sm font-medium text-gray-700 dark:text-gray-300",
-                    editingCard !== 'bank' && "opacity-50"
+                    (editingCard !== 'bank' || isSaving) && "opacity-50"
                   )}
                 >
                   Set as default bank account
