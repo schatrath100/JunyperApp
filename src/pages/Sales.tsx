@@ -367,22 +367,25 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
                     onChange={handleSelectAll}
                   />
                 </TableHead>
-                <TableHead onClick={() => requestSort('id')} className="cursor-pointer w-20 text-center">
+                <TableHead onClick={() => requestSort('id')} className="cursor-pointer w-16 text-center">
                   Invoice No.
                 </TableHead>
-                <TableHead onClick={() => requestSort('InvoiceDate')} className="cursor-pointer w-36 text-center">
+                <TableHead onClick={() => requestSort('InvoiceDate')} className="cursor-pointer w-24 text-center">
                   Date
                 </TableHead>
-                <TableHead onClick={() => requestSort('Customer_name')} className="cursor-pointer w-40 text-left">
+                <TableHead onClick={() => requestSort('Customer_name')} className="cursor-pointer w-36 text-left">
                   Customer
                 </TableHead>
-                <TableHead onClick={() => requestSort('Description')} className="cursor-pointer w-48 text-left">
+                <TableHead onClick={() => requestSort('Description')} className="cursor-pointer w-40 text-left">
                   Description
                 </TableHead>
-                <TableHead onClick={() => requestSort('OutstandingAmount')} className="cursor-pointer w-36 text-right">
-                  Outstanding Amount
+                <TableHead onClick={() => requestSort('InvoiceAmount')} className="cursor-pointer w-32 text-right">
+                  Invoice Amount
                 </TableHead>
-                <TableHead className="w-20 text-center">
+                <TableHead onClick={() => requestSort('OutstandingAmount')} className="cursor-pointer w-32 text-right">
+                  Outstanding
+                </TableHead>
+                <TableHead className="w-16 text-center">
                   Actions
                 </TableHead>
               </TableRow>
@@ -403,27 +406,33 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
                       onChange={() => handleRowSelect(invoice.id)}
                     />
                   </TableCell>
-                  <TableCell className="font-medium w-20 text-center">
+                  <TableCell className="font-medium w-16 text-center">
                     #{invoice.id}
                   </TableCell>
-                  <TableCell className="w-36 text-center whitespace-nowrap">
+                  <TableCell className="w-24 text-center whitespace-nowrap">
                     {new Date(invoice.InvoiceDate).toLocaleString('en-US', {
                       year: 'numeric',
                       month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
+                      day: 'numeric'
                     })}
                   </TableCell>
-                  <TableCell className="w-40 text-left">
+                  <TableCell className="w-36 text-left">
                     {invoice.Customer_name}
                   </TableCell>
-                  <TableCell className="w-48 text-left">
+                  <TableCell className="w-40 text-left">
                     <div className="truncate" title={invoice.Description || ''}>
                       {invoice.Description || '-'}
                     </div>
                   </TableCell>
-                  <TableCell className="w-36 text-right whitespace-nowrap">
+                  <TableCell className="w-32 text-right whitespace-nowrap">
+                    {invoice.InvoiceAmount !== undefined && invoice.InvoiceAmount !== null ? 
+                      new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD'
+                      }).format(invoice.InvoiceAmount) 
+                      : '-'}
+                  </TableCell>
+                  <TableCell className="w-32 text-right whitespace-nowrap">
                     {invoice.OutstandingAmount !== undefined && invoice.OutstandingAmount !== null ? 
                       new Intl.NumberFormat('en-US', {
                         style: 'currency',
@@ -431,7 +440,7 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
                       }).format(invoice.OutstandingAmount) 
                       : '-'}
                   </TableCell>
-                  <TableCell className="w-20 text-center">
+                  <TableCell className="w-16 text-center">
                     <div className="flex items-center justify-center space-x-2">
                       <button
                         onClick={() => {

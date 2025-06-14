@@ -4,6 +4,11 @@ import Button from './Button';
 import { supabase } from '../lib/supabase';
 import { cn } from '../lib/utils';
 
+type Alert = {
+  type: 'success' | 'error' | 'info' | 'warning';
+  message: string;
+};
+
 interface InvoiceStatusModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -23,20 +28,41 @@ interface InvoiceStatusModalProps {
 const INVOICE_STATUS = [
   'Pending',
   'Paid',
+  'Partially Paid',
   'Cancelled'
 ];
 
 const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose, invoice, onSave, onAlert }) => {
   const [status, setStatus] = useState(invoice.Status);
+  const [paymentAmount, setPaymentAmount] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen || !invoice) return null;
 
+  const validatePaymentAmount = (amount: string): string | null => {
+    const numAmount = parseFloat(amount);
+    if (isNaN(numAmount)) return 'Please enter a valid number';
+    if (numAmount <= 0) return 'Payment amount must be greater than 0';
+    if (numAmount > (invoice.OutstandingAmount || 0)) {
+      return 'Payment amount cannot exceed outstanding amount';
+    }
+    return null;
+  };
+
   const handleSave = async () => {
     try {
       setSaving(true);
       setError(null);
+
+      // Validate payment amount if Partially Paid
+      if (status === 'Partially Paid') {
+        const validationError = validatePaymentAmount(paymentAmount);
+        if (validationError) {
+          setError(validationError);
+          return;
+        }
+      }
 
       // Get the current user's session
       const { data: { session } } = await supabase.auth.getSession();
@@ -54,25 +80,40 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
       if (settingsError) throw new Error('Failed to fetch accounting settings');
       if (!settings) throw new Error('Accounting settings not found');
 
-      // Update invoice status
+      let paymentValue: number;
+      let newOutstandingAmount: number;
+
+      if (status === 'Partially Paid') {
+        paymentValue = parseFloat(paymentAmount);
+        newOutstandingAmount = (invoice.OutstandingAmount || 0) - paymentValue;
+      } else if (status === 'Paid') {
+        // If changing from Partially Paid to Paid, only use the remaining outstanding amount
+        paymentValue = invoice.OutstandingAmount || 0;
+        newOutstandingAmount = 0;
+      } else {
+        paymentValue = 0;
+        newOutstandingAmount = invoice.OutstandingAmount || 0;
+      }
+
+      // Update invoice status and outstanding amount
       const { error: updateError } = await supabase
         .from('SalesInvoice')
-        .update({ Status: status })
+        .update({ 
+          Status: status,
+          OutstandingAmount: newOutstandingAmount
+        })
         .eq('id', invoice.id);
 
       if (updateError) throw updateError;
 
-      // If changing from Pending to Paid, create new transactions
-      if (invoice.Status === 'Pending' && status === 'Paid') {
-        const amount = invoice.InvoiceAmount || 0;
-        
-        // Create new transactions for payment
+      // Create new transactions for payment
+      if (status === 'Paid' || status === 'Partially Paid') {
         const transactions = [
           {
             transaction_date: new Date().toISOString(),
             account_id: settings.accounts_receivable_account,
             debit_amount: 0,
-            credit_amount: amount,
+            credit_amount: paymentValue,
             description: `Payment received for Invoice #${invoice.id} - ${invoice.Customer_name}`,
             invoice_id: invoice.id,
             bill_id: 0,
@@ -83,7 +124,7 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
           {
             transaction_date: new Date().toISOString(),
             account_id: settings.cash_account,
-            debit_amount: amount,
+            debit_amount: paymentValue,
             credit_amount: 0,
             description: `Payment received for Invoice #${invoice.id} - ${invoice.Customer_name}`,
             invoice_id: invoice.id,
@@ -242,6 +283,27 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
               ))}
             </select>
           </div>
+
+          {status === 'Partially Paid' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Payment Amount
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                placeholder="Enter payment amount"
+                min="0"
+                max={invoice.OutstandingAmount}
+              />
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Maximum payment: {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.OutstandingAmount || 0)}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="absolute bottom-0 left-0 right-0 p-6 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
@@ -257,7 +319,7 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
               variant="default"
               className="bg-black hover:bg-black/90 text-white"
               onClick={handleSave}
-              disabled={saving || isProtected}
+              disabled={saving || isProtected || (status === 'Partially Paid' && !paymentAmount)}
             >
               {saving ? 'Saving...' : 'Save Changes'}
             </Button>

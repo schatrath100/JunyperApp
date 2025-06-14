@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { utcToZonedTime } from 'date-fns-tz';
+import * as dateFnsTz from 'date-fns-tz';
 
 interface GreetingProps {
   name: string;
@@ -46,7 +46,7 @@ const Greeting: React.FC<GreetingProps> = ({ name }) => {
   }, []);
 
   const getGreeting = () => {
-    const zonedTime = utcToZonedTime(currentTime, timeZone);
+    const zonedTime = dateFnsTz.toZonedTime(currentTime, timeZone);
     const hour = zonedTime.getHours();
 
     if (hour < 12) return 'Good Morning';
