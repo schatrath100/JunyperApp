@@ -29,6 +29,7 @@ const INVOICE_STATUS = [
   'Pending',
   'Paid',
   'Partially Paid',
+  'Overdue',
   'Cancelled'
 ];
 
@@ -87,7 +88,7 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
         paymentValue = parseFloat(paymentAmount);
         newOutstandingAmount = (invoice.OutstandingAmount || 0) - paymentValue;
       } else if (status === 'Paid') {
-        // If changing from Partially Paid to Paid, only use the remaining outstanding amount
+        // If changing from Partially Paid or Overdue to Paid, only use the remaining outstanding amount
         paymentValue = invoice.OutstandingAmount || 0;
         newOutstandingAmount = 0;
       } else {
@@ -156,6 +157,7 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
   const isPaid = invoice.Status === 'Paid';
   const isPending = invoice.Status === 'Pending';
   const isCancelled = invoice.Status === 'Cancelled';
+  const isOverdue = invoice.Status === 'Overdue';
   const isProtected = isPaid || isCancelled;
 
   return (
@@ -276,7 +278,10 @@ const InvoiceStatusModal: React.FC<InvoiceStatusModalProps> = ({ isOpen, onClose
                 <option 
                   key={s} 
                   value={s}
-                  disabled={isPending && s === 'Pending'}
+                  disabled={
+                    (isPending && s === 'Pending') ||
+                    (isOverdue && s !== 'Paid') // Only allow Paid status for overdue invoices
+                  }
                 >
                   {s}
                 </option>

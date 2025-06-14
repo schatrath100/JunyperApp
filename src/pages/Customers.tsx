@@ -273,7 +273,7 @@ const Customers: React.FC = () => {
                         {customer.Customer_Phone}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 group-hover:bg-gray-100 dark:group-hover:bg-gray-700/70">
-                        {customer.Customer_PaymentTerms || '-'}
+                        {customer.Customer_PaymentTerms ? `${customer.Customer_PaymentTerms} days` : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium group-hover:bg-gray-100 dark:group-hover:bg-gray-700/70">
                         <div className="flex justify-end gap-2">
