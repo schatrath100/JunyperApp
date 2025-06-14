@@ -6,24 +6,31 @@ import { supabase } from '../lib/supabase';
 import DarkModeToggle from './DarkModeToggle';
 import AlertList from './AlertList';
 import { Alert as AlertType } from './Alert';
+import { Notification } from '../hooks/useNotifications';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 import { cn } from '../lib/utils';
 import { useUserProfile } from '../hooks/useUserProfile';
 
 interface NavbarProps {
-  alerts: AlertType[];
-  onDismiss: (id: string) => void;
+  notifications: Notification[];
+  unreadCount: number;
+  onMarkAsRead: (notificationIds?: string[]) => Promise<void>;
+  onDismiss: (notificationIds: string[]) => Promise<void>;
+  onMarkAllAsRead: () => Promise<void>;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
+const Navbar: React.FC<NavbarProps> = ({ 
+  notifications, 
+  unreadCount, 
+  onMarkAsRead, 
+  onDismiss, 
+  onMarkAllAsRead 
+}) => {
   const [showAlerts, setShowAlerts] = useState(false);
-  const [readAlerts, setReadAlerts] = useState<Set<string>>(new Set());
   const [companyName, setCompanyName] = useState<string>('');
   const navigate = useNavigate();
   const alertsRef = React.useRef<HTMLDivElement>(null);
   const { userName, userAvatar, setUserAvatar } = useUserProfile();
-
-  const unreadCount = alerts.filter(alert => !readAlerts.has(alert.id)).length;
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -81,10 +88,10 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
     };
   }, []);
 
-  const handleMarkAllAsRead = () => {
-    const newReadAlerts = new Set(readAlerts);
-    alerts.forEach(alert => newReadAlerts.add(alert.id));
-    setReadAlerts(newReadAlerts);
+  const handleMarkAllAsRead = async () => {
+    await onMarkAllAsRead();
+    // Close the notifications dropdown after marking all as read
+    setShowAlerts(false);
   };
 
   const handleLogout = async () => {
@@ -132,13 +139,26 @@ const Navbar: React.FC<NavbarProps> = ({ alerts, onDismiss }) => {
               )}
             </button>
             {showAlerts && (
-              <div ref={alertsRef} className="absolute top-full right-0 mt-2 w-80 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
-                <div className="p-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-white dark:from-gray-800 dark:to-gray-900">
-                  <h3 className="font-medium text-gray-900 dark:text-white">Notifications</h3>
+              <div ref={alertsRef} className="absolute top-full right-0 mt-2 w-96 bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 z-50 overflow-hidden backdrop-blur-sm">
+                <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/30 dark:via-indigo-900/30 dark:to-purple-900/30">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Notifications</h3>
+                    {unreadCount > 0 && (
+                      <span className="px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full">
+                        {unreadCount} new
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <AlertList 
-                  alerts={alerts.map(alert => ({ ...alert, read: readAlerts.has(alert.id) }))} 
-                  onDismiss={onDismiss}
+                  alerts={notifications.map(notification => ({
+                    id: notification.id,
+                    message: notification.message,
+                    type: notification.type,
+                    createdAt: new Date(notification.created_at),
+                    read: notification.read
+                  }))} 
+                  onDismiss={(id: string) => onDismiss([id])}
                   onMarkAllAsRead={handleMarkAllAsRead}
                 />
               </div>

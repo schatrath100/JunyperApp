@@ -38,35 +38,35 @@ const Alert: React.FC<AlertProps> = ({ alert, onDismiss, onMarkAsRead }) => {
 
   return (
     <div 
-      className={`p-4 rounded-lg border ${getBgColor()} relative transition-all duration-200 ${
+      className={`mx-3 my-2 p-4 rounded-xl border ${getBgColor()} relative transition-all duration-200 hover:shadow-sm ${
         alert.read ? 'opacity-75' : ''
       }`}
       role="alert"
     >
-      <div className="flex items-start">
-        <div className="flex-shrink-0">{getIcon()}</div>
-        <div className="ml-3 flex-1">
-          <p className="text-sm font-medium">{alert.message}</p>
-          <p className="mt-1 text-xs opacity-75">
-            {new Date(alert.createdAt).toLocaleTimeString()}
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0 mt-0.5">{getIcon()}</div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium leading-relaxed">{alert.message}</p>
+          <p className="mt-2 text-xs opacity-75 font-medium">
+            {new Date(alert.createdAt).toLocaleString()}
           </p>
         </div>
-        <div className="ml-4 flex-shrink-0 flex">
+        <div className="flex-shrink-0 flex items-center gap-1">
           {!alert.read && onMarkAsRead && (
             <button
               onClick={() => onMarkAsRead(alert.id)}
-              className="mr-2 text-current opacity-70 hover:opacity-100 transition-opacity"
+              className="p-1.5 text-current opacity-60 hover:opacity-100 hover:bg-white/50 dark:hover:bg-black/20 rounded-lg transition-all duration-200"
               title="Mark as read"
             >
-              <Check className="w-4 h-4" />
+              <Check className="w-3.5 h-3.5" />
             </button>
           )}
           <button
             onClick={() => onDismiss(alert.id)}
-            className="text-current opacity-70 hover:opacity-100 transition-opacity"
+            className="p-1.5 text-current opacity-60 hover:opacity-100 hover:bg-white/50 dark:hover:bg-black/20 rounded-lg transition-all duration-200"
             title="Dismiss"
           >
-            <X className="w-4 h-4" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>

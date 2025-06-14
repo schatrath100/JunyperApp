@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet, PlusCircle, Pencil, Search, Trash2, ChevronDown, Sun, Moon, Bell, User, Landmark, Check, Download } from 'lucide-react';
+import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet, Search, Pencil, Eye, Trash2, Info } from 'lucide-react';
 import Button from '../components/Button';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -13,10 +13,6 @@ import BankTransactionViewModal from '../components/BankTransactionViewModal';
 import BankTransactionAddModal from '../components/BankTransactionAddModal';
 import BankTransactionEditModal from '../components/BankTransactionEditModal';
 import type { Alert } from '../components/Alert';
-import { usePlaidLink, PlaidLinkOptions } from 'react-plaid-link';
-import { format, subDays } from 'date-fns';
-import { Calendar } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
 
 interface BankTransaction {
   id: string;
@@ -25,7 +21,11 @@ interface BankTransaction {
   description: string;
   deposit: number;
   withdrawal: number;
+  amount: number;
   account_number: number;
+  credit_debit_indicator: 'credit' | 'debit';
+  created_at: string;
+  updated_at?: string;
 }
 
 interface FilterState {
@@ -41,208 +41,6 @@ interface BankTransactionsProps {
   onAlert?: (message: string, type: Alert['type']) => void;
 }
 
-interface BankTransactionAddModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAlert?: (message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
-  onSave: () => Promise<void>;
-}
-
-interface BankTransactionEditModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onAlert?: (message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
-  onSave: () => Promise<void>;
-  transaction: BankTransaction | null;
-}
-
-interface PlaidSuccessMetadata {
-  institution?: {
-    name: string;
-    institution_id: string;
-  };
-  accounts: Array<{
-    id: string;
-    name: string;
-    mask: string;
-  }>;
-  link_session_id: string;
-}
-
-interface PlaidError {
-  display_message?: string;
-  error_code?: string;
-  error_message?: string;
-  error_type?: string;
-}
-
-interface ConnectedBank {
-  id: string;
-  user_id: string;
-  item_id: string;
-  access_token: string;
-  institution_name: string;
-  created_at: string;
-  updated_at: string;
-}
-
-// Singleton for Plaid Link initialization
-let plaidLinkInstance: any = null;
-
-const PlaidLinkButton = () => {
-  const { user } = useAuth();
-  const [linkToken, setLinkToken] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(false);
-  const plaidInitialized = useRef(false);
-  const mounted = useRef(true);
-  const initializationAttempted = useRef(false);
-  const linkTokenRef = useRef<string | null>(null);
-  const tokenExpirationRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-
-  const initializePlaid = async () => {
-    if (isInitializing || !mounted.current || !user) {
-      return;
-    }
-
-    try {
-      setIsInitializing(true);
-      console.log('Creating link token...');
-      const response = await fetch('http://localhost:3001/api/create_link_token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ userId: user.id }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create link token');
-      }
-
-      const data = await response.json();
-      console.log('Link token created:', { success: !!data.link_token });
-      
-      if (mounted.current) {
-        linkTokenRef.current = data.link_token;
-        setLinkToken(data.link_token);
-        plaidInitialized.current = true;
-        tokenExpirationRef.current = Date.now() + 30 * 60 * 1000;
-      }
-    } catch (err) {
-      console.error('Error creating link token:', err);
-      if (mounted.current) {
-        setError(err instanceof Error ? err.message : 'Failed to initialize Plaid');
-      }
-    } finally {
-      setIsInitializing(false);
-    }
-  };
-
-  // Initialize Plaid only once when component mounts
-  useEffect(() => {
-    if (!plaidLinkInstance && !initializationAttempted.current && user) {
-      initializationAttempted.current = true;
-      initializePlaid();
-    }
-  }, [user]);
-
-  // Check token expiration
-  useEffect(() => {
-    const checkTokenExpiration = () => {
-      if (tokenExpirationRef.current && Date.now() >= tokenExpirationRef.current) {
-        console.log('Link token expired, refreshing...');
-        initializePlaid();
-      }
-    };
-
-    const interval = setInterval(checkTokenExpiration, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const { open, ready } = usePlaidLink({
-    token: linkToken,
-    onSuccess: async (public_token: string, metadata: any) => {
-      console.log('Plaid Link success:', { public_token, metadata });
-      try {
-        // Get the authenticated user
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-        if (userError || !user) {
-          console.error('Error getting user:', userError);
-          throw new Error('Failed to get authenticated user');
-        }
-
-        // Exchange the public token
-        const response = await fetch('http://localhost:3001/api/exchange_public_token', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            public_token,
-            metadata,
-            userId: user.id,
-            institutionName: metadata.institution?.name || 'Unknown Institution'
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Server error response:', errorData);
-          throw new Error(errorData.details || 'Failed to exchange public token');
-        }
-
-        // Clear the link token to prevent multiple initializations
-        setLinkToken(null);
-        linkTokenRef.current = null;
-        plaidInitialized.current = false;
-      } catch (error) {
-        console.error('Error exchanging public token:', error);
-        throw error;
-      }
-    },
-    onExit: (err, metadata) => {
-      console.log('Plaid Link exit:', { err, metadata });
-      // Clear the link token on exit
-      setLinkToken(null);
-      linkTokenRef.current = null;
-      plaidInitialized.current = false;
-    },
-  });
-
-  const handleClick = async () => {
-    if (!ready) {
-      console.log('Plaid Link not ready');
-      return;
-    }
-
-    try {
-      await open();
-    } catch (error) {
-      console.error('Error opening Plaid Link:', error);
-      setError(error instanceof Error ? error.message : 'Failed to open Plaid Link');
-    }
-  };
-
-  return (
-    <Button
-      onClick={handleClick}
-      disabled={!ready || isInitializing}
-      className="flex items-center gap-2"
-    >
-      <Plus className="h-4 w-4" />
-      {isInitializing ? 'Connecting...' : 'Connect Bank Account'}
-    </Button>
-  );
-};
-
 const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [transactions, setTransactions] = useState<BankTransaction[]>([]);
   const [loading, setLoading] = useState(true);
@@ -255,83 +53,9 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<BankTransaction | null>(null);
-  const [showBankFilter, setShowBankFilter] = useState(false);
-  const [showDescriptionFilter, setShowDescriptionFilter] = useState(false);
-  const [showAmountFilter, setShowAmountFilter] = useState(false);
-  const [showAccountFilter, setShowAccountFilter] = useState(false);
-  const [showTypeFilter, setShowTypeFilter] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showProfileMenu, setShowProfileMenu] = useState(false);
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState<'transactions' | 'statements'>('statements');
-  const [selectedBank, setSelectedBank] = useState<string | null>(null);
-  const [startDate, setStartDate] = useState<string>(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
-  const [endDate, setEndDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
-  const [isFetchingTransactions, setIsFetchingTransactions] = useState(false);
-  const [connectedBanks, setConnectedBanks] = useState<ConnectedBank[]>([]);
-
-  const exportToPDF = () => {
-    const doc = new jsPDF();
-    
-    // Add title
-    doc.setFontSize(16);
-    doc.text('Bank Transactions', 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Generated on ${new Date().toLocaleDateString()}`, 14, 22);
-
-    // Prepare table data
-    const tableData = transactions.map(t => [
-      new Date(t.date).toLocaleDateString(),
-      t.bank_name,
-      t.description,
-      new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD'
-      }).format(t.deposit),
-      new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD'
-      }).format(t.withdrawal),
-      t.account_number
-    ]);
-
-    // Generate table
-    autoTable(doc, {
-      head: [['Date', 'Bank', 'Description', 'Deposit', 'Withdrawal', 'Account #']],
-      body: tableData,
-      startY: 25,
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [66, 139, 202] }
-    });
-
-    // Save PDF
-    doc.save('bank-transactions.pdf');
-  };
-
-  const exportToExcel = () => {
-    // Prepare data
-    const data = transactions.map(t => ({
-      'Date': new Date(t.date).toLocaleDateString(),
-      'Bank': t.bank_name,
-      'Description': t.description,
-      'Deposit': t.deposit,
-      'Withdrawal': t.withdrawal,
-      'Account Number': t.account_number
-    }));
-
-    // Create workbook
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Bank Transactions');
-
-    // Save file
-    XLSX.writeFile(wb, 'bank-transactions.xlsx');
-  };
-
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
+  const [hoveredTransaction, setHoveredTransaction] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: '',
     bankName: '',
@@ -341,78 +65,108 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     type: ''
   });
 
+  const exportToPDF = () => {
+    const doc = new jsPDF();
+    doc.text('Bank Transactions', 14, 15);
+
+    const tableData = filteredTransactions.map(transaction => [
+      new Date(transaction.date).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      }),
+      transaction.bank_name,
+      transaction.description,
+      transaction.deposit > 0 ? `$${transaction.deposit.toFixed(2)}` : '-',
+      transaction.withdrawal > 0 ? `$${transaction.withdrawal.toFixed(2)}` : '-',
+      transaction.account_number.toString()
+    ]);
+
+    autoTable(doc, {
+      head: [['Date', 'Bank Name', 'Description', 'Deposit', 'Withdrawal', 'Account Number']],
+      body: tableData,
+      startY: 20,
+    });
+
+    doc.save('bank-transactions.pdf');
+  };
+
+  const exportToExcel = () => {
+    const data = filteredTransactions.map(transaction => ({
+      Date: new Date(transaction.date).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      }),
+      'Bank Name': transaction.bank_name,
+      Description: transaction.description,
+      Deposit: transaction.deposit,
+      Withdrawal: transaction.withdrawal,
+      'Account Number': transaction.account_number
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Bank Transactions');
+    
+    XLSX.writeFile(wb, 'bank-transactions.xlsx');
+  };
+
   const fetchTransactions = async () => {
     try {
       setLoading(true);
       setError(null);
-
-      // Get total count first
-      let countQuery = supabase
-        .from('bank_transactions')
-        .select('*', { count: 'exact', head: true });
-
-      // Apply filters to count query
-      if (filters.dateFrom) {
-        countQuery = countQuery.gte('date', filters.dateFrom);
-      }
-      if (filters.bankName) {
-        countQuery = countQuery.ilike('bank_name', `%${filters.bankName}%`);
-      }
-      if (filters.description) {
-        countQuery = countQuery.ilike('description', `%${filters.description}%`);
-      }
-      if (filters.amountMin) {
-        countQuery = countQuery.gte('amount', parseFloat(filters.amountMin));
-      }
-      if (filters.accountNumber) {
-        countQuery = countQuery.eq('account_number', filters.accountNumber);
-      }
-      if (filters.type) {
-        countQuery = countQuery.eq('credit_debit_indicator', filters.type);
-      }
-
-      const { count, error: countError } = await countQuery;
       
-      if (countError) throw countError;
-      setTotalCount(count || 0);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('No authenticated user');
+      }
 
-      // Fetch paginated data
-      let dataQuery = supabase
+      let query = supabase
         .from('bank_transactions')
-        .select('*');
+        .select('*', { count: 'exact' })
+        .eq('user_id', user.id)
+        .eq('deleted', false) // Only fetch non-deleted transactions
+        .order('date', { ascending: false });
+
+      // Apply search query to database
+      if (debouncedSearchQuery.trim()) {
+        query = query.or(`description.ilike.%${debouncedSearchQuery}%,bank_name.ilike.%${debouncedSearchQuery}%`);
+      }
 
       // Apply filters
       if (filters.dateFrom) {
-        dataQuery = dataQuery.gte('date', filters.dateFrom);
+        query = query.gte('date', filters.dateFrom);
       }
       if (filters.bankName) {
-        dataQuery = dataQuery.ilike('bank_name', `%${filters.bankName}%`);
+        query = query.ilike('bank_name', `%${filters.bankName}%`);
       }
       if (filters.description) {
-        dataQuery = dataQuery.ilike('description', `%${filters.description}%`);
+        query = query.ilike('description', `%${filters.description}%`);
       }
       if (filters.amountMin) {
-        dataQuery = dataQuery.gte('amount', parseFloat(filters.amountMin));
+        const minAmount = parseFloat(filters.amountMin);
+        query = query.or(`deposit.gte.${minAmount},withdrawal.gte.${minAmount}`);
       }
       if (filters.accountNumber) {
-        dataQuery = dataQuery.eq('account_number', filters.accountNumber);
-      }
-      if (filters.type) {
-        dataQuery = dataQuery.eq('credit_debit_indicator', filters.type);
+        query = query.eq('account_number', parseInt(filters.accountNumber));
       }
 
-      // Add pagination and ordering
-      dataQuery = dataQuery
-        .order('date', { ascending: false })
-        .range((currentPage - 1) * pageSize, currentPage * pageSize - 1);
+      // Apply pagination
+      const from = (currentPage - 1) * pageSize;
+      const to = from + pageSize - 1;
+      query = query.range(from, to);
 
-      const { data, error: dataError } = await dataQuery;
+      const { data, error, count } = await query;
 
-      if (dataError) throw dataError;
+      if (error) throw error;
+
       setTransactions(data || []);
+      setTotalCount(count || 0);
     } catch (err) {
       console.error('Error fetching transactions:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch transactions');
+      onAlert?.('Failed to fetch transactions', 'error');
     } finally {
       setLoading(false);
     }
@@ -427,260 +181,79 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     setShowEditModal(true);
   };
 
-  const handleDelete = async () => {
-    if (!selectedTransaction?.id) return;
-
+  const handleDeleteTransaction = async (transactionId: string) => {
     try {
-      setDeleteLoading(true);
-      setError(null);
+      const { error } = await supabase.rpc('soft_delete_bank_transaction', {
+        transaction_id: transactionId
+      });
 
-      // Delete the transaction
-      const { data, error: deleteError } = await supabase
-        .from('bank_transactions')
-        .delete()
-        .eq('id', selectedTransaction.id)
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+      if (error) throw error;
 
-      if (deleteError) throw deleteError;
-
-      setShowDeleteConfirm(false);
       onAlert?.('Transaction deleted successfully', 'success');
-      await fetchTransactions();
-      setSelectedTransaction(null);
+      fetchTransactions(); // Refresh the list
     } catch (err) {
       console.error('Error deleting transaction:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete transaction');
-      setShowDeleteConfirm(false);
-    } finally {
-      setDeleteLoading(false);
+      onAlert?.('Failed to delete transaction', 'error');
     }
   };
 
-  useEffect(() => {
-    fetchTransactions();
-  }, [filters, currentPage, pageSize]);
-
-  useEffect(() => {
-    const testConnection = async () => {
-      try {
-        const { data, error } = await supabase.from('bank_transactions').select('*').limit(1);
-        if (error) throw error;
-        console.log('Supabase connection successful:', data);
-      } catch (error) {
-        console.error('Supabase connection error:', error);
-      }
-    };
-    testConnection();
-  }, []);
-
-  // Calculate pagination values
-  const filteredTransactions = transactions.filter(transaction => {
-    const searchLower = searchQuery.toLowerCase();
-    return (
-      transaction.description.toLowerCase().includes(searchLower) ||
-      transaction.bank_name.toLowerCase().includes(searchLower) ||
-      transaction.account_number.toString().includes(searchLower)
-    );
-  });
-
-  const totalPages = Math.ceil(totalCount / pageSize);
-  const currentTransactions = filteredTransactions;
-
-  // Reset to first page when search query changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery]);
-
-  // Reset to first page when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filters]);
+  // Since search is now handled at database level, we don't need client-side filtering
+  const filteredTransactions = transactions;
 
   const handlePageChange = (page: number) => {
-    console.log('Changing to page:', page);
     setCurrentPage(page);
   };
 
   const getPageNumbers = () => {
-    const pageNumbers: (number | string)[] = [];
+    const totalPages = Math.ceil(totalCount / pageSize);
+    const pageNumbers = [];
     const maxVisiblePages = 5;
     
-    if (totalPages <= maxVisiblePages) {
-      // Show all pages if total pages is less than max visible
-      for (let i = 1; i <= totalPages; i++) {
-        pageNumbers.push(i);
-      }
-    } else {
-      // Always show first page
-      pageNumbers.push(1);
-      
-      // Calculate start and end of visible pages
-      let startPage = Math.max(2, currentPage - 1);
-      let endPage = Math.min(totalPages - 1, startPage + 2);
-      
-      // Adjust if we're near the end
-      if (endPage === totalPages - 1) {
-        startPage = Math.max(2, endPage - 2);
-      }
-      
-      // Add ellipsis if needed
-      if (startPage > 2) {
-        pageNumbers.push('...');
-      }
-      
-      // Add visible pages
-      for (let i = startPage; i <= endPage; i++) {
-        pageNumbers.push(i);
-      }
-      
-      // Add ellipsis if needed
-      if (endPage < totalPages - 1) {
-        pageNumbers.push('...');
-      }
-      
-      // Always show last page
-      pageNumbers.push(totalPages);
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+    
+    if (endPage - startPage < maxVisiblePages - 1) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pageNumbers.push(i);
     }
     
     return pageNumbers;
   };
 
-  const getTabStyle = (tab: 'transactions' | 'statements') => {
-    const colorSchemes = {
-      statements: {
-        background: activeTab === tab ? '#4F46E5' : '#EEF2FF',
-        text: activeTab === tab ? 'white' : '#4F46E5',
-        border: activeTab === tab ? 'transparent' : '#4F46E5',
-        hover: {
-          background: activeTab === tab ? '#4F46E5' : '#E0E7FF',
-          text: '#4F46E5'
-        },
-        shadow: activeTab === tab ? '0 4px 6px -1px rgba(79, 70, 229, 0.1), 0 2px 4px -1px rgba(79, 70, 229, 0.06)' : 'none'
-      },
-      transactions: {
-        background: activeTab === tab ? '#059669' : '#ECFDF5',
-        text: activeTab === tab ? 'white' : '#059669',
-        border: activeTab === tab ? 'transparent' : '#059669',
-        hover: {
-          background: activeTab === tab ? '#059669' : '#D1FAE5',
-          text: '#059669'
-        },
-        shadow: activeTab === tab ? '0 4px 6px -1px rgba(5, 150, 105, 0.1), 0 2px 4px -1px rgba(5, 150, 105, 0.06)' : 'none'
-      }
-    };
+  // Debounce search query to avoid too many API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery);
+    }, 500); // 500ms delay
 
-    const scheme = colorSchemes[tab];
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
-    return {
-      padding: '0.875rem 1.75rem',
-      fontSize: '0.875rem',
-      fontWeight: activeTab === tab ? 600 : 500,
-      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-      cursor: 'pointer',
-      border: `1px solid ${scheme.border}`,
-      borderBottom: activeTab === tab ? 'none' : `1px solid ${scheme.border}`,
-      borderTopLeftRadius: '0.5rem',
-      borderTopRightRadius: '0.5rem',
-      marginRight: '0.5rem',
-      marginBottom: '-1px',
-      background: scheme.background,
-      color: scheme.text,
-      boxShadow: scheme.shadow,
-      position: 'relative' as const,
-      '&:hover': {
-        background: scheme.hover.background,
-        color: scheme.hover.text,
-        transform: activeTab === tab ? 'none' : 'translateY(-1px)',
-      }
-    };
-  };
-
-  // Function to fetch connected banks
-  const fetchConnectedBanks = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from('connected_banks')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setConnectedBanks(data || []);
-    } catch (err) {
-      console.error('Error fetching connected banks:', err);
-      onAlert?.('Failed to fetch connected banks', 'error');
+  // Reset to first page when search query changes
+  useEffect(() => {
+    if (debouncedSearchQuery !== searchQuery) return; // Only reset when debounced query is set
+    if (currentPage !== 1) {
+      setCurrentPage(1);
     }
-  };
-
-  // Function to fetch transactions
-  const fetchPlaidTransactions = async () => {
-    if (!selectedBank) {
-      onAlert?.('Please select a bank account first', 'warning');
-      return;
-    }
-
-    try {
-      setIsFetchingTransactions(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No authenticated user');
-
-      const response = await fetch('/api/fetch_transactions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          bankId: selectedBank,
-          startDate,
-          endDate,
-        }),
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch transactions');
-      const { transactions } = await response.json();
-
-      // Process and save transactions
-      const { error } = await supabase
-        .from('bank_transactions')
-        .insert(
-          transactions.map((t: any) => ({
-            user_id: user.id,
-            date: t.date,
-            bank_name: t.bank_name,
-            description: t.name,
-            amount: t.amount,
-            account_number: t.account_id,
-            credit_debit_indicator: t.amount > 0 ? 'credit' : 'debit',
-          }))
-        );
-
-      if (error) throw error;
-      onAlert?.('Transactions fetched and saved successfully', 'success');
-      fetchTransactions(); // Refresh the transactions list
-    } catch (err) {
-      console.error('Error fetching transactions:', err);
-      onAlert?.('Failed to fetch transactions. Please try again.', 'error');
-    } finally {
-      setIsFetchingTransactions(false);
-    }
-  };
+  }, [debouncedSearchQuery]);
 
   useEffect(() => {
-    if (activeTab === 'statements') {
-      fetchConnectedBanks();
-    }
-  }, [activeTab]);
+    fetchTransactions();
+  }, [currentPage, filters, debouncedSearchQuery]);
 
   const columns = [
     {
       key: 'date',
       label: 'Date',
       sortable: true,
-      render: (value: string) => new Date(value).toLocaleDateString()
+      render: (value: string) => new Date(value).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        year: 'numeric' 
+      })
     },
     {
       key: 'bank_name',
@@ -719,74 +292,115 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
       key: 'actions',
       label: 'Actions',
       sortable: false,
-      render: (_, row: BankTransaction) => (
+      render: (_: any, row: BankTransaction) => (
         <div className="flex space-x-2">
-          <div className="relative group">
+          <div className="relative">
             <button
-              className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-              title="View Details"
+              onMouseEnter={() => setHoveredTransaction(row.id)}
+              onMouseLeave={() => setHoveredTransaction(null)}
+              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-all duration-200"
+              title="View Transaction Details"
+              onClick={() => {
+                setSelectedTransaction(row);
+                setShowViewModal(true);
+              }}
             >
-              <Search className="w-4 h-4" />
+              <Eye className="w-4 h-4" />
             </button>
-            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-              <div className="space-y-2 text-sm">
-                <div>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">Date:</span>
-                  <span className="ml-2 text-gray-600 dark:text-gray-400">
-                    {new Date(row.date).toLocaleString('en-US', {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: true
-                    })}
-                  </span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">Bank:</span>
-                  <span className="ml-2 text-gray-600 dark:text-gray-400">
-                    {row.bank_name}
-                  </span>
-                </div>
-                <div>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">Description:</span>
-                  <span className="ml-2 text-gray-600 dark:text-gray-400">
-                    {row.description}
-                  </span>
-                </div>
-                {row.deposit > 0 && (
-                  <div>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">Deposit:</span>
-                    <span className="ml-2 text-green-600 dark:text-green-400">
-                      {new Intl.NumberFormat('en-US', {
-                        style: 'currency',
-                        currency: 'USD'
-                      }).format(row.deposit)}
-                    </span>
+            
+            {/* Hover Card */}
+            {hoveredTransaction === row.id && (
+              <div className="absolute right-0 top-8 z-50 w-80 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                    <Info className="w-4 h-4 text-blue-500" />
+                    <h4 className="font-semibold text-gray-900 dark:text-white">Transaction Details</h4>
                   </div>
-                )}
-                {row.withdrawal > 0 && (
-                  <div>
-                    <span className="font-medium text-gray-700 dark:text-gray-300">Withdrawal:</span>
-                    <span className="ml-2 text-red-600 dark:text-red-400">
-                      {new Intl.NumberFormat('en-US', {
-                        style: 'currency',
-                        currency: 'USD'
-                      }).format(row.withdrawal)}
-                    </span>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Date:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">
+                        {new Date(row.date).toLocaleDateString()}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Bank:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{row.bank_name}</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Description:</span>
+                      <span className="font-medium text-gray-900 dark:text-white text-right max-w-48 truncate">
+                        {row.description}
+                      </span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Type:</span>
+                      <span className={`font-medium ${row.credit_debit_indicator === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        {row.credit_debit_indicator === 'credit' ? 'Credit' : 'Debit'}
+                      </span>
+                    </div>
+                    
+                    {row.deposit > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Deposit:</span>
+                        <span className="font-medium text-green-600 dark:text-green-400">
+                          {new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD'
+                          }).format(row.deposit)}
+                        </span>
+                      </div>
+                    )}
+                    
+                    {row.withdrawal > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Withdrawal:</span>
+                        <span className="font-medium text-red-600 dark:text-red-400">
+                          {new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD'
+                          }).format(row.withdrawal)}
+                        </span>
+                      </div>
+                    )}
+                    
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Account:</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{row.account_number}</span>
+                    </div>
+                    
+                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-500 dark:text-gray-400">Created:</span>
+                        <span className="text-gray-600 dark:text-gray-300">
+                          {new Date(row.created_at).toLocaleString()}
+                        </span>
+                      </div>
+                      {row.updated_at && row.updated_at !== row.created_at && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500 dark:text-gray-400">Updated:</span>
+                          <span className="text-gray-600 dark:text-gray-300">
+                            {new Date(row.updated_at).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-                <div>
-                  <span className="font-medium text-gray-700 dark:text-gray-300">Account:</span>
-                  <span className="ml-2 text-gray-600 dark:text-gray-400">
-                    {row.account_number}
-                  </span>
                 </div>
               </div>
-              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white dark:bg-gray-800 border-r border-b border-gray-200 dark:border-gray-700 transform rotate-45"></div>
-            </div>
+            )}
           </div>
+          <button
+            onClick={() => handleDeleteTransaction(row.id)}
+            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all duration-200"
+            title="Delete Transaction"
+          >
+            <Trash2 className="w-4 h-4 text-red-500" />
+          </button>
         </div>
       )
     }
@@ -795,577 +409,367 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Banking</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Bank Transactions</h1>
       </div>
 
-      <div className="flex mb-0 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('statements')}
-          style={getTabStyle('statements')}
-          className={`${activeTab === 'statements' ? 'shadow-sm' : ''} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
-        >
-          <div className="flex items-center space-x-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            <span>Bank Integration</span>
-          </div>
-        </button>
-        <button
-          onClick={() => setActiveTab('transactions')}
-          style={getTabStyle('transactions')}
-          className={`${activeTab === 'transactions' ? 'shadow-sm' : ''} focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500`}
-        >
-          <div className="flex items-center space-x-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <span>Transactions</span>
-          </div>
-        </button>
-      </div>
-
-      <div className="bg-white dark:bg-gray-900 rounded-b-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
-        {activeTab === 'statements' ? (
-          <div className="p-6">
-            <div className="max-w-3xl mx-auto space-y-8">
-              <div className="text-center">
-                <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Bank Integration</h2>
-                <p className="mt-2 text-gray-600 dark:text-gray-400">
-                  Connect your bank accounts and fetch transactions directly.
-                </p>
-              </div>
-
-              {/* Connect New Bank Button */}
-              <div className="flex justify-center">
-                <PlaidLinkButton />
-              </div>
-
-              {/* Connected Banks Section */}
-              {connectedBanks.length > 0 && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Connected Banks</h3>
-                  <div className="space-y-4">
-                    {connectedBanks.map((bank) => (
-                      <div
-                        key={bank.id}
-                        className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
-                      >
-                        <div className="flex items-center space-x-4">
-                          <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                            <Landmark className="w-5 h-5 text-blue-600 dark:text-blue-300" />
-                          </div>
-                          <div>
-                            <h4 className="font-medium text-gray-900 dark:text-white">{bank.institution_name}</h4>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              Connected on {new Date(bank.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <button
-                            onClick={() => {
-                              setSelectedBank(bank.id);
-                              setActiveTab('transactions');
-                            }}
-                            className="px-3 py-1 text-sm bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors"
-                          >
-                            View Transactions
-                          </button>
-                          <button
-                            onClick={async () => {
-                              try {
-                                const { error } = await supabase
-                                  .from('connected_banks')
-                                  .delete()
-                                  .eq('id', bank.id);
-                                
-                                if (error) throw error;
-                                
-                                await fetchConnectedBanks();
-                                onAlert?.('Bank account disconnected successfully', 'success');
-                              } catch (err) {
-                                console.error('Error disconnecting bank:', err);
-                                onAlert?.('Failed to disconnect bank account', 'error');
-                              }
-                            }}
-                            className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Date Range Selection */}
-              {selectedBank && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Select Date Range</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Start Date
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="date"
-                          value={startDate}
-                          onChange={(e) => setStartDate(e.target.value)}
-                          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        <Calendar className="absolute right-3 top-2.5 w-5 h-5 text-gray-400" />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        End Date
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="date"
-                          value={endDate}
-                          onChange={(e) => setEndDate(e.target.value)}
-                          className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                        <Calendar className="absolute right-3 top-2.5 w-5 h-5 text-gray-400" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                {selectedBank && (
-                  <button
-                    onClick={fetchPlaidTransactions}
-                    disabled={isFetchingTransactions}
-                    className="w-full sm:w-auto px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors"
-                  >
-                    {isFetchingTransactions ? (
-                      <RefreshCw className="w-5 h-5 animate-spin" />
-                    ) : (
-                      <Download className="w-5 h-5" />
-                    )}
-                    <span>{isFetchingTransactions ? 'Fetching...' : 'Fetch Transactions'}</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <div className="flex items-center space-x-4">
-                <button
-                  onClick={fetchTransactions}
-                  className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
-                  disabled={loading}
-                  title="Refresh"
-                >
-                  <RefreshCw 
-                    className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} 
-                  />
-                  <span>Refresh</span>
-                </button>
-                <div className="relative group">
-                  <Button
-                    variant="default"
-                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 group flex items-center justify-center overflow-hidden min-w-[40px] min-h-[40px]"
-                    onClick={() => setShowAddModal(true)}
-                  >
-                    <Plus className="w-6 h-6 flex-shrink-0" />
-                    <span className="w-0 group-hover:w-auto group-hover:ml-2 opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap">
-                      Add Bank Transaction
-                    </span>
-                  </Button>
-                </div>
-              </div>
-              <div className="flex items-center space-x-4">
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search transactions..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-64 px-4 py-2 pl-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
-                  />
-                  <svg
-                    className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
-                </div>
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={fetchTransactions}
+                className="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-200"
+                disabled={loading}
+                title="Refresh"
+              >
+                <RefreshCw 
+                  className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} 
+                />
+                <span>Refresh</span>
+              </button>
+              <div className="relative group">
                 <Button
                   variant="default"
-                  className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5 flex items-center space-x-2"
-                  onClick={() => setShowUploadModal(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 group flex items-center justify-center overflow-hidden min-w-[40px] min-h-[40px]"
+                  onClick={() => setShowAddModal(true)}
                 >
-                  <Upload className="w-4 h-4" />
-                  <span>Upload Transactions</span>
+                  <Plus className="w-6 h-6 flex-shrink-0" />
+                  <span className="w-0 group-hover:w-auto group-hover:ml-2 opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap">
+                    Add Bank Transaction
+                  </span>
                 </Button>
-                <button
-                  onClick={exportToPDF}
-                  className="p-2 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
-                  title="Export to PDF"
-                >
-                  <FileText className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={exportToExcel}
-                  className="p-2 text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
-                  title="Export to Excel"
-                >
-                  <FileSpreadsheet className="w-5 h-5" />
-                </button>
               </div>
             </div>
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded p-4 mb-6 text-red-700">
-                {error}
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search all transactions..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-64 px-4 py-2 pl-10 pr-10 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white"
+                />
+                <svg
+                  className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                {/* Show loading spinner when search is being debounced */}
+                {searchQuery !== debouncedSearchQuery && (
+                  <div className="absolute right-3 top-2.5">
+                    <div className="animate-spin h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full"></div>
+                  </div>
+                )}
               </div>
-            )}
-
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
-                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                        Date
-                      </span>
-                    </th>
-                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                          Bank name
-                        </span>
-                        <button
-                          onClick={() => setShowBankFilter(!showBankFilter)}
-                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                        >
-                          <ChevronDown className="w-4 h-4" />
-                        </button>
-                      </div>
-                      {showBankFilter && (
-                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
-                          <div className="p-2">
-                            <input
-                              type="text"
-                              value={filters.bankName}
-                              onChange={(e) => handleFilterChange('bankName', e.target.value)}
-                              placeholder="Filter bank..."
-                              className="w-full px-2 py-1 text-sm border rounded-md"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </th>
-                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                          Description
-                        </span>
-                        <button
-                          onClick={() => setShowDescriptionFilter(!showDescriptionFilter)}
-                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                        >
-                          <ChevronDown className="w-4 h-4" />
-                        </button>
-                      </div>
-                      {showDescriptionFilter && (
-                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
-                          <div className="p-2">
-                            <input
-                              type="text"
-                              value={filters.description}
-                              onChange={(e) => handleFilterChange('description', e.target.value)}
-                              placeholder="Filter description..."
-                              className="w-full px-2 py-1 text-sm border rounded-md"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </th>
-                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                          Deposit
-                        </span>
-                        <button
-                          onClick={() => setShowAmountFilter(!showAmountFilter)}
-                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                        >
-                          <ChevronDown className="w-4 h-4" />
-                        </button>
-                      </div>
-                      {showAmountFilter && (
-                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
-                          <div className="p-2">
-                            <input
-                              type="number"
-                              value={filters.amountMin}
-                              onChange={(e) => handleFilterChange('amountMin', e.target.value)}
-                              placeholder="Min amount..."
-                              className="w-full px-2 py-1 text-sm border rounded-md"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </th>
-                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                          Withdrawal
-                        </span>
-                        <button
-                          onClick={() => setShowAmountFilter(!showAmountFilter)}
-                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                        >
-                          <ChevronDown className="w-4 h-4" />
-                        </button>
-                      </div>
-                      {showAmountFilter && (
-                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
-                          <div className="p-2">
-                            <input
-                              type="number"
-                              value={filters.amountMin}
-                              onChange={(e) => handleFilterChange('amountMin', e.target.value)}
-                              placeholder="Min amount..."
-                              className="w-full px-2 py-1 text-sm border rounded-md"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </th>
-                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                          Account number
-                        </span>
-                        <button
-                          onClick={() => setShowAccountFilter(!showAccountFilter)}
-                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                        >
-                          <ChevronDown className="w-4 h-4" />
-                        </button>
-                      </div>
-                      {showAccountFilter && (
-                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
-                          <div className="p-2">
-                            <input
-                              type="text"
-                              value={filters.accountNumber}
-                              onChange={(e) => handleFilterChange('accountNumber', e.target.value)}
-                              placeholder="Filter account..."
-                              className="w-full px-2 py-1 text-sm border rounded-md"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </th>
-                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
-                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                        Actions
-                      </span>
-                    </th>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {currentTransactions.map((transaction) => (
-                    <TableRow key={transaction.id}>
-                      <TableCell>
-                        <span className="text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                          {new Date(transaction.date).toLocaleDateString('en-US', { 
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
-                        </span>
-                      </TableCell>
-                      <TableCell>{transaction.bank_name}</TableCell>
-                      <TableCell>{transaction.description}</TableCell>
-                      <TableCell>
-                        <span className={transaction.deposit > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                          {transaction.deposit > 0 ? new Intl.NumberFormat('en-US', {
-                            style: 'currency',
-                            currency: 'USD'
-                          }).format(transaction.deposit) : '-'}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <span className={transaction.withdrawal > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}>
-                          {transaction.withdrawal > 0 ? new Intl.NumberFormat('en-US', {
-                            style: 'currency',
-                            currency: 'USD'
-                          }).format(transaction.withdrawal) : '-'}
-                        </span>
-                      </TableCell>
-                      <TableCell>{transaction.account_number}</TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <div className="relative group">
-                            <button
-                              className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                              title="View Details"
-                            >
-                              <Search className="w-4 h-4" />
-                            </button>
-                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
-                              <div className="space-y-2 text-sm">
-                                <div>
-                                  <span className="font-medium text-gray-700 dark:text-gray-300">Date:</span>
-                                  <span className="ml-2 text-gray-600 dark:text-gray-400">
-                                    {new Date(transaction.date).toLocaleString('en-US', {
-                                      year: 'numeric',
-                                      month: 'short',
-                                      day: 'numeric',
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                      hour12: true
-                                    })}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="font-medium text-gray-700 dark:text-gray-300">Bank:</span>
-                                  <span className="ml-2 text-gray-600 dark:text-gray-400">
-                                    {transaction.bank_name}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="font-medium text-gray-700 dark:text-gray-300">Description:</span>
-                                  <span className="ml-2 text-gray-600 dark:text-gray-400">
-                                    {transaction.description}
-                                  </span>
-                                </div>
-                                {transaction.deposit > 0 && (
-                                  <div>
-                                    <span className="font-medium text-gray-700 dark:text-gray-300">Deposit:</span>
-                                    <span className="ml-2 text-green-600 dark:text-green-400">
-                                      {new Intl.NumberFormat('en-US', {
-                                        style: 'currency',
-                                        currency: 'USD'
-                                      }).format(transaction.deposit)}
-                                    </span>
-                                  </div>
-                                )}
-                                {transaction.withdrawal > 0 && (
-                                  <div>
-                                    <span className="font-medium text-gray-700 dark:text-gray-300">Withdrawal:</span>
-                                    <span className="ml-2 text-red-600 dark:text-red-400">
-                                      {new Intl.NumberFormat('en-US', {
-                                        style: 'currency',
-                                        currency: 'USD'
-                                      }).format(transaction.withdrawal)}
-                                    </span>
-                                  </div>
-                                )}
-                                <div>
-                                  <span className="font-medium text-gray-700 dark:text-gray-300">Account:</span>
-                                  <span className="ml-2 text-gray-600 dark:text-gray-400">
-                                    {transaction.account_number}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white dark:bg-gray-800 border-r border-b border-gray-200 dark:border-gray-700 transform rotate-45"></div>
-                            </div>
-                          </div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-
-              {/* Pagination Controls */}
-              {currentTransactions.length > 0 && (
-                <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      {totalCount > 0 ? (
-                        `Showing ${((currentPage - 1) * pageSize) + 1} to ${Math.min(currentPage * pageSize, totalCount)} of ${totalCount} entries`
-                      ) : (
-                        'No entries to display'
-                      )}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={() => setCurrentPage(1)}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      First
-                    </button>
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1}
-                      className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Previous
-                    </button>
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      Page {currentPage} of {Math.max(1, totalPages)}
-                    </span>
-                    <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Next
-                    </button>
-                    <button
-                      onClick={() => setCurrentPage(totalPages)}
-                      disabled={currentPage === totalPages}
-                      className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Last
-                    </button>
-                  </div>
-                </div>
-              )}
+              <Button
+                variant="default"
+                className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5 flex items-center space-x-2"
+                onClick={() => setShowUploadModal(true)}
+              >
+                <Upload className="w-4 h-4" />
+                <span>Upload Transactions</span>
+              </Button>
+              <button
+                onClick={exportToPDF}
+                className="p-2 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                title="Export to PDF"
+              >
+                <FileText className="w-5 h-5" />
+              </button>
+              <button
+                onClick={exportToExcel}
+                className="p-2 text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
+                title="Export to Excel"
+              >
+                <FileSpreadsheet className="w-5 h-5" />
+              </button>
             </div>
           </div>
-        )}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded p-4 mb-6 text-red-700">
+              {error}
+            </div>
+          )}
+
+                     <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+             <Table>
+               <TableHeader>
+                 <TableRow>
+                   <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                     <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Date</span>
+                   </th>
+                   <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                     <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Bank Name</span>
+                   </th>
+                   <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                     <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Description</span>
+                   </th>
+                   <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                     <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Deposit</span>
+                   </th>
+                   <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                     <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Withdrawal</span>
+                   </th>
+                   <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                     <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Account Number</span>
+                   </th>
+                   <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                     <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Actions</span>
+                   </th>
+                 </TableRow>
+               </TableHeader>
+               <TableBody>
+                 {filteredTransactions.map((transaction) => (
+                   <TableRow key={transaction.id}>
+                     <TableCell>
+                       <span className="text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                         {new Date(transaction.date).toLocaleDateString('en-US', { 
+                           month: 'short', 
+                           day: 'numeric', 
+                           year: 'numeric' 
+                         })}
+                       </span>
+                     </TableCell>
+                     <TableCell>{transaction.bank_name}</TableCell>
+                     <TableCell>{transaction.description}</TableCell>
+                     <TableCell>
+                       <span className={transaction.deposit > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}>
+                         {transaction.deposit > 0 ? new Intl.NumberFormat('en-US', {
+                           style: 'currency',
+                           currency: 'USD'
+                         }).format(transaction.deposit) : '-'}
+                       </span>
+                     </TableCell>
+                     <TableCell>
+                       <span className={transaction.withdrawal > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}>
+                         {transaction.withdrawal > 0 ? new Intl.NumberFormat('en-US', {
+                           style: 'currency',
+                           currency: 'USD'
+                         }).format(transaction.withdrawal) : '-'}
+                       </span>
+                     </TableCell>
+                     <TableCell>{transaction.account_number}</TableCell>
+                     <TableCell>
+                       <div className="flex space-x-2">
+                         <div className="relative">
+                           <button
+                             onMouseEnter={() => setHoveredTransaction(transaction.id)}
+                             onMouseLeave={() => setHoveredTransaction(null)}
+                             className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-all duration-200"
+                             title="View Transaction Details"
+                             onClick={() => {
+                               setSelectedTransaction(transaction);
+                               setShowViewModal(true);
+                             }}
+                           >
+                             <Eye className="w-4 h-4" />
+                           </button>
+                           
+                           {/* Hover Card */}
+                           {hoveredTransaction === transaction.id && (
+                             <div className="absolute right-0 top-8 z-50 w-80 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl">
+                               <div className="space-y-3">
+                                 <div className="flex items-center gap-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                                   <Info className="w-4 h-4 text-blue-500" />
+                                   <h4 className="font-semibold text-gray-900 dark:text-white">Transaction Details</h4>
+                                 </div>
+                                 
+                                 <div className="space-y-2 text-sm">
+                                                                        <div className="flex justify-between">
+                                       <span className="text-gray-600 dark:text-gray-400">Date:</span>
+                                       <span className="font-medium text-gray-900 dark:text-white">
+                                         {new Date(transaction.date).toLocaleDateString('en-US', { 
+                                           month: 'short', 
+                                           day: 'numeric', 
+                                           year: 'numeric' 
+                                         })}
+                                       </span>
+                                     </div>
+                                   
+                                   <div className="flex justify-between">
+                                     <span className="text-gray-600 dark:text-gray-400">Bank:</span>
+                                     <span className="font-medium text-gray-900 dark:text-white">{transaction.bank_name}</span>
+                                   </div>
+                                   
+                                   <div className="flex justify-between">
+                                     <span className="text-gray-600 dark:text-gray-400">Description:</span>
+                                     <span className="font-medium text-gray-900 dark:text-white text-right max-w-48 truncate">
+                                       {transaction.description}
+                                     </span>
+                                   </div>
+                                   
+                                   <div className="flex justify-between">
+                                     <span className="text-gray-600 dark:text-gray-400">Type:</span>
+                                     <span className={`font-medium ${transaction.credit_debit_indicator === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                                       {transaction.credit_debit_indicator === 'credit' ? 'Credit' : 'Debit'}
+                                     </span>
+                                   </div>
+                                   
+                                   {transaction.deposit > 0 && (
+                                     <div className="flex justify-between">
+                                       <span className="text-gray-600 dark:text-gray-400">Deposit:</span>
+                                       <span className="font-medium text-green-600 dark:text-green-400">
+                                         {new Intl.NumberFormat('en-US', {
+                                           style: 'currency',
+                                           currency: 'USD'
+                                         }).format(transaction.deposit)}
+                                       </span>
+                                     </div>
+                                   )}
+                                   
+                                   {transaction.withdrawal > 0 && (
+                                     <div className="flex justify-between">
+                                       <span className="text-gray-600 dark:text-gray-400">Withdrawal:</span>
+                                       <span className="font-medium text-red-600 dark:text-red-400">
+                                         {new Intl.NumberFormat('en-US', {
+                                           style: 'currency',
+                                           currency: 'USD'
+                                         }).format(transaction.withdrawal)}
+                                       </span>
+                                     </div>
+                                   )}
+                                   
+                                   <div className="flex justify-between">
+                                     <span className="text-gray-600 dark:text-gray-400">Account:</span>
+                                     <span className="font-medium text-gray-900 dark:text-white">{transaction.account_number}</span>
+                                   </div>
+                                   
+                                   <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
+                                     <div className="flex justify-between text-xs">
+                                       <span className="text-gray-500 dark:text-gray-400">Created:</span>
+                                       <span className="text-gray-600 dark:text-gray-300">
+                                         {new Date(transaction.created_at).toLocaleString()}
+                                       </span>
+                                     </div>
+                                     {transaction.updated_at && transaction.updated_at !== transaction.created_at && (
+                                       <div className="flex justify-between text-xs">
+                                         <span className="text-gray-500 dark:text-gray-400">Updated:</span>
+                                         <span className="text-gray-600 dark:text-gray-300">
+                                           {new Date(transaction.updated_at).toLocaleString()}
+                                         </span>
+                                       </div>
+                                     )}
+                                   </div>
+                                 </div>
+                               </div>
+                             </div>
+                           )}
+                         </div>
+                         <button
+                           onClick={() => handleDeleteTransaction(transaction.id)}
+                           className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all duration-200"
+                           title="Delete Transaction"
+                         >
+                           <Trash2 className="w-4 h-4 text-red-500" />
+                         </button>
+                       </div>
+                     </TableCell>
+                   </TableRow>
+                 ))}
+               </TableBody>
+             </Table>
+           </div>
+
+          {/* Pagination */}
+          {totalCount > pageSize && (
+            <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 sm:px-6">
+              <div className="flex flex-1 justify-between sm:hidden">
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === Math.ceil(totalCount / pageSize)}
+                  className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  Next
+                </button>
+              </div>
+              <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm text-gray-700 dark:text-gray-300">
+                    Showing{' '}
+                    <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> to{' '}
+                    <span className="font-medium">
+                      {Math.min(currentPage * pageSize, totalCount)}
+                    </span>{' '}
+                    of <span className="font-medium">{totalCount}</span> results
+                  </p>
+                </div>
+                <div>
+                  <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                    <button
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:z-20 focus:outline-offset-0"
+                    >
+                      <span className="sr-only">Previous</span>
+                      Previous
+                    </button>
+                    {getPageNumbers().map((number) => (
+                      <button
+                        key={number}
+                        onClick={() => handlePageChange(number)}
+                        className={cn(
+                          'relative inline-flex items-center px-4 py-2 text-sm font-semibold',
+                          number === currentPage
+                            ? 'z-10 bg-blue-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600'
+                            : 'text-gray-900 dark:text-gray-300 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:z-20 focus:outline-offset-0'
+                        )}
+                      >
+                        {number}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === Math.ceil(totalCount / pageSize)}
+                      className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:z-20 focus:outline-offset-0"
+                    >
+                      <span className="sr-only">Next</span>
+                      Next
+                    </button>
+                  </nav>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      <BankTransactionUploadModal
-        isOpen={showUploadModal}
-        onClose={() => setShowUploadModal(false)}
-        onAlert={onAlert}
-        onSuccess={fetchTransactions}
+      {/* Modals */}
+             <BankTransactionUploadModal
+         isOpen={showUploadModal}
+         onClose={() => setShowUploadModal(false)}
+         onAlert={onAlert}
+         onSuccess={fetchTransactions}
+       />
+
+      <BankTransactionViewModal
+        isOpen={showViewModal}
+        onClose={() => setShowViewModal(false)}
+        transaction={selectedTransaction}
       />
-      
+
       <BankTransactionAddModal
         isOpen={showAddModal}
         onClose={() => setShowAddModal(false)}
         onAlert={onAlert}
         onSave={fetchTransactions}
       />
-      
-      <BankTransactionViewModal
-        isOpen={showViewModal}
-        onClose={() => {
-          setShowViewModal(false);
-          setSelectedTransaction(null);
-        }}
-        transaction={selectedTransaction}
-      />
-      
-      {/* Delete Confirmation Modal */}
+
       <BankTransactionEditModal
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}

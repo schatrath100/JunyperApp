@@ -7,6 +7,7 @@ import Journals from './pages/Journals';
 import SalesItems from './pages/SalesItems';
 import Customers from './pages/Customers';
 import BankTransactions from './pages/BankTransactions';
+import BankingSetup from './pages/BankingSetup';
 import Settings from './pages/Settings';
 import PurchaseItems from './pages/PurchaseItems';
 import Vendors from './pages/Vendors';
@@ -21,6 +22,7 @@ import { supabase } from './lib/supabase';
 import { Alert } from './components/Alert';
 import SydneyAI from './pages/SydneyAI';
 import { ToastProvider, ToastViewport } from './components/ui/toast';
+import { useNotifications } from './hooks/useNotifications';
 
 function App() {
   const mainRef = React.useRef<HTMLDivElement>(null);
@@ -29,6 +31,21 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  
+  // Use the new notification system
+  const { 
+    unreadNotifications, 
+    unreadCount, 
+    markAsRead, 
+    dismiss,
+    markAllAsRead,
+    createTestNotification
+  } = useNotifications();
+
+  // Expose test function to window for debugging
+  React.useEffect(() => {
+    (window as any).createTestNotification = createTestNotification;
+  }, [createTestNotification]);
 
   const addAlert = (message: string, type: Alert['type'] = 'info') => {
     const newAlert: Alert = {
@@ -90,7 +107,13 @@ function App() {
           </Routes>
         ) : (
           <div className="min-h-screen flex flex-col bg-white dark:bg-gray-900">
-            <Navbar alerts={alerts} onDismiss={(id) => setAlerts(prev => prev.filter(a => a.id !== id))} />
+            <Navbar 
+              notifications={unreadNotifications} 
+              unreadCount={unreadCount}
+              onMarkAsRead={markAsRead}
+              onDismiss={dismiss}
+              onMarkAllAsRead={markAllAsRead}
+            />
             <div className="flex flex-1 relative">
               <Sidebar 
                 onToggleShortcuts={toggleShortcuts} 
@@ -111,7 +134,8 @@ function App() {
                   <Route path="/journals" element={<Journals />} />
                   <Route path="/sales/items" element={<SalesItems />} />
                   <Route path="/sales/customers" element={<Customers />} />
-                  <Route path="/bank-transactions" element={<BankTransactions />} />
+                  <Route path="/bank-transactions" element={<BankTransactions onAlert={addAlert} />} />
+                  <Route path="/banking/setup" element={<BankingSetup onAlert={addAlert} />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/purchases/items" element={<PurchaseItems />} />
                   <Route path="/purchases/vendors" element={<Vendors />} />

@@ -15,8 +15,7 @@ const ShortcutPanel: React.FC<ShortcutPanelProps> = ({ isOpen, onClose }) => {
     { icon: <LayoutDashboard className="w-5 h-5" />, label: 'Dashboard', path: '/dashboard' },
     { icon: <BookOpen className="w-5 h-5" />, label: 'Accounts', path: '/accounts' },
     { icon: <FileText className="w-5 h-5" />, label: 'Invoices', path: '/sales/invoices' },
-    { icon: <Receipt className="w-5 h-5" />, label: 'Bills', path: '/purchases/bills' },
-    { icon: <Bot className="w-5 h-5" />, label: 'Sydney AI', path: '/sydney-ai' },
+    { icon: <Receipt className="w-5 h-5" />, label: 'Expenses', path: '/purchases/bills' },
     { icon: <BookOpenCheck className="w-5 h-5" />, label: 'Journals', path: '/journals' },
     { icon: <Wallet className="w-5 h-5" />, label: 'Banking', path: '/bank-transactions' },
   ];

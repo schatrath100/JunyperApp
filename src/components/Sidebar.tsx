@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LayoutGrid, Landmark, Receipt, Bot, Settings, LogOut, Sparkles, ChevronDown, Users, FileText, Building2, ScrollText, Package, Boxes, BookOpenCheck, Wallet, Check, User2, ChevronLeft, ChevronRight, BarChart3, UserCircle2, PackageSearch, ShoppingBag, Store, PanelLeftClose, PanelRightOpen } from 'lucide-react';
+import { LayoutGrid, Landmark, Receipt, Bot, Settings, LogOut, Sparkles, ChevronDown, Users, FileText, Building2, ScrollText, Package, Boxes, BookOpenCheck, Wallet, Check, User2, ChevronLeft, ChevronRight, BarChart3, UserCircle2, PackageSearch, ShoppingBag, Store, PanelLeftClose, PanelRightOpen, ArrowUpDown, Calculator, CreditCard } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
@@ -74,7 +74,7 @@ const NavItem: React.FC<NavItemProps> = ({
     <div>
       <button 
         className={`
-          w-full flex items-center justify-between px-3 py-1.5 rounded-lg
+          w-full flex items-center justify-between px-2.5 py-1 rounded-md
           ${active ? 'bg-green-50 dark:bg-green-900/50 text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'}
           transition-colors duration-150
           ${className}
@@ -82,9 +82,9 @@ const NavItem: React.FC<NavItemProps> = ({
         onClick={handleClick}
         title={typeof label === 'string' ? label : "I'm Sydney—ask me anything about your books!"}
       >
-        <div className={`flex items-center ${collapsed ? 'justify-center w-8 h-8' : 'space-x-3'}`}>
+        <div className={`flex items-center ${collapsed ? 'justify-center w-7 h-7' : 'space-x-2.5'}`}>
           {icon}
-          {!collapsed && <span className="font-medium">{label}</span>}
+          {!collapsed && <span className="font-medium text-sm">{label}</span>}
         </div>
         {rightIcon}
       </button>
@@ -148,11 +148,11 @@ const Sidebar: React.FC<{
   return (
     <aside className={`hidden md:flex flex-col fixed top-16 left-0 ${collapsed ? 'w-16' : 'w-56'} bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 transition-all duration-500 ease-in-out h-[calc(100vh-4rem)] z-10`}>
       <div className="flex flex-col h-full overflow-hidden">
-        <div className="flex-1 p-4 overflow-y-auto">
+        <div className="flex-1 p-3 overflow-y-auto">
           <div className="pt-0">
             <div className="space-y-1">
               <NavItem 
-                icon={<LayoutGrid className="w-5 h-5" />} 
+                icon={<LayoutGrid className="w-4 h-4" />} 
                 label={collapsed ? "" : "Dashboard"}
                 active={location.pathname === '/dashboard'} 
                 onClick={() => {
@@ -162,24 +162,17 @@ const Sidebar: React.FC<{
                     navigate('/dashboard');
                   }
                 }}
+                rightIcon={!collapsed ? <ChevronLeft className="w-3 h-3 text-gray-400" /> : <ChevronRight className="w-3 h-3 text-gray-400" />}
                 className="cursor-pointer"
                 collapsed={collapsed}
                 onToggleCollapse={onToggleCollapse}
               />
-              <NavItem 
-                icon={<Landmark className="w-5 h-5" />} 
-                label={collapsed ? "" : "Accounts"}
-                active={location.pathname === '/accounts'}
-                onClick={() => navigate('/accounts')}
-                collapsed={collapsed}
-                onToggleCollapse={onToggleCollapse}
-              />
               <div className="my-2 border-t border-gray-200 dark:border-gray-700" />
-              <div className="px-4 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+              <div className="px-3 py-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 {collapsed ? "" : "Sales"}
               </div>
               <NavItem 
-                icon={<UserCircle2 className="w-5 h-5" />} 
+                icon={<UserCircle2 className="w-4 h-4" />} 
                 label={collapsed ? "" : "Customers"}
                 active={location.pathname === '/sales/customers'}
                 onClick={() => navigate('/sales/customers')}
@@ -187,7 +180,7 @@ const Sidebar: React.FC<{
                 onToggleCollapse={onToggleCollapse}
               />
               <NavItem 
-                icon={<Receipt className="w-5 h-5" />} 
+                icon={<Receipt className="w-4 h-4" />} 
                 label={collapsed ? "" : "Invoices"}
                 active={location.pathname === '/sales/invoices'}
                 onClick={() => navigate('/sales/invoices')}
@@ -195,7 +188,7 @@ const Sidebar: React.FC<{
                 onToggleCollapse={onToggleCollapse}
               />
               <NavItem 
-                icon={<ShoppingBag className="w-5 h-5" />} 
+                icon={<ShoppingBag className="w-4 h-4" />} 
                 label={collapsed ? "" : "Sale Items"}
                 active={location.pathname === '/sales/items'}
                 onClick={() => navigate('/sales/items')}
@@ -203,11 +196,11 @@ const Sidebar: React.FC<{
                 onToggleCollapse={onToggleCollapse}
               />
               <div className="my-2 border-t border-gray-200 dark:border-gray-700" />
-              <div className="px-4 py-1 text-xs font-medium text-gray-500 dark:text-gray-400">
+              <div className="px-3 py-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                 {collapsed ? "" : "Purchases"}
               </div>
               <NavItem 
-                icon={<Store className="w-5 h-5" />} 
+                icon={<Store className="w-4 h-4" />} 
                 label={collapsed ? "" : "Vendors"}
                 active={location.pathname === '/purchases/vendors'}
                 onClick={() => navigate('/purchases/vendors')}
@@ -215,15 +208,15 @@ const Sidebar: React.FC<{
                 onToggleCollapse={onToggleCollapse}
               />
               <NavItem 
-                icon={<Receipt className="w-5 h-5" />} 
-                label={collapsed ? "" : "Bills"}
+                icon={<Receipt className="w-4 h-4" />} 
+                label={collapsed ? "" : "Expenses"}
                 active={location.pathname === '/purchases/bills'}
                 onClick={() => navigate('/purchases/bills')}
                 collapsed={collapsed}
                 onToggleCollapse={onToggleCollapse}
               />
               <NavItem 
-                icon={<Boxes className="w-5 h-5" />} 
+                icon={<Boxes className="w-4 h-4" />} 
                 label={collapsed ? "" : "Purchase Items"}
                 active={location.pathname === '/purchases/items'}
                 onClick={() => navigate('/purchases/items')}
@@ -231,19 +224,19 @@ const Sidebar: React.FC<{
                 onToggleCollapse={onToggleCollapse}
               />
               <div className="my-2 border-t border-gray-200 dark:border-gray-700" />
+              <div className="px-3 py-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                {collapsed ? "" : "Accounting"}
+              </div>
               <NavItem 
-                icon={<Bot className="w-5 h-5 text-gradient-to-r from-blue-500 to-teal-400 animate-pulse" />} 
-                label={
-                  collapsed ? "" : <span className="font-medium italic font-bold bg-gradient-to-r from-blue-500 to-teal-400 bg-clip-text text-transparent">Sydney AI</span>
-                }
-                active={location.pathname === '/sydney-ai'}
-                onClick={() => navigate('/sydney-ai')}
-                className="group hover:scale-105 transition-transform [&>button>div>*:first-child]:text-teal-600 dark:[&>button>div>*:first-child]:text-teal-400 hover:bg-gradient-to-r hover:from-blue-50 hover:to-transparent dark:hover:from-blue-900/20 dark:hover:to-transparent"
+                icon={<Calculator className="w-4 h-4" />} 
+                label={collapsed ? "" : "Set-up"}
+                active={location.pathname === '/accounts'}
+                onClick={() => navigate('/accounts')}
                 collapsed={collapsed}
                 onToggleCollapse={onToggleCollapse}
               />
               <NavItem 
-                icon={<BookOpenCheck className="w-5 h-5" />} 
+                icon={<BookOpenCheck className="w-4 h-4" />} 
                 label={collapsed ? "" : "Journals"}
                 active={location.pathname === '/journals'} 
                 onClick={() => navigate('/journals')}
@@ -251,17 +244,31 @@ const Sidebar: React.FC<{
                 collapsed={collapsed}
                 onToggleCollapse={onToggleCollapse}
               />
+              <div className="my-2 border-t border-gray-200 dark:border-gray-700" />
+              <div className="px-3 py-0.5 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                {collapsed ? "" : "Banking"}
+              </div>
               <NavItem 
-                icon={<Wallet className="w-5 h-5" />} 
-                label={collapsed ? "" : "Banking"}
+                icon={<CreditCard className="w-4 h-4" />} 
+                label={collapsed ? "" : "Set-up"}
+                active={location.pathname === '/banking/setup'}
+                onClick={() => navigate('/banking/setup')} 
+                className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-transparent dark:hover:from-blue-900/20 dark:hover:to-transparent"
+                collapsed={collapsed}
+                onToggleCollapse={onToggleCollapse}
+              />
+              <NavItem 
+                icon={<ArrowUpDown className="w-4 h-4" />} 
+                label={collapsed ? "" : "Transactions"}
                 active={location.pathname === '/bank-transactions'}
                 onClick={() => navigate('/bank-transactions')} 
                 className="hover:bg-gradient-to-r hover:from-blue-50 hover:to-transparent dark:hover:from-blue-900/20 dark:hover:to-transparent"
                 collapsed={collapsed}
                 onToggleCollapse={onToggleCollapse}
               />
+              <div className="my-2 border-t border-gray-200 dark:border-gray-700" />
               <NavItem 
-                icon={<LogOut className="w-5 h-5" />} 
+                icon={<LogOut className="w-4 h-4" />} 
                 label={collapsed ? "" : "Logout"}
                 onClick={async () => {
                   await supabase.auth.signOut();

@@ -185,7 +185,7 @@ const VendorBills: React.FC<VendorBillsProps> = ({ onAlert }) => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Vendor Bills</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Expenses</h1>
           <button
             onClick={fetchBills}
             className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
