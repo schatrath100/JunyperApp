@@ -7,9 +7,9 @@ interface BankTransaction {
   date: string;
   bank_name: string;
   description: string;
-  amount: number;
+  deposit: number;
+  withdrawal: number;
   account_number: number;
-  credit_debit_indicator: 'credit' | 'debit';
 }
 
 interface BankTransactionViewModalProps {
@@ -27,7 +27,7 @@ const BankTransactionViewModal: React.FC<BankTransactionViewModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-2xl">
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
             Transaction Details
@@ -69,17 +69,33 @@ const BankTransactionViewModal: React.FC<BankTransactionViewModalProps> = ({
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Amount
-              </label>
-              <div className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300">
-                {new Intl.NumberFormat('en-US', {
-                  style: 'currency',
-                  currency: 'USD'
-                }).format(transaction.amount)}
+            {transaction.deposit > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Deposit
+                </label>
+                <div className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300">
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD'
+                  }).format(transaction.deposit)}
+                </div>
               </div>
-            </div>
+            )}
+
+            {transaction.withdrawal > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Withdrawal
+                </label>
+                <div className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300">
+                  {new Intl.NumberFormat('en-US', {
+                    style: 'currency',
+                    currency: 'USD'
+                  }).format(transaction.withdrawal)}
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -87,15 +103,6 @@ const BankTransactionViewModal: React.FC<BankTransactionViewModalProps> = ({
               </label>
               <div className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300">
                 {transaction.account_number}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Type
-              </label>
-              <div className="w-full px-3 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300">
-                {transaction.credit_debit_indicator === 'credit' ? 'Credit' : 'Debit'}
               </div>
             </div>
           </div>

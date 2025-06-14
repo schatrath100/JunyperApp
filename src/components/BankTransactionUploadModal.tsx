@@ -15,16 +15,16 @@ interface TransactionRow {
   [key: string]: any;
   date?: string;
   Date?: string;
-  amount?: number;
-  Amount?: number;
+  deposit?: number;
+  Deposit?: number;
+  withdrawal?: number;
+  Withdrawal?: number;
   account_number?: string | number;
   'Account Number'?: string | number;
   bank_name?: string;
   'Bank Name'?: string;
   description?: string;
   Description?: string;
-  credit_debit_indicator?: string;
-  'Credit/Debit'?: string;
 }
 
 const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({ isOpen, onClose, onSuccess, onAlert }) => {
@@ -32,14 +32,16 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<TransactionRow[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 5;
 
   const columnMappings = {
-    date: ['date', 'Date'],
-    amount: ['amount', 'Amount'],
-    account_number: ['account_number', 'Account Number'],
-    bank_name: ['bank_name', 'Bank Name'],
-    description: ['description', 'Description'],
-    credit_debit: ['credit_debit_indicator', 'Credit/Debit']
+    date: ['date', 'Date', 'DATE', 'Transaction Date', 'TRANSACTION DATE'],
+    account_number: ['account number', 'Account Number', 'ACCOUNT NUMBER', 'account_number', 'Account_Number', 'Account', 'ACCOUNT'],
+    bank_name: ['bank name', 'Bank Name', 'BANK NAME', 'bank_name', 'Bank_Name', 'Bank', 'BANK'],
+    description: ['description', 'Description', 'DESCRIPTION', 'Transaction Description', 'TRANSACTION DESCRIPTION', 'Details', 'DETAILS'],
+    deposit: ['deposit', 'Deposit', 'DEPOSIT', 'Deposits', 'DEPOSITS', 'Credit', 'CREDIT'],
+    withdrawal: ['withdrawal', 'Withdrawal', 'WITHDRAWAL', 'Withdrawals', 'WITHDRAWALS', 'Debit', 'DEBIT']
   };
 
   const findColumnValue = (row: TransactionRow, columnOptions: string[]): any => {
@@ -53,15 +55,43 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
 
   const validateColumns = (headers: string[]): string[] => {
     const missingColumns: string[] = [];
+    const normalizedHeaders = headers.map(h => h.toLowerCase().trim());
     
-    Object.values(columnMappings).forEach(columnOptions => {
-      const hasColumn = columnOptions.some(col => headers.includes(col));
+    console.log('Normalized headers:', normalizedHeaders);
+    
+    // Check headers in the required order
+    const requiredColumns = ['date', 'account_number', 'bank_name', 'description', 'deposit', 'withdrawal'];
+    const foundHeaders = requiredColumns.map(required => {
+      const columnOptions = columnMappings[required as keyof typeof columnMappings];
+      console.log(`Checking ${required} with options:`, columnOptions);
+      
+      const hasColumn = columnOptions.some(col => {
+        const normalizedCol = col.toLowerCase().trim();
+        const found = normalizedHeaders.includes(normalizedCol);
+        console.log(`Checking "${normalizedCol}" in headers: ${found}`);
+        return found;
+      });
+      
       if (!hasColumn) {
-        missingColumns.push(columnOptions.join(' or '));
+        missingColumns.push(required.replace('_', ' '));
       }
+      return hasColumn;
     });
 
-    return missingColumns;
+    console.log('Missing columns:', missingColumns);
+    console.log('Found headers:', foundHeaders);
+
+    // If any headers are missing, return the missing ones
+    if (missingColumns.length > 0) {
+      return missingColumns;
+    }
+
+    // If all headers are present but in wrong order, return the correct order
+    if (!foundHeaders.every(Boolean)) {
+      return ['Headers must be in this order: Date, Account Number, Bank Name, Description, Deposit, Withdrawal'];
+    }
+
+    return [];
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -71,19 +101,42 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
     try {
       setError(null);
       setFile(selectedFile);
+      setCurrentPage(1);
 
       // Read file
       const data = await selectedFile.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json<TransactionRow>(worksheet);
+      
+      // Get the range of the worksheet
+      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+      
+      // Get headers from the first row
+      const headers: string[] = [];
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cell = worksheet[XLSX.utils.encode_cell({ r: range.s.r, c: C })];
+        if (cell && cell.v) {
+          headers.push(String(cell.v).trim());
+        }
+      }
+
+      console.log('Headers from first row:', headers);
+      
+      // Read data with proper type conversion, skipping the header row
+      const jsonData = XLSX.utils.sheet_to_json<TransactionRow>(worksheet, {
+        header: headers,
+        raw: false,
+        defval: null,
+        dateNF: 'yyyy-mm-dd',
+        range: { s: { r: 1, c: 0 }, e: range.e } // Start from row 1 (second row)
+      });
 
       if (jsonData.length === 0) {
         throw new Error('The file appears to be empty. Please check the file contents.');
       }
 
       // Validate columns
-      const headers = Object.keys(jsonData[0] || {});
+      console.log('Original headers from file:', headers);
       const missingColumns = validateColumns(headers);
 
       if (missingColumns.length > 0) {
@@ -94,7 +147,43 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
         );
       }
 
-      setPreview(jsonData.slice(0, 5)); // Show first 5 rows as preview
+      // Process and validate the data
+      const processedData = jsonData.map(row => {
+        // Find the correct column names regardless of case
+        const dateCol = Object.keys(row).find(key => 
+          columnMappings.date.includes(key.toLowerCase())
+        );
+        const depositCol = Object.keys(row).find(key => 
+          columnMappings.deposit.includes(key.toLowerCase())
+        );
+        const withdrawalCol = Object.keys(row).find(key => 
+          columnMappings.withdrawal.includes(key.toLowerCase())
+        );
+        const accountCol = Object.keys(row).find(key => 
+          columnMappings.account_number.includes(key.toLowerCase())
+        );
+        const bankCol = Object.keys(row).find(key => 
+          columnMappings.bank_name.includes(key.toLowerCase())
+        );
+        const descCol = Object.keys(row).find(key => 
+          columnMappings.description.includes(key.toLowerCase())
+        );
+
+        // Convert values to proper types
+        const deposit = depositCol ? Number(row[depositCol]) || 0 : 0;
+        const withdrawal = withdrawalCol ? Number(row[withdrawalCol]) || 0 : 0;
+
+        return {
+          date: dateCol ? row[dateCol] : '',
+          deposit,
+          withdrawal,
+          account_number: accountCol ? String(row[accountCol]).trim() : '',
+          bank_name: bankCol ? String(row[bankCol]).trim() : '',
+          description: descCol ? String(row[descCol]).trim() : ''
+        };
+      });
+
+      setPreview(processedData);
     } catch (err) {
       console.error('Error reading file:', err);
       setError(err instanceof Error ? err.message : 'Failed to read file');
@@ -102,6 +191,12 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
       setPreview([]);
     }
   };
+
+  // Calculate pagination
+  const totalPages = Math.ceil(preview.length / rowsPerPage);
+  const startIndex = (currentPage - 1) * rowsPerPage;
+  const endIndex = startIndex + rowsPerPage;
+  const currentRows = preview.slice(startIndex, endIndex);
 
   const handleSubmit = async () => {
     if (!file) return;
@@ -113,22 +208,93 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const jsonData = XLSX.utils.sheet_to_json<TransactionRow>(worksheet);
+      
+      // Get the range of the worksheet
+      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+      
+      // Get headers from the first row
+      const headers: string[] = [];
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cell = worksheet[XLSX.utils.encode_cell({ r: range.s.r, c: C })];
+        if (cell && cell.v) {
+          headers.push(String(cell.v).trim());
+        }
+      }
+
+      // Read data starting from the second row (skip headers)
+      const jsonData = XLSX.utils.sheet_to_json<TransactionRow>(worksheet, {
+        header: headers,
+        raw: false,
+        defval: null,
+        dateNF: 'yyyy-mm-dd',
+        range: { s: { r: 1, c: 0 }, e: range.e } // Start from row 1 (second row)
+      });
 
       // Get user ID
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Transform and validate data
-      const transactions = jsonData.map(row => ({
-        date: new Date(findColumnValue(row, columnMappings.date)).toISOString(),
-        amount: Math.abs(Number(findColumnValue(row, columnMappings.amount))),
-        account_number: Number(findColumnValue(row, columnMappings.account_number)),
-        bank_name: findColumnValue(row, columnMappings.bank_name),
-        description: findColumnValue(row, columnMappings.description),
-        credit_debit_indicator: findColumnValue(row, columnMappings.credit_debit).toLowerCase() === 'credit' ? 'credit' : 'debit',
-        user_id: user.id
-      }));
+      // Process and validate the data
+      const transactions = jsonData.map(row => {
+        // Find the correct column names regardless of case
+        const dateCol = Object.keys(row).find(key => 
+          columnMappings.date.includes(key.toLowerCase())
+        );
+        const depositCol = Object.keys(row).find(key => 
+          columnMappings.deposit.includes(key.toLowerCase())
+        );
+        const withdrawalCol = Object.keys(row).find(key => 
+          columnMappings.withdrawal.includes(key.toLowerCase())
+        );
+        const accountCol = Object.keys(row).find(key => 
+          columnMappings.account_number.includes(key.toLowerCase())
+        );
+        const bankCol = Object.keys(row).find(key => 
+          columnMappings.bank_name.includes(key.toLowerCase())
+        );
+        const descCol = Object.keys(row).find(key => 
+          columnMappings.description.includes(key.toLowerCase())
+        );
+
+        // Convert values to proper types
+        const deposit = depositCol ? Number(row[depositCol]) || 0 : 0;
+        const withdrawal = withdrawalCol ? Number(row[withdrawalCol]) || 0 : 0;
+
+        // Validate that both deposit and withdrawal are not present
+        if (deposit > 0 && withdrawal > 0) {
+          throw new Error(`Row with date ${row[dateCol]} has both deposit and withdrawal amounts. Please specify only one.`);
+        }
+
+        // Parse and format the date
+        let dateValue = row[dateCol];
+        if (!dateValue) {
+          throw new Error('Date is required for each transaction');
+        }
+
+        // Try to parse the date string
+        const parsedDate = new Date(dateValue);
+        if (isNaN(parsedDate.getTime())) {
+          throw new Error(`Invalid date format: ${dateValue}`);
+        }
+
+        // Create a new date object with the date parts only
+        const year = parsedDate.getFullYear();
+        const month = parsedDate.getMonth();
+        const day = parsedDate.getDate();
+        
+        // Create a new date at midnight UTC
+        const utcDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+
+        return {
+          date: utcDate.toISOString(), // This will be in UTC
+          deposit,
+          withdrawal,
+          account_number: Number(accountCol ? row[accountCol] : 0),
+          bank_name: bankCol ? String(row[bankCol]).trim() : '',
+          description: descCol ? String(row[descCol]).trim() : '',
+          user_id: user.id
+        };
+      });
 
       // Insert transactions
       const { error: insertError } = await supabase
@@ -195,7 +361,7 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
                   CSV or Excel files only
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                  Required columns: Date, Amount, Account Number, Bank Name, Description, Credit/Debit
+                  Required columns in order: Date, Account Number, Bank Name, Description, Deposit, Withdrawal
                 </p>
               </div>
             </div>
@@ -203,39 +369,97 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
 
           {preview.length > 0 && (
             <div className="mb-6">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Preview (first 5 rows)
-              </h3>
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Preview ({preview.length} records)
+                </h3>
+                <div className="text-sm text-gray-500 dark:text-gray-400">
+                  Page {currentPage} of {totalPages}
+                </div>
+              </div>
               <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-800">
                     <tr>
-                      {Object.keys(preview[0]).map((header) => (
-                        <th
-                          key={header}
-                          className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                        >
-                          {header}
-                        </th>
-                      ))}
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Account Number
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Bank Name
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Description
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Deposit
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Withdrawal
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                    {preview.map((row, index) => (
+                    {currentRows.map((row, index) => (
                       <tr key={index}>
-                        {Object.values(row).map((value, i) => (
-                          <td
-                            key={i}
-                            className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300"
-                          >
-                            {value?.toString()}
-                          </td>
-                        ))}
+                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-gray-100">
+                          {row.date}
+                        </td>
+                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-gray-100">
+                          {row.account_number}
+                        </td>
+                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-gray-100">
+                          {row.bank_name}
+                        </td>
+                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-gray-100">
+                          {row.description}
+                        </td>
+                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-gray-100">
+                          {row.deposit}
+                        </td>
+                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-gray-100">
+                          {row.withdrawal}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
+              {totalPages > 1 && (
+                <div className="flex justify-between items-center mt-4">
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Previous
+                  </button>
+                  <div className="flex space-x-2">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-3 py-1 text-sm rounded ${
+                          currentPage === page
+                            ? 'bg-blue-600 text-white'
+                            : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
           )}
 

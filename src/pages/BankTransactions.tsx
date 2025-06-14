@@ -23,9 +23,9 @@ interface BankTransaction {
   date: string;
   bank_name: string;
   description: string;
-  amount: number;
+  deposit: number;
+  withdrawal: number;
   account_number: number;
-  credit_debit_indicator: 'credit' | 'debit';
 }
 
 interface FilterState {
@@ -199,27 +199,21 @@ const PlaidLinkButton = () => {
           throw new Error(errorData.details || 'Failed to exchange public token');
         }
 
-        const data = await response.json();
-
-        // Reset Plaid state
-        plaidInitialized.current = false;
-        linkTokenRef.current = null;
+        // Clear the link token to prevent multiple initializations
         setLinkToken(null);
-        tokenExpirationRef.current = null;
-
-        // Refresh the page to show the new connected bank
-        window.location.reload();
+        linkTokenRef.current = null;
+        plaidInitialized.current = false;
       } catch (error) {
-        console.error('Error in Plaid success handler:', error);
-        setError(error instanceof Error ? error.message : 'Failed to connect bank account');
+        console.error('Error exchanging public token:', error);
+        throw error;
       }
     },
-    onExit: (err: PlaidError | null, metadata: any) => {
-      console.log('Plaid Link exit:', { error: err, metadata });
-      plaidInitialized.current = false;
-      linkTokenRef.current = null;
+    onExit: (err, metadata) => {
+      console.log('Plaid Link exit:', { err, metadata });
+      // Clear the link token on exit
       setLinkToken(null);
-      tokenExpirationRef.current = null;
+      linkTokenRef.current = null;
+      plaidInitialized.current = false;
     },
   });
 
@@ -229,14 +223,11 @@ const PlaidLinkButton = () => {
       return;
     }
 
-    if (!linkToken) {
-      console.log('No link token, initializing...');
-      await initializePlaid();
-    }
-
-    if (linkToken) {
-      console.log('Opening Plaid Link...');
-      open();
+    try {
+      await open();
+    } catch (error) {
+      console.error('Error opening Plaid Link:', error);
+      setError(error instanceof Error ? error.message : 'Failed to open Plaid Link');
     }
   };
 
@@ -244,10 +235,10 @@ const PlaidLinkButton = () => {
     <Button
       onClick={handleClick}
       disabled={!ready || isInitializing}
-      className="w-full"
-      variant="default"
+      className="flex items-center gap-2"
     >
-      {isInitializing ? 'Connecting...' : 'Connect bank account'}
+      <Plus className="h-4 w-4" />
+      {isInitializing ? 'Connecting...' : 'Connect Bank Account'}
     </Button>
   );
 };
@@ -298,14 +289,17 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
       new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: 'USD'
-      }).format(t.amount),
-      t.account_number,
-      t.credit_debit_indicator
+      }).format(t.deposit),
+      new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+      }).format(t.withdrawal),
+      t.account_number
     ]);
 
     // Generate table
     autoTable(doc, {
-      head: [['Date', 'Bank', 'Description', 'Amount', 'Account #', 'Type']],
+      head: [['Date', 'Bank', 'Description', 'Deposit', 'Withdrawal', 'Account #']],
       body: tableData,
       startY: 25,
       styles: { fontSize: 8 },
@@ -322,9 +316,9 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
       'Date': new Date(t.date).toLocaleDateString(),
       'Bank': t.bank_name,
       'Description': t.description,
-      'Amount': t.amount,
-      'Account Number': t.account_number,
-      'Type': t.credit_debit_indicator
+      'Deposit': t.deposit,
+      'Withdrawal': t.withdrawal,
+      'Account Number': t.account_number
     }));
 
     // Create workbook
@@ -681,6 +675,123 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     }
   }, [activeTab]);
 
+  const columns = [
+    {
+      key: 'date',
+      label: 'Date',
+      sortable: true,
+      render: (value: string) => new Date(value).toLocaleDateString()
+    },
+    {
+      key: 'bank_name',
+      label: 'Bank Name',
+      sortable: true
+    },
+    {
+      key: 'description',
+      label: 'Description',
+      sortable: true
+    },
+    {
+      key: 'deposit',
+      label: 'Deposit',
+      sortable: true,
+      render: (value: number) => value > 0 ? new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+      }).format(value) : '-'
+    },
+    {
+      key: 'withdrawal',
+      label: 'Withdrawal',
+      sortable: true,
+      render: (value: number) => value > 0 ? new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+      }).format(value) : '-'
+    },
+    {
+      key: 'account_number',
+      label: 'Account Number',
+      sortable: true
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      sortable: false,
+      render: (_, row: BankTransaction) => (
+        <div className="flex space-x-2">
+          <div className="relative group">
+            <button
+              className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+              title="View Details"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+              <div className="space-y-2 text-sm">
+                <div>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Date:</span>
+                  <span className="ml-2 text-gray-600 dark:text-gray-400">
+                    {new Date(row.date).toLocaleString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: true
+                    })}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Bank:</span>
+                  <span className="ml-2 text-gray-600 dark:text-gray-400">
+                    {row.bank_name}
+                  </span>
+                </div>
+                <div>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Description:</span>
+                  <span className="ml-2 text-gray-600 dark:text-gray-400">
+                    {row.description}
+                  </span>
+                </div>
+                {row.deposit > 0 && (
+                  <div>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">Deposit:</span>
+                    <span className="ml-2 text-green-600 dark:text-green-400">
+                      {new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD'
+                      }).format(row.deposit)}
+                    </span>
+                  </div>
+                )}
+                {row.withdrawal > 0 && (
+                  <div>
+                    <span className="font-medium text-gray-700 dark:text-gray-300">Withdrawal:</span>
+                    <span className="ml-2 text-red-600 dark:text-red-400">
+                      {new Intl.NumberFormat('en-US', {
+                        style: 'currency',
+                        currency: 'USD'
+                      }).format(row.withdrawal)}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <span className="font-medium text-gray-700 dark:text-gray-300">Account:</span>
+                  <span className="ml-2 text-gray-600 dark:text-gray-400">
+                    {row.account_number}
+                  </span>
+                </div>
+              </div>
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white dark:bg-gray-800 border-r border-b border-gray-200 dark:border-gray-700 transform rotate-45"></div>
+            </div>
+          </div>
+        </div>
+      )
+    }
+  ];
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -860,14 +971,16 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
                   />
                   <span>Refresh</span>
                 </button>
-                <div className="flex items-center space-x-2">
+                <div className="relative group">
                   <Button
-                    onClick={() => setShowAddModal(true)}
                     variant="default"
-                    className="px-3 py-1 text-sm rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition-all duration-150 font-medium"
+                    className="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-2 shadow-lg hover:shadow-xl transform transition-all duration-200 hover:scale-105 group flex items-center justify-center overflow-hidden min-w-[40px] min-h-[40px]"
+                    onClick={() => setShowAddModal(true)}
                   >
-                    <PlusCircle className="w-5 h-5 mr-2" />
-                    Add Transaction
+                    <Plus className="w-6 h-6 flex-shrink-0" />
+                    <span className="w-0 group-hover:w-auto group-hover:ml-2 opacity-0 group-hover:opacity-100 transition-all duration-200 whitespace-nowrap">
+                      Add Bank Transaction
+                    </span>
                   </Button>
                 </div>
               </div>
@@ -989,7 +1102,33 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
                     <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
                       <div className="flex items-center space-x-1">
                         <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                          Amount
+                          Deposit
+                        </span>
+                        <button
+                          onClick={() => setShowAmountFilter(!showAmountFilter)}
+                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                      </div>
+                      {showAmountFilter && (
+                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
+                          <div className="p-2">
+                            <input
+                              type="number"
+                              value={filters.amountMin}
+                              onChange={(e) => handleFilterChange('amountMin', e.target.value)}
+                              placeholder="Min amount..."
+                              className="w-full px-2 py-1 text-sm border rounded-md"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </th>
+                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
+                      <div className="flex items-center space-x-1">
+                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                          Withdrawal
                         </span>
                         <button
                           onClick={() => setShowAmountFilter(!showAmountFilter)}
@@ -1038,34 +1177,6 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
                         </div>
                       )}
                     </th>
-                    <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left relative">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                          Type
-                        </span>
-                        <button
-                          onClick={() => setShowTypeFilter(!showTypeFilter)}
-                          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                        >
-                          <ChevronDown className="w-4 h-4" />
-                        </button>
-                      </div>
-                      {showTypeFilter && (
-                        <div className="absolute z-10 mt-1 w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border border-gray-200 dark:border-gray-700">
-                          <div className="p-2">
-                            <select
-                              value={filters.type}
-                              onChange={(e) => handleFilterChange('type', e.target.value)}
-                              className="w-full px-2 py-1 text-sm border rounded-md"
-                            >
-                              <option value="">All</option>
-                              <option value="credit">Credit</option>
-                              <option value="debit">Debit</option>
-                            </select>
-                          </div>
-                        </div>
-                      )}
-                    </th>
                     <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
                       <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
                         Actions
@@ -1088,45 +1199,90 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
                       <TableCell>{transaction.bank_name}</TableCell>
                       <TableCell>{transaction.description}</TableCell>
                       <TableCell>
-                        <span className={transaction.credit_debit_indicator === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
-                          {new Intl.NumberFormat('en-US', {
+                        <span className={transaction.deposit > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+                          {transaction.deposit > 0 ? new Intl.NumberFormat('en-US', {
                             style: 'currency',
                             currency: 'USD'
-                          }).format(transaction.amount)}
+                          }).format(transaction.deposit) : '-'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className={transaction.withdrawal > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}>
+                          {transaction.withdrawal > 0 ? new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD'
+                          }).format(transaction.withdrawal) : '-'}
                         </span>
                       </TableCell>
                       <TableCell>{transaction.account_number}</TableCell>
                       <TableCell>
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          transaction.credit_debit_indicator === 'credit'
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-                            : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-                        }`}>
-                          {transaction.credit_debit_indicator}
-                        </span>
-                      </TableCell>
-                      <TableCell>
                         <div className="flex space-x-2">
-                          <button
-                            onClick={() => {
-                              setSelectedTransaction(transaction);
-                              setShowViewModal(true);
-                            }}
-                            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-                            title="View details"
-                          >
-                            <Search className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedTransaction(transaction);
-                              setShowDeleteConfirm(true);
-                            }}
-                            className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-                            title="Delete transaction"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="relative group">
+                            <button
+                              className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
+                              title="View Details"
+                            >
+                              <Search className="w-4 h-4" />
+                            </button>
+                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-50">
+                              <div className="space-y-2 text-sm">
+                                <div>
+                                  <span className="font-medium text-gray-700 dark:text-gray-300">Date:</span>
+                                  <span className="ml-2 text-gray-600 dark:text-gray-400">
+                                    {new Date(transaction.date).toLocaleString('en-US', {
+                                      year: 'numeric',
+                                      month: 'short',
+                                      day: 'numeric',
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      hour12: true
+                                    })}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-700 dark:text-gray-300">Bank:</span>
+                                  <span className="ml-2 text-gray-600 dark:text-gray-400">
+                                    {transaction.bank_name}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="font-medium text-gray-700 dark:text-gray-300">Description:</span>
+                                  <span className="ml-2 text-gray-600 dark:text-gray-400">
+                                    {transaction.description}
+                                  </span>
+                                </div>
+                                {transaction.deposit > 0 && (
+                                  <div>
+                                    <span className="font-medium text-gray-700 dark:text-gray-300">Deposit:</span>
+                                    <span className="ml-2 text-green-600 dark:text-green-400">
+                                      {new Intl.NumberFormat('en-US', {
+                                        style: 'currency',
+                                        currency: 'USD'
+                                      }).format(transaction.deposit)}
+                                    </span>
+                                  </div>
+                                )}
+                                {transaction.withdrawal > 0 && (
+                                  <div>
+                                    <span className="font-medium text-gray-700 dark:text-gray-300">Withdrawal:</span>
+                                    <span className="ml-2 text-red-600 dark:text-red-400">
+                                      {new Intl.NumberFormat('en-US', {
+                                        style: 'currency',
+                                        currency: 'USD'
+                                      }).format(transaction.withdrawal)}
+                                    </span>
+                                  </div>
+                                )}
+                                <div>
+                                  <span className="font-medium text-gray-700 dark:text-gray-300">Account:</span>
+                                  <span className="ml-2 text-gray-600 dark:text-gray-400">
+                                    {transaction.account_number}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-white dark:bg-gray-800 border-r border-b border-gray-200 dark:border-gray-700 transform rotate-45"></div>
+                            </div>
+                          </div>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -1217,38 +1373,6 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
         onSave={fetchTransactions}
         transaction={selectedTransaction}
       />
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Confirm Deletion
-            </h3>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Are you sure you want to delete this transaction? This action cannot be undone.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowDeleteConfirm(false);
-                  setSelectedTransaction(null);
-                }}
-                disabled={deleteLoading}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="default"
-                className="!bg-red-500 hover:!bg-red-600"
-                onClick={handleDelete}
-                disabled={deleteLoading}
-              >
-                {deleteLoading ? 'Deleting...' : 'Delete'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
