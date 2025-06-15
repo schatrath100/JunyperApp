@@ -565,13 +565,13 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
     return () => window.removeEventListener('bankConnected', handleBankConnected);
   }, []);
 
-  // Expand all banks by default when they're loaded
-  useEffect(() => {
-    if (connectedBanks.length > 0) {
-      const bankIds = connectedBanks.map(bank => bank.id);
-      setExpandedBanks(new Set(bankIds));
-    }
-  }, [connectedBanks.length]);
+  // Keep banks collapsed by default when page loads
+  // useEffect(() => {
+  //   if (connectedBanks.length > 0) {
+  //     const bankIds = connectedBanks.map(bank => bank.id);
+  //     setExpandedBanks(new Set(bankIds));
+  //   }
+  // }, [connectedBanks.length]);
 
   if (loading) {
     return (
@@ -598,7 +598,7 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                 Bank Integration
               </h2>
               <p className="mt-2 text-gray-600 dark:text-gray-400">
-                Connect your bank accounts securely using Plaid to automatically sync transactions.
+                Securely connect banks via Plaid for automatic transaction sync.
               </p>
             </div>
 
