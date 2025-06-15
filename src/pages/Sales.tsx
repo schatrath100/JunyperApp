@@ -12,6 +12,7 @@ import { useTableSort } from '../hooks/useTableSort';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
 
 const INVOICE_STATUS_FILTERS = [
+  { value: 'All', color: 'bg-gray-100 dark:bg-gray-900/50 text-gray-800 dark:text-gray-400' },
   { value: 'Paid', color: 'bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-400' },
   { value: 'Partially Paid', color: 'bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-400' },
   { value: 'Pending', color: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-400' },
@@ -45,10 +46,10 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
   const [selectedInvoice, setSelectedInvoice] = useState<SalesInvoice | null>(null);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState('Pending');
+  const [selectedStatus, setSelectedStatus] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const { sortedItems: sortedInvoices, sortConfig, requestSort } = useTableSort(
-    invoices.filter(invoice => invoice.Status === selectedStatus),
+    invoices.filter(invoice => selectedStatus === 'All' || invoice.Status === selectedStatus),
     { key: 'InvoiceDate', direction: 'desc' }
   );
 
@@ -138,8 +139,10 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
         );
       }
 
-      // Add status filter
-      query = query.eq('Status', selectedStatus);
+      // Add status filter only if not "All"
+      if (selectedStatus !== 'All') {
+        query = query.eq('Status', selectedStatus);
+      }
 
       const { data, error } = await query
         .order('InvoiceDate', { ascending: false });
@@ -211,8 +214,20 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
     }
   };
 
+  // Helper function to get status badge styling
+  const getStatusBadgeStyle = (status: string) => {
+    const statusFilter = INVOICE_STATUS_FILTERS.find(filter => filter.value === status);
+    return statusFilter ? statusFilter.color : 'bg-gray-100 dark:bg-gray-900/50 text-gray-800 dark:text-gray-400';
+  };
+
   const getTabStyle = (status: string) => {
     const colorSchemes = {
+      'All': {
+        gradient: 'linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%)',
+        hover: 'linear-gradient(135deg, #F3F4F6 0%, #E5E7EB 100%)',
+        active: 'linear-gradient(135deg, #E5E7EB 0%, #D1D5DB 100%)',
+        text: '#374151',
+      },
       'Pending': {
         gradient: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
         hover: 'linear-gradient(135deg, #FDE68A 0%, #FCD34D 100%)',
@@ -245,7 +260,7 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
       },
     };
 
-    const scheme = colorSchemes[status as keyof typeof colorSchemes] || colorSchemes['Pending'];
+    const scheme = colorSchemes[status as keyof typeof colorSchemes] || colorSchemes['All'];
 
     return {
       padding: '0.75rem 1.5rem',
@@ -370,13 +385,13 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
                 <TableHead onClick={() => requestSort('id')} className="cursor-pointer w-16 text-center">
                   Invoice No.
                 </TableHead>
-                <TableHead onClick={() => requestSort('InvoiceDate')} className="cursor-pointer w-24 text-center">
+                <TableHead onClick={() => requestSort('InvoiceDate')} className="cursor-pointer w-20 text-center">
                   Date
                 </TableHead>
                 <TableHead onClick={() => requestSort('Customer_name')} className="cursor-pointer w-36 text-left">
                   Customer
                 </TableHead>
-                <TableHead onClick={() => requestSort('Description')} className="cursor-pointer w-40 text-left">
+                <TableHead onClick={() => requestSort('Description')} className="cursor-pointer w-32 text-left">
                   Description
                 </TableHead>
                 <TableHead onClick={() => requestSort('InvoiceAmount')} className="cursor-pointer w-32 text-right">
@@ -384,6 +399,9 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
                 </TableHead>
                 <TableHead onClick={() => requestSort('OutstandingAmount')} className="cursor-pointer w-32 text-right">
                   Outstanding
+                </TableHead>
+                <TableHead onClick={() => requestSort('Status')} className="cursor-pointer w-28 text-center">
+                  Status
                 </TableHead>
                 <TableHead className="w-16 text-center">
                   Actions
@@ -409,7 +427,7 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
                   <TableCell className="font-medium w-16 text-center">
                     #{invoice.id}
                   </TableCell>
-                  <TableCell className="w-24 text-center whitespace-nowrap">
+                  <TableCell className="w-20 text-center whitespace-nowrap">
                     {new Date(invoice.InvoiceDate).toLocaleString('en-US', {
                       year: 'numeric',
                       month: 'short',
@@ -419,7 +437,7 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
                   <TableCell className="w-36 text-left">
                     {invoice.Customer_name}
                   </TableCell>
-                  <TableCell className="w-40 text-left">
+                  <TableCell className="w-32 text-left">
                     <div className="truncate" title={invoice.Description || ''}>
                       {invoice.Description || '-'}
                     </div>
@@ -439,6 +457,11 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
                         currency: 'USD'
                       }).format(invoice.OutstandingAmount) 
                       : '-'}
+                  </TableCell>
+                  <TableCell className="w-28 text-center">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeStyle(invoice.Status)}`}>
+                      {invoice.Status}
+                    </span>
                   </TableCell>
                   <TableCell className="w-16 text-center">
                     <div className="flex items-center justify-center space-x-2">
@@ -470,7 +493,7 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
               ))}
               {invoices.length === 0 && !loading && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
+                  <TableCell colSpan={9} className="text-center">
                     No invoices found
                   </TableCell>
                 </TableRow>
