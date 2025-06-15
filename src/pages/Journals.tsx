@@ -240,63 +240,32 @@ const Journals: React.FC = () => {
   }, []);
 
   return (
-    <div className="p-6">
-      {/* Enhanced Header Section */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8 space-y-4 sm:space-y-0">
+    <div className="p-6 pr-8">
+      <div className="flex justify-between items-center mb-6">
         <div className="flex items-center space-x-4">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Journal Entries</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Journal Entries</h1>
           <button
             onClick={fetchTransactions}
-            className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
+            className="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
             disabled={loading}
-            title="Refresh journal entries"
           >
             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
           </button>
-          {sortedTransactions.length > 0 && (
-            <div className="hidden sm:flex items-center px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium">
-              {sortedTransactions.length} entr{sortedTransactions.length !== 1 ? 'ies' : 'y'}
-            </div>
-          )}
         </div>
-        
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
-          <div className="relative">
+        <div className="flex items-center space-x-4">
+          <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
+              placeholder="Search transactions..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by account, description, or status..."
-              className="w-full sm:w-80 h-11 pl-10 pr-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
+              className="w-full h-10 pl-10 pr-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
             />
-            {loading && (
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                <RefreshCw className="w-4 h-4 animate-spin text-gray-400" />
-              </div>
-            )}
-          </div>
-          
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={exportToPDF}
-              className="h-11 w-11 flex items-center justify-center text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200"
-              title="Export to PDF"
-            >
-              <FileText className="w-5 h-5" />
-            </button>
-            <button
-              onClick={exportToExcel}
-              className="h-11 w-11 flex items-center justify-center text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200"
-              title="Export to Excel"
-            >
-              <FileSpreadsheet className="w-5 h-5" />
-            </button>
           </div>
         </div>
       </div>
 
-      {/* Error Message */}
       {error && (
         <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400">
           {error}
@@ -304,7 +273,7 @@ const Journals: React.FC = () => {
       )}
 
       {/* Enhanced Table */}
-      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700 mr-8">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>

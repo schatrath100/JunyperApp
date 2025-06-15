@@ -10,6 +10,7 @@ import InvoiceStatusModal from '../components/InvoiceStatusModal';
 import InvoicePreviewModal from '../components/InvoicePreviewModal';
 import { useTableSort } from '../hooks/useTableSort';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/ui/table';
+import type { Alert } from '../components/Alert';
 
 const INVOICE_STATUS_FILTERS = [
   { value: 'All', color: 'bg-gray-100 dark:bg-gray-900/50 text-gray-800 dark:text-gray-400' },
@@ -38,11 +39,8 @@ interface SalesProps {
 const Sales: React.FC<SalesProps> = ({ onAlert }) => {
   const [invoices, setInvoices] = useState<SalesInvoice[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedRows, setSelectedRows] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<SalesInvoice | null>(null);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -173,47 +171,6 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
     return () => clearTimeout(timer);
   }, [searchQuery, selectedStatus]);
 
-  const handleRowSelect = (id: number) => {
-    setSelectedRows(prev => 
-      prev.includes(id) 
-        ? prev.filter(rowId => rowId !== id)
-        : [...prev, id]
-    );
-  };
-
-  const handleSelectAll = () => {
-    setSelectedRows(
-      selectedRows.length === invoices.length
-        ? []
-        : invoices.map(invoice => invoice.id)
-    );
-  };
-
-  const handleDelete = async () => {
-    try {
-      setDeleteLoading(true);
-      setError(null);
-
-      const { error: deleteError } = await supabase
-        .from('SalesInvoice')
-        .delete()
-        .in('id', selectedRows);
-
-      if (deleteError) throw deleteError;
-
-      setSelectedRows([]);
-      setShowDeleteConfirm(false);
-      onAlert?.('Invoices deleted successfully', 'success');
-      await fetchInvoices();
-    } catch (err) {
-      console.error('Error deleting invoices:', err);
-      setError(err instanceof Error ? err.message : 'Failed to delete invoices');
-      setShowDeleteConfirm(false);
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
-
   // Helper function to get status badge styling
   const getStatusBadgeStyle = (status: string) => {
     const statusFilter = INVOICE_STATUS_FILTERS.find(filter => filter.value === status);
@@ -281,7 +238,7 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 pr-8">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center space-x-4">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Sales Invoices</h1>
@@ -292,20 +249,6 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
           >
             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
           </button>
-          {selectedRows.length > 0 && (
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition-colors"
-              title="Delete selected invoices"
-            >
-              <Trash2 className="w-5 h-5" />
-            </button>
-          )}
-          {selectedRows.length > 0 && (
-            <span className="text-sm text-gray-600 dark:text-gray-300">
-              {selectedRows.length} selected
-            </span>
-          )}
         </div>
         <div className="flex items-center space-x-4">
           <div className="relative w-64">
@@ -326,9 +269,9 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
           <Button
             variant="default"
             className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5"
-            icon={<Plus className="w-4 h-4" />}
             onClick={() => setIsModalOpen(true)}
           >
+            <Plus className="w-4 h-4 mr-2" />
             Add Invoice
           </Button>
           <button
@@ -369,19 +312,11 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
         </div>
       )}
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700 mr-8">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-12 text-center">
-                  <input
-                    type="checkbox"
-                    className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                    checked={selectedRows.length === invoices.length && invoices.length > 0}
-                    onChange={handleSelectAll}
-                  />
-                </TableHead>
                 <TableHead onClick={() => requestSort('id')} className="cursor-pointer w-16 text-center">
                   Invoice No.
                 </TableHead>
@@ -412,18 +347,8 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
               {sortedInvoices.map((invoice) => (
                 <TableRow 
                   key={invoice.id}
-                  className={`hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors ${
-                    selectedRows.includes(invoice.id) ? 'bg-blue-50 dark:bg-blue-900/20' : ''
-                  }`}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                 >
-                  <TableCell className="w-12 text-center">
-                    <input
-                      type="checkbox"
-                      className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-                      checked={selectedRows.includes(invoice.id)}
-                      onChange={() => handleRowSelect(invoice.id)}
-                    />
-                  </TableCell>
                   <TableCell className="font-medium w-16 text-center">
                     #{invoice.id}
                   </TableCell>
@@ -493,7 +418,7 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
               ))}
               {invoices.length === 0 && !loading && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center">
+                  <TableCell colSpan={8} className="text-center">
                     No invoices found
                   </TableCell>
                 </TableRow>
@@ -509,38 +434,6 @@ const Sales: React.FC<SalesProps> = ({ onAlert }) => {
         onAlert={onAlert}
         onSave={fetchInvoices}
       />
-      
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Confirm Deletion
-            </h3>
-            <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Are you sure you want to delete {selectedRows.length} selected invoice{selectedRows.length > 1 ? 's' : ''}? 
-              This action cannot be undone.
-            </p>
-            <div className="flex space-x-4">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowDeleteConfirm(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                className="flex-1 !bg-red-500 hover:!bg-red-600"
-                onClick={handleDelete}
-                disabled={deleteLoading}
-              >
-                {deleteLoading ? 'Deleting...' : 'Delete'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
       
       {selectedInvoice && (
         <>

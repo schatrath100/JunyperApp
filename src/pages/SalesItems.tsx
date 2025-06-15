@@ -98,7 +98,7 @@ const SalesItems: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 pr-8">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center space-x-4">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Sales Items</h1>
@@ -126,12 +126,12 @@ const SalesItems: React.FC = () => {
           <Button
             variant="default"
             className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5"
-            icon={<Plus className="w-4 h-4" />}
             onClick={() => {
               setEditingItem(null);
               setIsModalOpen(true);
             }}
           >
+            <Plus className="w-4 h-4 mr-2" />
             Add Sales Item
           </Button>
         </div>
@@ -143,7 +143,7 @@ const SalesItems: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700 mr-8">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>

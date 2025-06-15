@@ -182,7 +182,7 @@ const VendorBills: React.FC<VendorBillsProps> = ({ onAlert }) => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 pr-8">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center space-x-4">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Expenses</h1>
@@ -210,13 +210,10 @@ const VendorBills: React.FC<VendorBillsProps> = ({ onAlert }) => {
           <Button
             variant="default"
             className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5"
-            icon={<Plus className="w-4 h-4" />}
-            onClick={() => {
-              setEditingBill(null);
-              setIsModalOpen(true);
-            }}
+            onClick={() => setIsModalOpen(true)}
           >
-            Add Vendor Bill
+            <Plus className="w-4 h-4 mr-2" />
+            Add Expense
           </Button>
           <button
             onClick={exportToPDF}
@@ -257,7 +254,7 @@ const VendorBills: React.FC<VendorBillsProps> = ({ onAlert }) => {
         </div>
       )}
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700 mr-8">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Trash2, Pencil } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, Pencil, Search } from 'lucide-react';
 import Button from '../components/Button';
 import VendorModal from '../components/VendorModal';
 import { useTableSort } from '../hooks/useTableSort';
@@ -28,6 +28,7 @@ const Vendors: React.FC = () => {
     vendors,
     { key: 'vendor_name', direction: 'asc' }
   );
+  const [searchQuery, setSearchQuery] = useState('');
 
   const fetchVendors = async () => {
     try {
@@ -99,7 +100,7 @@ const Vendors: React.FC = () => {
   };
 
   return (
-    <div className="p-6">
+    <div className="p-6 pr-8">
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center space-x-4">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Vendors</h1>
@@ -121,18 +122,25 @@ const Vendors: React.FC = () => {
           )}
         </div>
         <div className="flex items-center space-x-4">
-          <div className="text-sm text-gray-600 dark:text-gray-300">
-            {selectedRows.length} selected
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Search vendors..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full h-10 pl-10 pr-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            />
           </div>
           <Button
             variant="default"
             className="bg-blue-600 hover:bg-blue-700 text-white transform transition-all duration-200 hover:scale-105 hover:shadow-lg hover:-translate-y-0.5"
-            icon={<Plus className="w-4 h-4" />}
             onClick={() => {
               setEditingVendor(null);
               setIsModalOpen(true);
             }}
           >
+            <Plus className="w-4 h-4 mr-2" />
             Add Vendor
           </Button>
         </div>
@@ -144,7 +152,7 @@ const Vendors: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700 mr-8">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
