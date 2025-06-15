@@ -94,13 +94,13 @@ const RecentActivity: React.FC = () => {
 
       // Fetch new accounts count
       const { count: accountCount, error: accountError } = await supabase
-        .from('Account')
+        .from('userDefinedAccounts')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .gte('created_at', startDate.toISOString());
 
       const { count: previousAccountCount } = await supabase
-        .from('Account')
+        .from('userDefinedAccounts')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .gte('created_at', previousStartDate.toISOString())

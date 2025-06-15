@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, RefreshCw, X, Pencil, Wallet, TrendingUp, TrendingDown, Building2, Landmark, Trash2, Loader2, Save } from 'lucide-react';
+import { Plus, RefreshCw, X, Pencil, Wallet, TrendingUp, TrendingDown, Building2, Landmark, Trash2, Loader2, Save, Lock, Unlock } from 'lucide-react';
 import Button from '../components/Button';
 import { cn } from '../lib/utils';
 
@@ -29,7 +29,8 @@ interface Account {
   account_group: string;
   account_description: string;
   account_type: string;
-  user_id: string;
+  user_id?: string;
+  isSystemAccount?: boolean; // Add flag to distinguish system accounts
 }
 
 interface AccountFormData {
@@ -85,24 +86,53 @@ const Accounts: React.FC = () => {
         return;
       }
 
-      let query = supabase
-        .from('Account')
+      // Fetch user accounts from userDefinedAccounts table
+      let userAccountsQuery = supabase
+        .from('userDefinedAccounts')
         .select('*')
         .eq('user_id', user.id)
         .order('id');
 
-      // Only apply account type filter if not 'All'
+      // Fetch system accounts from systemAccounts table
+      let systemAccountsQuery = supabase
+        .from('systemAccounts')
+        .select('*')
+        .order('id');
+
+      // Apply account type filter if not 'All'
       if (selectedType !== 'All') {
-        query = query.eq('account_type', selectedType);
+        userAccountsQuery = userAccountsQuery.eq('account_type', selectedType);
+        systemAccountsQuery = systemAccountsQuery.eq('account_type', selectedType);
       }
 
-      const { data, error } = await query;
+      const [userAccountsResult, systemAccountsResult] = await Promise.all([
+        userAccountsQuery,
+        systemAccountsQuery
+      ]);
 
-      if (error) {
-        throw error;
+      if (userAccountsResult.error) {
+        throw userAccountsResult.error;
       }
 
-      setAccounts(data || []);
+      if (systemAccountsResult.error) {
+        throw systemAccountsResult.error;
+      }
+
+      // Mark user accounts as editable
+      const userAccounts = (userAccountsResult.data || []).map(account => ({
+        ...account,
+        isSystemAccount: false
+      }));
+
+      // Mark system accounts as readonly
+      const systemAccounts = (systemAccountsResult.data || []).map(account => ({
+        ...account,
+        isSystemAccount: true
+      }));
+
+      // Combine both arrays - system accounts first, then user accounts
+      const allAccounts = [...systemAccounts, ...userAccounts];
+      setAccounts(allAccounts);
     } catch (err) {
       console.error('Error fetching accounts:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch accounts');
@@ -172,7 +202,7 @@ const Accounts: React.FC = () => {
         console.log('Updating existing account:', editingAccountId);
         // Update existing account
         const { error: updateError } = await supabase
-          .from('Account')
+          .from('userDefinedAccounts')
           .update({
             account_name: formData.account_name,
             account_type: formData.account_type,
@@ -200,7 +230,7 @@ const Accounts: React.FC = () => {
         console.log('New account data:', newAccount);
 
         const { error: insertError } = await supabase
-          .from('Account')
+          .from('userDefinedAccounts')
           .insert([newAccount]);
 
         if (insertError) {
@@ -243,7 +273,7 @@ const Accounts: React.FC = () => {
     try {
       setDeleteLoading(true);
       const { error } = await supabase
-        .from('Account')
+        .from('userDefinedAccounts')
         .delete()
         .eq('id', accountId);
 
@@ -413,9 +443,20 @@ const Accounts: React.FC = () => {
                   </tr>
                 ) : (
                   sortedAccounts.map((account) => (
-                    <tr key={account.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <tr key={`${account.isSystemAccount ? 'system' : 'user'}-${account.id}`} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                        {account.account_name}
+                        <div className="flex items-center gap-3">
+                          {account.isSystemAccount ? (
+                            <div title="System Account (Read-only)">
+                              <Lock className="w-4 h-4 text-red-500 dark:text-red-400" strokeWidth={2.5} />
+                            </div>
+                          ) : (
+                            <div title="User Account (Editable)">
+                              <Unlock className="w-4 h-4 text-green-500 dark:text-green-400" strokeWidth={2.5} />
+                            </div>
+                          )}
+                          <span>{account.account_name}</span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {account.account_type}
@@ -427,12 +468,15 @@ const Accounts: React.FC = () => {
                         {account.account_description}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button
-                          onClick={() => handleEdit(account)}
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
+                        {!account.isSystemAccount && (
+                          <button
+                            onClick={() => handleEdit(account)}
+                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
+                            title="Edit Account"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))

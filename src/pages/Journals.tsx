@@ -97,25 +97,59 @@ const Journals: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      // Fetch transactions with account names using proper join syntax
-      const { data, error: transactionError } = await supabase
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('You must be logged in to view transactions');
+      }
+
+      // Fetch transactions
+      const { data: transactions, error: transactionError } = await supabase
         .from('Transaction')
-        .select(`
-          *,
-          Account (account_name)
-        `)
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+        .select('*')
+        .eq('user_id', user.id)
         .order('transaction_date', { ascending: false });
 
       if (transactionError) throw transactionError;
 
+      if (!transactions || transactions.length === 0) {
+        setTransactions([]);
+        return;
+      }
+
+      // Get unique account IDs
+      const accountIds = [...new Set(transactions.map(t => t.account_id))];
+
+      // Fetch account names from both userDefinedAccounts and systemAccounts
+      const [userAccountsResult, systemAccountsResult] = await Promise.all([
+        supabase
+          .from('userDefinedAccounts')
+          .select('id, account_name')
+          .in('id', accountIds),
+        supabase
+          .from('systemAccounts')
+          .select('id, account_name')
+          .in('id', accountIds)
+      ]);
+
+      if (userAccountsResult.error) throw userAccountsResult.error;
+      if (systemAccountsResult.error) throw systemAccountsResult.error;
+
+      // Combine account data
+      const allAccounts = [
+        ...(userAccountsResult.data || []),
+        ...(systemAccountsResult.data || [])
+      ];
+
+      // Create account lookup map
+      const accountMap = new Map(allAccounts.map(acc => [acc.id, acc.account_name]));
+
       // Transform the data to include account_name
-      const transformedData = data?.map(transaction => ({
+      const transformedData = transactions.map(transaction => ({
         ...transaction,
-        account_name: transaction.Account?.account_name || 'Unknown Account'
+        account_name: accountMap.get(transaction.account_id) || 'Unknown Account'
       }));
 
-      setTransactions(transformedData || []);
+      setTransactions(transformedData);
     } catch (err) {
       console.error('Error fetching transactions:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch transactions');

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Pencil, X, Loader2 } from 'lucide-react';
+import { Save, Pencil, X, Loader2, Lock, Unlock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../components/Button';
+import AccountSelect from '../components/AccountSelect';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ui/use-toast';
 import { cn } from "../lib/utils";
@@ -10,6 +11,7 @@ interface Account {
   id: number;
   account_name: string;
   account_type: string;
+  isSystemAccount?: boolean;
 }
 
 interface AccountingSettings {
@@ -132,28 +134,40 @@ const Settings: React.FC = () => {
         throw new Error('Please sign in to access settings');
       }
 
-      // Fetch accounts
-      const { data: accountsData, error: accountsError } = await supabase
-        .from('Account')
+      // Fetch user accounts from userDefinedAccounts table
+      const { data: userAccountsData, error: userAccountsError } = await supabase
+        .from('userDefinedAccounts')
         .select('id, account_name, account_type')
         .order('account_name');
 
-      if (accountsError) throw accountsError;
+      if (userAccountsError) throw userAccountsError;
 
-      if (accountsData) {
-        setAccounts(accountsData);
+      // Fetch system accounts from systemAccounts table
+      const { data: systemAccountsData, error: systemAccountsError } = await supabase
+        .from('systemAccounts')
+        .select('id, account_name, account_type')
+        .order('account_name');
 
-        // Group accounts by type
-        const grouped = accountsData.reduce((acc, account) => {
-          if (!acc[account.account_type]) {
-            acc[account.account_type] = [];
-          }
-          acc[account.account_type].push(account);
-          return acc;
-        }, {} as Record<string, Account[]>);
+      if (systemAccountsError) throw systemAccountsError;
 
-        setAccountsByType(grouped);
-      }
+      // Combine both account types
+      const allAccounts: Account[] = [
+        ...(userAccountsData || []).map(account => ({ ...account, isSystemAccount: false })),
+        ...(systemAccountsData || []).map(account => ({ ...account, isSystemAccount: true }))
+      ];
+
+      setAccounts(allAccounts);
+
+      // Group accounts by type
+      const grouped = allAccounts.reduce((acc, account) => {
+        if (!acc[account.account_type]) {
+          acc[account.account_type] = [];
+        }
+        acc[account.account_type].push(account);
+        return acc;
+      }, {} as Record<string, Account[]>);
+
+      setAccountsByType(grouped);
 
       // Fetch user's settings
       const { data: { user } } = await supabase.auth.getUser();
@@ -323,6 +337,8 @@ const Settings: React.FC = () => {
       [field]: value === '' ? null : Number(value)
     }));
   };
+
+
 
   const handleSaveCard = async (cardType: string) => {
     console.log('Starting save for card:', cardType);
@@ -824,144 +840,103 @@ const Settings: React.FC = () => {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Sales Revenue Account
                   </label>
-                  <select
-                    value={settings.sales_revenue_account || ''}
-                    onChange={(e) => setSettings({ ...settings, sales_revenue_account: e.target.value === '' ? null : Number(e.target.value) })}
+                  <AccountSelect
+                    accounts={accounts}
+                    value={settings.sales_revenue_account}
+                    onChange={(value) => setSettings({ ...settings, sales_revenue_account: value })}
+                    placeholder="Select a Revenue Account"
+                    disabled={editingCard !== 'accounts' || isSaving}
+                    accountType="Revenue"
                     className={cn(
-                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
                       (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={editingCard !== 'accounts' || isSaving}
-                  >
-                    <option value="">Select a Revenue Account</option>
-                    {accounts
-                      .filter(account => account.account_type === 'Revenue')
-                      .map(account => (
-                        <option key={account.id} value={account.id}>
-                          {account.account_name}
-                        </option>
-                      ))}
-                  </select>
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Purchases Account
                   </label>
-                  <select
-                    value={settings.purchases_account || ''}
-                    onChange={(e) => setSettings({ ...settings, purchases_account: e.target.value === '' ? null : Number(e.target.value) })}
+                  <AccountSelect
+                    accounts={accounts}
+                    value={settings.purchases_account}
+                    onChange={(value) => setSettings({ ...settings, purchases_account: value })}
+                    placeholder="Select an Expense Account"
+                    disabled={editingCard !== 'accounts' || isSaving}
+                    accountType="Expense"
                     className={cn(
-                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
                       (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={editingCard !== 'accounts' || isSaving}
-                  >
-                    <option value="">Select an Expense Account</option>
-                    {accounts
-                      .filter(account => account.account_type === 'Expense')
-                      .map(account => (
-                        <option key={account.id} value={account.id}>
-                          {account.account_name}
-                        </option>
-                      ))}
-                  </select>
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Accounts Receivable
                   </label>
-                  <select
-                    value={settings.accounts_receivable_account || ''}
-                    onChange={(e) => setSettings({ ...settings, accounts_receivable_account: e.target.value === '' ? null : Number(e.target.value) })}
+                  <AccountSelect
+                    accounts={accounts}
+                    value={settings.accounts_receivable_account}
+                    onChange={(value) => setSettings({ ...settings, accounts_receivable_account: value })}
+                    placeholder="Select an Asset Account"
+                    disabled={editingCard !== 'accounts' || isSaving}
+                    accountType="Asset"
                     className={cn(
-                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
                       (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={editingCard !== 'accounts' || isSaving}
-                  >
-                    <option value="">Select an Asset Account</option>
-                    {accounts
-                      .filter(account => account.account_type === 'Asset')
-                      .map(account => (
-                        <option key={account.id} value={account.id}>
-                          {account.account_name}
-                        </option>
-                      ))}
-                  </select>
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Accounts Payable
                   </label>
-                  <select
-                    value={settings.accounts_payable_account || ''}
-                    onChange={(e) => setSettings({ ...settings, accounts_payable_account: e.target.value === '' ? null : Number(e.target.value) })}
+                  <AccountSelect
+                    accounts={accounts}
+                    value={settings.accounts_payable_account}
+                    onChange={(value) => setSettings({ ...settings, accounts_payable_account: value })}
+                    placeholder="Select a Liability Account"
+                    disabled={editingCard !== 'accounts' || isSaving}
+                    accountType="Liability"
                     className={cn(
-                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
                       (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={editingCard !== 'accounts' || isSaving}
-                  >
-                    <option value="">Select a Liability Account</option>
-                    {accounts
-                      .filter(account => account.account_type === 'Liability')
-                      .map(account => (
-                        <option key={account.id} value={account.id}>
-                          {account.account_name}
-                        </option>
-                      ))}
-                  </select>
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Taxes Payable
                   </label>
-                  <select
-                    value={settings.taxes_payable_account || ''}
-                    onChange={(e) => setSettings({ ...settings, taxes_payable_account: e.target.value === '' ? null : Number(e.target.value) })}
+                  <AccountSelect
+                    accounts={accounts}
+                    value={settings.taxes_payable_account}
+                    onChange={(value) => setSettings({ ...settings, taxes_payable_account: value })}
+                    placeholder="Select a Liability Account"
+                    disabled={editingCard !== 'accounts' || isSaving}
+                    accountType="Liability"
                     className={cn(
-                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
                       (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={editingCard !== 'accounts' || isSaving}
-                  >
-                    <option value="">Select a Liability Account</option>
-                    {accounts
-                      .filter(account => account.account_type === 'Liability')
-                      .map(account => (
-                        <option key={account.id} value={account.id}>
-                          {account.account_name}
-                        </option>
-                      ))}
-                  </select>
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Cash Account
                   </label>
-                  <select
-                    value={settings.cash_account || ''}
-                    onChange={(e) => setSettings({ ...settings, cash_account: e.target.value === '' ? null : Number(e.target.value) })}
+                  <AccountSelect
+                    accounts={accounts}
+                    value={settings.cash_account}
+                    onChange={(value) => setSettings({ ...settings, cash_account: value })}
+                    placeholder="Select an Asset Account"
+                    disabled={editingCard !== 'accounts' || isSaving}
+                    accountType="Asset"
+                    filterCondition={(account) => account.account_name.toLowerCase().includes('cash')}
                     className={cn(
-                      "w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-800 dark:text-white",
                       (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
                     )}
-                    disabled={editingCard !== 'accounts' || isSaving}
-                  >
-                    <option value="">Select an Asset Account</option>
-                    {accounts
-                      .filter(account => account.account_name.toLowerCase().includes('cash'))
-                      .map(account => (
-                        <option key={account.id} value={account.id}>
-                          {account.account_name}
-                        </option>
-                      ))}
-                  </select>
+                  />
                 </div>
               </div>
             </div>
