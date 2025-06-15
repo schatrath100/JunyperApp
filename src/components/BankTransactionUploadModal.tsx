@@ -33,7 +33,7 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [preview, setPreview] = useState<TransactionRow[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 5;
+  const rowsPerPage = 3; // Reduced from 5 to 3 for more compact preview
 
   const columnMappings = {
     date: ['date', 'Date', 'DATE', 'Transaction Date', 'TRANSACTION DATE'],
@@ -293,7 +293,8 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
           bank_name: bankCol ? String(row[bankCol]).trim() : '',
           description: descCol ? String(row[descCol]).trim() : '',
           user_id: user.id,
-          transaction_source: 'upload'
+          transaction_source: 'upload',
+        transaction_status: 'New'
         };
       });
 
@@ -318,10 +319,10 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             Upload Bank Transactions
           </h2>
           <button
@@ -332,35 +333,32 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-4">
           {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 whitespace-pre-line">
+            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400 whitespace-pre-line text-sm">
               {error}
             </div>
           )}
 
-          <div className="mb-6">
+          <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Upload CSV or Excel File
             </label>
-            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg">
-              <div className="space-y-1 text-center">
-                <FileSpreadsheet className="mx-auto h-12 w-12 text-gray-400" />
-                <div className="flex text-sm text-gray-600 dark:text-gray-400">
-                  <label className="relative cursor-pointer rounded-md font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
-                    <span>Upload a file</span>
-                    <input
-                      type="file"
-                      className="sr-only"
-                      accept=".csv,.xlsx,.xls"
-                      onChange={handleFileChange}
-                    />
-                  </label>
-                  <p className="pl-1">or drag and drop</p>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  CSV or Excel files only
-                </p>
+            <div className="mt-1 flex justify-center px-4 pt-4 pb-4 border-2 border-gray-300 dark:border-gray-600 border-dashed rounded-lg">
+                              <div className="space-y-1 text-center">
+                  <FileSpreadsheet className="mx-auto h-8 w-8 text-gray-400" />
+                  <div className="flex justify-center text-sm text-gray-600 dark:text-gray-400">
+                    <label className="relative cursor-pointer rounded-md font-medium text-blue-600 dark:text-blue-400 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                      <span>Upload a file</span>
+                      <input
+                        type="file"
+                        className="sr-only"
+                        accept=".csv,.xlsx,.xls"
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                    <p className="pl-1">or drag and drop</p>
+                  </div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
                   Required columns in order: Date, Account Number, Bank Name, Description, Deposit, Withdrawal
                 </p>
@@ -369,7 +367,7 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
           </div>
 
           {preview.length > 0 && (
-            <div className="mb-6">
+            <div className="mb-4">
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   Preview ({preview.length} records)
@@ -378,26 +376,26 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
                   Page {currentPage} of {totalPages}
                 </div>
               </div>
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto max-h-60 border border-gray-200 dark:border-gray-700 rounded-lg">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-800">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Date
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Account Number
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Account
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                        Bank Name
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Bank
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Description
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Deposit
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                         Withdrawal
                       </th>
                     </tr>
@@ -405,22 +403,22 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
                   <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                     {currentRows.map((row, index) => (
                       <tr key={index}>
-                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-gray-100">
+                        <td className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
                           {row.date}
                         </td>
-                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-gray-100">
+                        <td className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
                           {row.account_number}
                         </td>
-                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-gray-100">
+                        <td className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100 truncate max-w-24">
                           {row.bank_name}
                         </td>
-                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-gray-100">
+                        <td className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100 truncate max-w-32">
                           {row.description}
                         </td>
-                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-gray-100">
+                        <td className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
                           {row.deposit}
                         </td>
-                        <td className="px-6 py-3 text-sm text-gray-900 dark:text-gray-100">
+                        <td className="px-3 py-2 text-sm text-gray-900 dark:text-gray-100">
                           {row.withdrawal}
                         </td>
                       </tr>
@@ -429,7 +427,7 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
                 </table>
               </div>
               {totalPages > 1 && (
-                <div className="flex justify-between items-center mt-4">
+                <div className="flex justify-between items-center mt-3">
                   <button
                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                     disabled={currentPage === 1}
@@ -464,7 +462,7 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
             </div>
           )}
 
-          <div className="mt-6 flex justify-end space-x-3">
+          <div className="mt-4 flex justify-end space-x-3">
             <Button
               variant="outline"
               onClick={onClose}

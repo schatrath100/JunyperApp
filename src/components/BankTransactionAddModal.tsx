@@ -69,7 +69,8 @@ const BankTransactionAddModal: React.FC<BankTransactionAddModalProps> = ({
         withdrawal: withdrawalAmount,
         account_number: accountNumber,
         user_id: user.id,
-        transaction_source: 'manual'
+        transaction_source: 'manual',
+        transaction_status: 'New'
       };
 
       console.log('Attempting to insert transaction:', transactionData);

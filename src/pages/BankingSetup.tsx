@@ -41,6 +41,7 @@ interface PlaidAccount {
     limit: number | null;
     iso_currency_code: string | null;
   };
+  last_fetch_date?: string;
 }
 
 interface TransactionRule {
@@ -314,6 +315,19 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
     return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  // Helper function to format last fetch time
+  const formatLastFetch = (dateString: string | undefined) => {
+    if (!dateString) return 'Never fetched';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just fetched';
+    if (diffInMinutes < 60) return `Fetched ${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `Fetched ${Math.floor(diffInMinutes / 60)}h ago`;
+    return `Fetched ${Math.floor(diffInMinutes / 1440)}d ago`;
+  };
+
   // Function to toggle bank expansion
   const toggleBankExpansion = (bankId: string) => {
     setExpandedBanks(prev => {
@@ -378,15 +392,59 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
     }
   };
 
-  // Function to refresh a specific bank's account data
-  const refreshBankAccounts = async (bankId: string) => {
+  // Function to refresh a specific bank's account balances (frontend only)
+  const refreshBankBalances = async (bankId: string) => {
     try {
       setRefreshingBanks(prev => new Set(prev).add(bankId));
-      await fetchAccountDetails(bankId);
-      onAlert?.('Bank accounts refreshed successfully', 'success');
+      
+      // Fetch updated data for this specific bank
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const response = await fetch('/.netlify/functions/fetch-accounts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: user.id, bankId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch account details');
+      }
+
+      const data = await response.json();
+      const refreshedBank = data.banks?.[0];
+      
+      console.log('Refresh bank data received:', refreshedBank);
+      
+      if (refreshedBank) {
+        // Update only the specific bank in the existing array, preserving original fields
+        setConnectedBanks(prev => 
+          prev.map(bank => 
+            bank.id === bankId ? {
+              ...bank, // Keep original bank data
+              ...refreshedBank, // Override with refreshed data
+              institution_name: bank.institution_name, // Preserve original institution_name
+              accounts: refreshedBank.accounts || bank.accounts, // Use refreshed accounts or fallback
+              institution: refreshedBank.institution || bank.institution, // Use refreshed institution or fallback
+              last_sync: new Date().toISOString() // Update sync time
+            } : bank
+          )
+        );
+      }
+      
+      // Update the last_sync timestamp for this bank
+      await supabase
+        .from('connected_banks')
+        .update({ last_sync: new Date().toISOString() })
+        .eq('id', bankId);
+      
+      onAlert?.('Bank account balances refreshed successfully', 'success');
     } catch (err) {
-      console.error('Error refreshing bank accounts:', err);
-      onAlert?.('Failed to refresh bank accounts', 'error');
+      console.error('Error refreshing bank balances:', err);
+      onAlert?.('Failed to refresh bank balances', 'error');
     } finally {
       setRefreshingBanks(prev => {
         const newSet = new Set(prev);
@@ -423,6 +481,12 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
 
       const data = await response.json();
       
+      // Update the last_fetch_date for this account in the plaidAccount table
+      await supabase
+        .from('plaidAccount')
+        .update({ last_fetch_date: new Date().toISOString() })
+        .eq('account_id', accountId);
+      
       onAlert?.(
         `Successfully fetched ${data.transactions_count} transactions for ${accountName}`, 
         'success'
@@ -434,6 +498,9 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
         message: `Successfully fetched ${data.transactions_count} transactions from ${accountName} (${data.institution_name})`,
         type: 'success'
       });
+
+      // Refresh the connected banks to show updated last fetch date
+      await fetchConnectedBanks();
 
     } catch (err) {
       console.error('Error fetching transactions:', err);
@@ -723,11 +790,11 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                       <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              refreshBankAccounts(bank.id);
+                              refreshBankBalances(bank.id);
                             }}
                             disabled={refreshingBanks.has(bank.id)}
                             className="px-3 py-1.5 text-sm font-medium text-white hover:text-white bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 border border-green-600 dark:border-green-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Refresh Accounts"
+                            title="Refresh Account Balances (Frontend Only)"
                           >
                             {refreshingBanks.has(bank.id) ? (
                               <span className="flex items-center gap-1.5">
@@ -804,6 +871,9 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                                       <p className="text-sm text-gray-600 dark:text-gray-300">
                                         {formatAccountType(account.type, account.subtype)}
                                       </p>
+                                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                                        {formatLastFetch(account.last_fetch_date)}
+                                      </p>
                                     </div>
                                     <div className="flex items-center gap-3">
                                       <div className="text-right">
@@ -825,7 +895,7 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                                         onClick={() => fetchAccountTransactions(account.account_id, account.official_name || account.name)}
                                         disabled={fetchingTransactions.has(account.account_id)}
                                         className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 border border-blue-600 dark:border-blue-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-                                        title="Fetch Transactions (Last 30 days)"
+                                        title="Fetch & Store Transactions (Last 30 days)"
                                       >
                                         {fetchingTransactions.has(account.account_id) ? (
                                           <>
