@@ -88,7 +88,7 @@ export const handler = async (event, context) => {
     const response = await exchangePublicToken(public_token);
     
     console.log('Storing access token and institution name in Supabase');
-    const { error } = await supabase
+    const { data: bankData, error } = await supabase
       .from('connected_banks')
       .upsert({
         user_id: userId,
@@ -96,7 +96,9 @@ export const handler = async (event, context) => {
         access_token: response.access_token,
         institution_name: institutionName,
         updated_at: new Date().toISOString()
-      });
+      })
+      .select()
+      .single();
 
     if (error) {
       console.error('Error storing connected bank:', error);
@@ -105,6 +107,47 @@ export const handler = async (event, context) => {
         headers,
         body: JSON.stringify({ error: 'Failed to store connected bank details' }),
       };
+    }
+
+    console.log('Bank details stored successfully, now fetching and storing accounts...');
+
+    // Fetch and store account details immediately after connecting bank
+    try {
+      const accountsResponse = await plaidClient.accountsGet({
+        access_token: response.access_token,
+      });
+
+      console.log(`Found ${accountsResponse.data.accounts.length} accounts for new bank`);
+
+      // Store each account in the plaidAccount table
+      for (const account of accountsResponse.data.accounts) {
+        const { error: accountError } = await supabase.rpc('sync_plaid_account_data', {
+          p_connected_bank_id: bankData.id,
+          p_user_id: userId,
+          p_plaid_account_id: account.account_id,
+          p_plaid_item_id: response.item_id,
+          p_name: account.name,
+          p_official_name: account.official_name,
+          p_type: account.type,
+          p_subtype: account.subtype,
+          p_mask: account.mask,
+          p_current_balance: account.balances.current,
+          p_available_balance: account.balances.available,
+          p_credit_limit: account.balances.limit,
+          p_currency_code: account.balances.iso_currency_code || 'USD'
+        });
+
+        if (accountError) {
+          console.error(`Error storing account ${account.account_id}:`, accountError);
+        } else {
+          console.log(`Successfully stored account: ${account.name} (${account.account_id})`);
+        }
+      }
+
+      console.log('All accounts stored successfully in database');
+    } catch (accountError) {
+      console.error('Error fetching/storing accounts during bank connection:', accountError);
+      // Don't throw here - bank connection was successful, account sync can be retried
     }
 
     console.log('Public token exchanged and bank details stored successfully');

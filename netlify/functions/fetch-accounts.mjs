@@ -86,68 +86,175 @@ export const handler = async (event, context) => {
       };
     }
 
-    console.log(`Fetching accounts for ${connectedBanks.length} connected banks`);
+    console.log(`Fetching accounts for ${connectedBanks.length} connected banks using hybrid approach`);
     
     const banksWithAccounts = await Promise.all(
       connectedBanks.map(async (bank) => {
         try {
-          // Fetch accounts
-          const accountsResponse = await plaidClient.accountsGet({
-            access_token: bank.access_token,
-          });
+          // First, try to get accounts from database
+          const { data: cachedAccounts, error: dbError } = await supabase
+            .from('plaidAccount')
+            .select('*')
+            .eq('connected_bank_id', bank.id)
+            .eq('is_active', true);
 
-          // Fetch institution details for logo
-          const institutionResponse = await plaidClient.institutionsGetById({
-            institution_id: accountsResponse.data.item.institution_id,
-            country_codes: ['US'],
-            options: {
-              include_optional_metadata: true
+          if (dbError) {
+            console.error(`Database error for bank ${bank.id}:`, dbError);
+          }
+
+          let shouldRefreshFromPlaid = false;
+          let accounts = [];
+
+          // Check if we need to refresh from Plaid
+          if (!cachedAccounts || cachedAccounts.length === 0) {
+            console.log(`No cached accounts found for bank ${bank.institution_name}, fetching from Plaid`);
+            shouldRefreshFromPlaid = true;
+          } else {
+            // Check if data is stale (older than 1 hour)
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+            const hasStaleData = cachedAccounts.some(account => 
+              !account.last_plaid_sync || new Date(account.last_plaid_sync) < oneHourAgo
+            );
+
+            if (hasStaleData || bankId === bank.id) {
+              console.log(`Refreshing stale data for bank ${bank.institution_name} from Plaid`);
+              shouldRefreshFromPlaid = true;
+            } else {
+              console.log(`Using cached data for bank ${bank.institution_name}`);
+              accounts = cachedAccounts.map(account => ({
+                account_id: account.plaid_account_id,
+                name: account.name,
+                official_name: account.official_name,
+                type: account.type,
+                subtype: account.subtype,
+                mask: account.mask,
+                balances: {
+                  available: account.available_balance,
+                  current: account.current_balance,
+                  limit: account.credit_limit,
+                  iso_currency_code: account.currency_code,
+                }
+              }));
             }
-          });
+          }
 
-          console.log(`Institution data for ${bank.institution_name}:`, {
-            name: institutionResponse.data.institution.name,
-            hasLogo: !!institutionResponse.data.institution.logo,
-            primaryColor: institutionResponse.data.institution.primary_color
-          });
+          let institution = null;
 
-          // Update last sync time in database
-          await supabase
-            .from('connected_banks')
-            .update({ updated_at: new Date().toISOString() })
-            .eq('id', bank.id);
+          // Refresh from Plaid if needed
+          if (shouldRefreshFromPlaid) {
+            try {
+              // Fetch fresh accounts from Plaid
+              const accountsResponse = await plaidClient.accountsGet({
+                access_token: bank.access_token,
+              });
+
+              console.log(`Fetched ${accountsResponse.data.accounts.length} accounts from Plaid for ${bank.institution_name}`);
+
+              // Update database with fresh data
+              for (const account of accountsResponse.data.accounts) {
+                const { error: syncError } = await supabase.rpc('sync_plaid_account_data', {
+                  p_connected_bank_id: bank.id,
+                  p_user_id: userId,
+                  p_plaid_account_id: account.account_id,
+                  p_plaid_item_id: bank.item_id,
+                  p_name: account.name,
+                  p_official_name: account.official_name,
+                  p_type: account.type,
+                  p_subtype: account.subtype,
+                  p_mask: account.mask,
+                  p_current_balance: account.balances.current,
+                  p_available_balance: account.balances.available,
+                  p_credit_limit: account.balances.limit,
+                  p_currency_code: account.balances.iso_currency_code || 'USD'
+                });
+
+                if (syncError) {
+                  console.error(`Error syncing account ${account.account_id}:`, syncError);
+                }
+              }
+
+              // Use fresh data from Plaid
+              accounts = accountsResponse.data.accounts.map(account => ({
+                account_id: account.account_id,
+                name: account.name,
+                official_name: account.official_name,
+                type: account.type,
+                subtype: account.subtype,
+                mask: account.mask,
+                balances: {
+                  available: account.balances.available,
+                  current: account.balances.current,
+                  limit: account.balances.limit,
+                  iso_currency_code: account.balances.iso_currency_code,
+                }
+              }));
+
+              // Fetch institution details for logo
+              const institutionResponse = await plaidClient.institutionsGetById({
+                institution_id: accountsResponse.data.item.institution_id,
+                country_codes: ['US'],
+                options: {
+                  include_optional_metadata: true
+                }
+              });
+
+              institution = {
+                name: institutionResponse.data.institution.name,
+                logo: institutionResponse.data.institution.logo,
+                primary_color: institutionResponse.data.institution.primary_color,
+                url: institutionResponse.data.institution.url,
+              };
+
+              console.log(`Institution data for ${bank.institution_name}:`, {
+                name: institution.name,
+                hasLogo: !!institution.logo,
+                primaryColor: institution.primary_color
+              });
+
+              // Update last sync time in database
+              await supabase
+                .from('connected_banks')
+                .update({ updated_at: new Date().toISOString() })
+                .eq('id', bank.id);
+
+            } catch (plaidError) {
+              console.error(`Error fetching from Plaid for bank ${bank.id}:`, plaidError);
+              // Fall back to cached data if available
+              if (cachedAccounts && cachedAccounts.length > 0) {
+                console.log(`Falling back to cached data for bank ${bank.institution_name}`);
+                accounts = cachedAccounts.map(account => ({
+                  account_id: account.plaid_account_id,
+                  name: account.name,
+                  official_name: account.official_name,
+                  type: account.type,
+                  subtype: account.subtype,
+                  mask: account.mask,
+                  balances: {
+                    available: account.available_balance,
+                    current: account.current_balance,
+                    limit: account.credit_limit,
+                    iso_currency_code: account.currency_code,
+                  }
+                }));
+              }
+            }
+          }
 
           return {
             ...bank,
-            accounts: accountsResponse.data.accounts.map(account => ({
-              account_id: account.account_id,
-              name: account.name,
-              official_name: account.official_name,
-              type: account.type,
-              subtype: account.subtype,
-              mask: account.mask,
-              balances: {
-                available: account.balances.available,
-                current: account.balances.current,
-                limit: account.balances.limit,
-                iso_currency_code: account.balances.iso_currency_code,
-              }
-            })),
-            institution: {
-              name: institutionResponse.data.institution.name,
-              logo: institutionResponse.data.institution.logo,
-              primary_color: institutionResponse.data.institution.primary_color,
-              url: institutionResponse.data.institution.url,
-            },
-            last_sync: new Date().toISOString()
+            accounts,
+            institution,
+            last_sync: new Date().toISOString(),
+            data_source: shouldRefreshFromPlaid ? 'plaid_fresh' : 'database_cached'
           };
         } catch (error) {
-          console.error(`Error fetching accounts for bank ${bank.id}:`, error);
+          console.error(`Error processing bank ${bank.id}:`, error);
           return {
             ...bank,
             accounts: [],
             error: error.message,
-            last_sync: bank.updated_at
+            last_sync: bank.updated_at,
+            data_source: 'error'
           };
         }
       })
