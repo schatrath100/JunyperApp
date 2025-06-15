@@ -26,6 +26,11 @@ const createLinkToken = async (userId) => {
       products: [Products.Transactions],
       country_codes: [CountryCode.Us],
       language: 'en',
+      account_filters: {
+        depository: {
+          account_subtypes: ['checking', 'savings']
+        }
+      }
     };
 
     console.log('Creating link token with request:', { ...request, user: { client_user_id: userId } });
