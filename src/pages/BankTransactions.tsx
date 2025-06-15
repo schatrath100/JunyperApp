@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet, Search, Pencil, Eye, Info } from 'lucide-react';
+import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet, Search, Pencil } from 'lucide-react';
 import Button from '../components/Button';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -9,7 +9,6 @@ import { cn } from '../lib/utils';
 import { Table, TableBody, TableCell, TableHeader, TableRow } from '../components/ui/table';
 import FilterableTableHead from '../components/FilterableTableHead';
 import BankTransactionUploadModal from '../components/BankTransactionUploadModal';
-import BankTransactionViewModal from '../components/BankTransactionViewModal';
 import BankTransactionAddModal from '../components/BankTransactionAddModal';
 import BankTransactionEditModal from '../components/BankTransactionEditModal';
 import type { Alert } from '../components/Alert';
@@ -51,13 +50,11 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
   const [pageSize] = useState(10);
   const [error, setError] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const [showViewModal, setShowViewModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<BankTransaction | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('');
-  const [hoveredTransaction, setHoveredTransaction] = useState<string | null>(null);
   const [filters, setFilters] = useState<FilterState>({
     dateFrom: '',
     bankName: '',
@@ -250,6 +247,38 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     setShowEditModal(true);
   };
 
+  const handleStatusChange = async (transactionId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('bank_transactions')
+        .update({ 
+          transaction_status: newStatus,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', transactionId);
+
+      if (error) {
+        console.error('Error updating transaction status:', error);
+        onAlert?.('Failed to update transaction status', 'error');
+        return;
+      }
+
+      // Update the local state
+      setTransactions(prev => 
+        prev.map(transaction => 
+          transaction.id === transactionId 
+            ? { ...transaction, transaction_status: newStatus, updated_at: new Date().toISOString() }
+            : transaction
+        )
+      );
+
+      onAlert?.('Transaction status updated successfully', 'success');
+    } catch (error) {
+      console.error('Error updating transaction status:', error);
+      onAlert?.('Failed to update transaction status', 'error');
+    }
+  };
+
   // Since search is now handled at database level, we don't need client-side filtering
   const filteredTransactions = transactions;
 
@@ -343,111 +372,20 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     },
     {
       key: 'actions',
-      label: 'Actions',
+      label: 'Action',
       sortable: false,
       render: (_: any, row: BankTransaction) => (
         <div className="flex space-x-2">
-          <div className="relative">
-            <button
-              onMouseEnter={() => setHoveredTransaction(row.id)}
-              onMouseLeave={() => setHoveredTransaction(null)}
-              className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-all duration-200"
-              title="View Transaction Details"
-              onClick={() => {
-                setSelectedTransaction(row);
-                setShowViewModal(true);
-              }}
-            >
-              <Eye className="w-4 h-4" />
-            </button>
-            
-            {/* Hover Card */}
-            {hoveredTransaction === row.id && (
-              <div className="absolute right-0 top-8 z-50 w-80 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                    <Info className="w-4 h-4 text-blue-500" />
-                    <h4 className="font-semibold text-gray-900 dark:text-white">Transaction Details</h4>
-                  </div>
-                  
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Date:</span>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {new Date(row.date).toLocaleDateString()}
-                      </span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Bank:</span>
-                      <span className="font-medium text-gray-900 dark:text-white">{row.bank_name}</span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Description:</span>
-                      <span className="font-medium text-gray-900 dark:text-white text-right max-w-48 truncate">
-                        {row.description}
-                      </span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Type:</span>
-                      <span className={`font-medium ${row.credit_debit_indicator === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                        {row.credit_debit_indicator === 'credit' ? 'Credit' : 'Debit'}
-                      </span>
-                    </div>
-                    
-                    {row.deposit > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Deposit:</span>
-                        <span className="font-medium text-green-600 dark:text-green-400">
-                          {new Intl.NumberFormat('en-US', {
-                            style: 'currency',
-                            currency: 'USD'
-                          }).format(row.deposit)}
-                        </span>
-                      </div>
-                    )}
-                    
-                    {row.withdrawal > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Withdrawal:</span>
-                        <span className="font-medium text-red-600 dark:text-red-400">
-                          {new Intl.NumberFormat('en-US', {
-                            style: 'currency',
-                            currency: 'USD'
-                          }).format(row.withdrawal)}
-                        </span>
-                      </div>
-                    )}
-                    
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Account:</span>
-                      <span className="font-medium text-gray-900 dark:text-white">{row.account_number}</span>
-                    </div>
-                    
-                    <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                      <div className="flex justify-between text-xs">
-                        <span className="text-gray-500 dark:text-gray-400">Created:</span>
-                        <span className="text-gray-600 dark:text-gray-300">
-                          {new Date(row.created_at).toLocaleString()}
-                        </span>
-                      </div>
-                      {row.updated_at && row.updated_at !== row.created_at && (
-                        <div className="flex justify-between text-xs">
-                          <span className="text-gray-500 dark:text-gray-400">Updated:</span>
-                          <span className="text-gray-600 dark:text-gray-300">
-                            {new Date(row.updated_at).toLocaleString()}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
+          <select
+            value={row.transaction_status || 'New'}
+            onChange={(e) => handleStatusChange(row.id, e.target.value)}
+            className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="Categorized">Categorized</option>
+            <option value="Reconciled">Reconciled</option>
+            <option value="Cancelled">Cancelled</option>
+            <option value="Excluded">Excluded</option>
+          </select>
         </div>
       )
     }
@@ -544,8 +482,8 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
                 <th className="px-3 py-3 bg-gray-50 dark:bg-gray-800 text-left w-28">
                   <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Status</span>
                 </th>
-                <th className="px-1 py-3 bg-gray-50 dark:bg-gray-800 text-right w-10">
-                  <span className="sr-only">Actions</span>
+                <th className="px-1 py-3 bg-gray-50 dark:bg-gray-800 text-left w-32">
+                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Action</span>
                 </th>
               </TableRow>
             </TableHeader>
@@ -606,126 +544,17 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
                     </span>
                   </TableCell>
                   <TableCell className="px-1 py-2">
-                    <div className="flex justify-end">
-                      <div className="relative">
-                        <button
-                          onMouseEnter={() => setHoveredTransaction(transaction.id)}
-                          onMouseLeave={() => setHoveredTransaction(null)}
-                          className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-all duration-200"
-                          title="View Transaction Details"
-                          onClick={() => {
-                            setSelectedTransaction(transaction);
-                            setShowViewModal(true);
-                          }}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        
-                        {/* Hover Card */}
-                        {hoveredTransaction === transaction.id && (
-                          <div className="absolute right-0 top-8 z-50 w-80 p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl">
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-2 pb-2 border-b border-gray-200 dark:border-gray-700">
-                                <Info className="w-4 h-4 text-blue-500" />
-                                <h4 className="font-semibold text-gray-900 dark:text-white">Transaction Details</h4>
-                              </div>
-                              
-                              <div className="space-y-2 text-sm">
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600 dark:text-gray-400">Date:</span>
-                                  <span className="font-medium text-gray-900 dark:text-white">
-                                    {new Date(transaction.date).toLocaleDateString('en-US', { 
-                                      month: 'short', 
-                                      day: 'numeric', 
-                                      year: 'numeric' 
-                                    })}
-                                  </span>
-                                </div>
-                                
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600 dark:text-gray-400">Bank:</span>
-                                  <span className="font-medium text-gray-900 dark:text-white">{transaction.bank_name}</span>
-                                </div>
-                                
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600 dark:text-gray-400">Description:</span>
-                                  <span className="font-medium text-gray-900 dark:text-white text-right max-w-48 truncate">
-                                    {transaction.description}
-                                  </span>
-                                </div>
-                                
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600 dark:text-gray-400">Type:</span>
-                                  <span className={`font-medium ${transaction.credit_debit_indicator === 'credit' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                    {transaction.credit_debit_indicator === 'credit' ? 'Credit' : 'Debit'}
-                                  </span>
-                                </div>
-                                
-                                {transaction.deposit > 0 && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600 dark:text-gray-400">Deposit:</span>
-                                    <span className="font-medium text-green-600 dark:text-green-400">
-                                      {new Intl.NumberFormat('en-US', {
-                                        style: 'currency',
-                                        currency: 'USD'
-                                      }).format(transaction.deposit)}
-                                    </span>
-                                  </div>
-                                )}
-                                
-                                {transaction.withdrawal > 0 && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600 dark:text-gray-400">Withdrawal:</span>
-                                    <span className="font-medium text-red-600 dark:text-red-400">
-                                      {new Intl.NumberFormat('en-US', {
-                                        style: 'currency',
-                                        currency: 'USD'
-                                      }).format(transaction.withdrawal)}
-                                    </span>
-                                  </div>
-                                )}
-                                
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600 dark:text-gray-400">Account:</span>
-                                  <span className="font-medium text-gray-900 dark:text-white">{transaction.account_number}</span>
-                                </div>
-                                
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600 dark:text-gray-400">Source:</span>
-                                  <span className={`font-medium ${getSourceColor(transaction.transaction_source)}`}>
-                                    {formatTransactionSource(transaction.transaction_source)}
-                                  </span>
-                                </div>
-
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600 dark:text-gray-400">Status:</span>
-                                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${getStatusColor(transaction.transaction_status)}`}>
-                                    {formatTransactionStatus(transaction.transaction_status)}
-                                  </span>
-                                </div>
-                                
-                                <div className="pt-2 border-t border-gray-200 dark:border-gray-700">
-                                  <div className="flex justify-between text-xs">
-                                    <span className="text-gray-500 dark:text-gray-400">Created:</span>
-                                    <span className="text-gray-600 dark:text-gray-300">
-                                      {new Date(transaction.created_at).toLocaleString()}
-                                    </span>
-                                  </div>
-                                  {transaction.updated_at && transaction.updated_at !== transaction.created_at && (
-                                    <div className="flex justify-between text-xs">
-                                      <span className="text-gray-500 dark:text-gray-400">Updated:</span>
-                                      <span className="text-gray-600 dark:text-gray-300">
-                                        {new Date(transaction.updated_at).toLocaleString()}
-                                      </span>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
+                    <div className="flex justify-start">
+                      <select
+                        value={transaction.transaction_status || 'New'}
+                        onChange={(e) => handleStatusChange(transaction.id, e.target.value)}
+                        className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="Categorized">Categorized</option>
+                        <option value="Reconciled">Reconciled</option>
+                        <option value="Cancelled">Cancelled</option>
+                        <option value="Excluded">Excluded</option>
+                      </select>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -823,11 +652,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
         }}
       />
 
-      <BankTransactionViewModal
-        isOpen={showViewModal}
-        onClose={() => setShowViewModal(false)}
-        transaction={selectedTransaction}
-      />
+
 
       <BankTransactionAddModal
         isOpen={showAddModal}
