@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Trash2, Landmark, RefreshCw, Download, Calendar, Settings, Save, Edit2, Search, Eye, Info } from 'lucide-react';
+import { Plus, Trash2, Landmark, RefreshCw, Download, Calendar, Settings, Save, Edit2, Search, Eye, Info, ChevronDown, ChevronUp } from 'lucide-react';
 import Button from '../components/Button';
 import { cn } from '../lib/utils';
 import type { Alert } from '../components/Alert';
@@ -255,6 +255,7 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
   const [hoveredRule, setHoveredRule] = useState<string | null>(null);
   const [refreshingBanks, setRefreshingBanks] = useState<Set<string>>(new Set());
   const [loadingAccounts, setLoadingAccounts] = useState(false);
+  const [expandedBanks, setExpandedBanks] = useState<Set<string>>(new Set());
   const [ruleForm, setRuleForm] = useState({
     name: '',
     amount_min: '',
@@ -295,6 +296,19 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
     if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} hours ago`;
     return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Function to toggle bank expansion
+  const toggleBankExpansion = (bankId: string) => {
+    setExpandedBanks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(bankId)) {
+        newSet.delete(bankId);
+      } else {
+        newSet.add(bankId);
+      }
+      return newSet;
+    });
   };
 
   // Function to fetch connected banks
@@ -527,6 +541,14 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
     return () => window.removeEventListener('bankConnected', handleBankConnected);
   }, []);
 
+  // Expand all banks by default when they're loaded
+  useEffect(() => {
+    if (connectedBanks.length > 0) {
+      const bankIds = connectedBanks.map(bank => bank.id);
+      setExpandedBanks(new Set(bankIds));
+    }
+  }, [connectedBanks.length]);
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center">
@@ -579,8 +601,13 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                       key={bank.id}
                       className="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden"
                     >
-                      {/* Bank Header */}
-                      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-600">
+                      {/* Bank Header - Clickable */}
+                      <div 
+                        className={`flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors ${
+                          expandedBanks.has(bank.id) ? 'border-b border-gray-200 dark:border-gray-600' : ''
+                        }`}
+                        onClick={() => toggleBankExpansion(bank.id)}
+                      >
                         <div className="flex items-center space-x-4">
                           <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden" 
                                style={{ backgroundColor: bank.institution?.primary_color || '#3B82F6' }}>
@@ -598,9 +625,16 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                             <Landmark className={`w-6 h-6 text-white ${bank.institution?.logo ? 'hidden' : ''}`} />
                           </div>
                           <div>
-                            <h4 className="font-semibold text-gray-900 dark:text-white">
-                              {bank.institution?.name || bank.institution_name}
-                            </h4>
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold text-gray-900 dark:text-white">
+                                {bank.institution?.name || bank.institution_name}
+                              </h4>
+                              {bank.accounts && bank.accounts.length > 0 && (
+                                <span className="px-2 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full">
+                                  {bank.accounts.length} {bank.accounts.length === 1 ? 'Account' : 'Accounts'}
+                                </span>
+                              )}
+                            </div>
                             <p className="text-sm text-gray-500 dark:text-gray-400">
                               Connected on {new Date(bank.created_at).toLocaleDateString()}
                             </p>
@@ -611,7 +645,10 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                         </div>
                         <div className="flex items-center space-x-2">
                           <button
-                            onClick={() => refreshBankAccounts(bank.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              refreshBankAccounts(bank.id);
+                            }}
                             disabled={refreshingBanks.has(bank.id)}
                             className="p-2 text-gray-400 hover:text-blue-500 transition-colors disabled:opacity-50"
                             title="Refresh Accounts"
@@ -619,7 +656,8 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                             <RefreshCw className={`w-4 h-4 ${refreshingBanks.has(bank.id) ? 'animate-spin' : ''}`} />
                           </button>
                           <button
-                            onClick={async () => {
+                            onClick={async (e) => {
+                              e.stopPropagation();
                               try {
                                 const { error } = await supabase
                                   .from('connected_banks')
@@ -640,61 +678,70 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
+                          {expandedBanks.has(bank.id) ? (
+                            <ChevronUp className="w-5 h-5 text-gray-400" />
+                          ) : (
+                            <ChevronDown className="w-5 h-5 text-gray-400" />
+                          )}
                         </div>
                       </div>
 
-                      {/* Accounts List */}
-                      {bank.accounts && bank.accounts.length > 0 ? (
-                        <div className="p-4">
-                          <div className="space-y-3">
-                            {bank.accounts.map((account) => (
-                              <div
-                                key={account.account_id}
-                                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
-                              >
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-3 mb-1">
-                                    <h5 className="font-medium text-gray-900 dark:text-white">
-                                      {account.official_name || account.name}
-                                    </h5>
-                                    {account.mask && (
-                                      <span className="text-sm text-gray-500 dark:text-gray-400">
-                                        ••••{account.mask}
-                                      </span>
-                                    )}
-                                  </div>
-                                  <p className="text-sm text-gray-600 dark:text-gray-300">
-                                    {formatAccountType(account.type, account.subtype)}
-                                  </p>
-                                </div>
-                                <div className="text-right">
-                                  <div className="font-semibold text-gray-900 dark:text-white">
-                                    {formatCurrency(account.balances.current, account.balances.iso_currency_code)}
-                                  </div>
-                                  {account.balances.available !== null && account.balances.available !== account.balances.current && (
-                                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                                      Available: {formatCurrency(account.balances.available, account.balances.iso_currency_code)}
+                      {/* Accounts List - Collapsible */}
+                      {expandedBanks.has(bank.id) && (
+                        <div className="border-t border-gray-200 dark:border-gray-600">
+                          {bank.accounts && bank.accounts.length > 0 ? (
+                            <div className="p-4">
+                              <div className="space-y-3">
+                                {bank.accounts.map((account) => (
+                                  <div
+                                    key={account.account_id}
+                                    className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                                  >
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-3 mb-1">
+                                        <h5 className="font-medium text-gray-900 dark:text-white">
+                                          {account.official_name || account.name}
+                                        </h5>
+                                        {account.mask && (
+                                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                                            ••••{account.mask}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-sm text-gray-600 dark:text-gray-300">
+                                        {formatAccountType(account.type, account.subtype)}
+                                      </p>
                                     </div>
-                                  )}
-                                  {account.balances.limit && (
-                                    <div className="text-xs text-gray-400 dark:text-gray-500">
-                                      Limit: {formatCurrency(account.balances.limit, account.balances.iso_currency_code)}
+                                    <div className="text-right">
+                                      <div className="font-semibold text-gray-900 dark:text-white">
+                                        {formatCurrency(account.balances.current, account.balances.iso_currency_code)}
+                                      </div>
+                                      {account.balances.available !== null && account.balances.available !== account.balances.current && (
+                                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                                          Available: {formatCurrency(account.balances.available, account.balances.iso_currency_code)}
+                                        </div>
+                                      )}
+                                      {account.balances.limit && (
+                                        <div className="text-xs text-gray-400 dark:text-gray-500">
+                                          Limit: {formatCurrency(account.balances.limit, account.balances.iso_currency_code)}
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
-                                </div>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-                          {bank.error ? (
-                            <div className="text-red-500 dark:text-red-400">
-                              <p className="font-medium">Error loading accounts</p>
-                              <p className="text-sm">{bank.error}</p>
                             </div>
                           ) : (
-                            <p>No account details available</p>
+                            <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                              {bank.error ? (
+                                <div className="text-red-500 dark:text-red-400">
+                                  <p className="font-medium">Error loading accounts</p>
+                                  <p className="text-sm">{bank.error}</p>
+                                </div>
+                              ) : (
+                                <p>No account details available</p>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
