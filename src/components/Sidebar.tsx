@@ -7,8 +7,6 @@ import { cn } from '../lib/utils';
 import { useUserProfile } from '../hooks/useUserProfile';
 
 interface SidebarProps {
-  onToggleShortcuts: () => void;
-  showShortcuts: boolean;
   collapsed: boolean;
   onToggleCollapse: () => void;
 }
@@ -93,12 +91,7 @@ const NavItem: React.FC<NavItemProps> = ({
   );
 };
 
-const Sidebar: React.FC<{
-  onToggleShortcuts: () => void;
-  showShortcuts: boolean;
-  collapsed: boolean;
-  onToggleCollapse: () => void;
-}> = ({ onToggleShortcuts, showShortcuts, collapsed, onToggleCollapse }) => {
+const Sidebar: React.FC<SidebarProps> = ({ collapsed, onToggleCollapse }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [salesOpen, setSalesOpen] = useState(false);

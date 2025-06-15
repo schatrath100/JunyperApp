@@ -17,7 +17,7 @@ import Auth from './pages/Auth';
 import VerifyEmail from './pages/VerifyEmail';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
-import ShortcutPanel from './components/ShortcutPanel';
+import SlideInPanel from './components/SlideInPanel';
 import { supabase } from './lib/supabase';
 import { Alert } from './components/Alert';
 import SydneyAI from './pages/SydneyAI';
@@ -29,7 +29,6 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [session, setSession] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
-  const [showShortcuts, setShowShortcuts] = useState(false);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   
   // Use the new notification system
@@ -57,16 +56,8 @@ function App() {
     setAlerts(prev => [newAlert, ...prev]);
   };
 
-  useEffect(() => {
-    const handleShortcutSelected = () => setShowShortcuts(false);
-    window.addEventListener('shortcutSelected', handleShortcutSelected);
-    return () => window.removeEventListener('shortcutSelected', handleShortcutSelected);
-  }, []);
-
   const handleMainClick = (e: React.MouseEvent) => {
-    if (showShortcuts && mainRef.current?.contains(e.target as Node)) {
-      setShowShortcuts(false);
-    }
+    // Click handler for main content area
   };
 
   useEffect(() => {
@@ -84,9 +75,7 @@ function App() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const toggleShortcuts = () => {
-    setShowShortcuts(prev => !prev);
-  };
+
 
   if (loading) {
     return (
@@ -116,8 +105,6 @@ function App() {
             />
             <div className="flex flex-1 relative">
               <Sidebar 
-                onToggleShortcuts={toggleShortcuts} 
-                showShortcuts={showShortcuts}
                 collapsed={sidebarCollapsed}
                 onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
               />
@@ -146,7 +133,7 @@ function App() {
                 </Routes>
               </main>
             </div>
-            <ShortcutPanel isOpen={showShortcuts} onClose={toggleShortcuts} />
+            <SlideInPanel />
           </div>
         )}
       </BrowserRouter>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { TrendingUp, TrendingDown, FileText, Receipt, Wallet, UserPlus, Building2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { cn } from '../lib/utils';
 
 interface ActivityCount {
   type: string;
@@ -14,7 +15,11 @@ interface ActivityCount {
 
 type TimeRange = '1d' | '7d' | '30d';
 
-const RecentActivity: React.FC = () => {
+interface RecentActivityProps {
+  compact?: boolean;
+}
+
+const RecentActivity: React.FC<RecentActivityProps> = ({ compact = false }) => {
   const [activities, setActivities] = useState<ActivityCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -224,102 +229,145 @@ const RecentActivity: React.FC = () => {
   }, [selectedRange]);
 
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
-      <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+    <div className={cn(
+      "bg-white dark:bg-gray-900 flex flex-col",
+      compact 
+        ? "h-full" // Full height when compact to enable proper scrolling
+        : "rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm"
+    )}>
+      <div className={cn(
+        "flex items-center justify-between border-b border-gray-200 dark:border-gray-700 flex-shrink-0",
+        compact ? "p-3" : "p-4"
+      )}>
+        <h2 className={cn(
+          "font-semibold text-gray-900 dark:text-white",
+          compact ? "text-sm" : "text-lg"
+        )}>
           Recent Activity
         </h2>
-        <div className="flex space-x-2 text-sm">
+        <div className="flex space-x-1 text-xs">
           <button
             onClick={() => setSelectedRange('1d')}
-            className={`px-2 py-1 rounded-full transition-colors ${
+            className={cn(
+              "rounded-full transition-colors",
+              compact ? "px-1.5 py-0.5" : "px-2 py-1",
               selectedRange === '1d'
                 ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-            }`}
+            )}
           >
-            1 day
+            1d
           </button>
           <button
             onClick={() => setSelectedRange('7d')}
-            className={`px-2 py-1 rounded-full transition-colors ${
+            className={cn(
+              "rounded-full transition-colors",
+              compact ? "px-1.5 py-0.5" : "px-2 py-1",
               selectedRange === '7d'
                 ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-            }`}
+            )}
           >
-            7 days
+            7d
           </button>
           <button
             onClick={() => setSelectedRange('30d')}
-            className={`px-2 py-1 rounded-full transition-colors ${
+            className={cn(
+              "rounded-full transition-colors",
+              compact ? "px-1.5 py-0.5" : "px-2 py-1",
               selectedRange === '30d'
                 ? 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
-            }`}
+            )}
           >
-            30 days
+            30d
           </button>
         </div>
       </div>
       
-      {loading ? (
-        <div className="p-4 flex justify-center">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
-        </div>
-      ) : error ? (
-        <div className="p-4 text-center text-red-500 dark:text-red-400">
-          {error}
-        </div>
-      ) : activities.length === 0 ? (
-        <div className="p-4 text-center text-gray-500 dark:text-gray-400">
-          <p>No new activity</p>
-        </div>
-      ) : (
-        <div className="divide-y divide-gray-200 dark:divide-gray-700">
-          <AnimatePresence>
-          {activities.map((activity) => (
-              <motion.div
-                key={activity.type}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                className="p-4 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-lg ${activity.color}`}>
-                      {activity.icon}
-                    </div>
-                    <div>
-              <span className="text-gray-900 dark:text-white font-medium">New {activity.type}</span>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {activity.count} {activity.count === 1 ? 'item' : 'items'}
+      <div className={cn(
+        "flex-1 overflow-y-auto",
+        compact ? "min-h-0" : ""
+      )}>
+        {loading ? (
+          <div className={cn("flex justify-center", compact ? "p-3" : "p-4")}>
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-500"></div>
+          </div>
+        ) : error ? (
+          <div className={cn("text-center text-red-500 dark:text-red-400", compact ? "p-3 text-xs" : "p-4")}>
+            {error}
+          </div>
+        ) : activities.length === 0 ? (
+          <div className={cn("text-center text-gray-500 dark:text-gray-400", compact ? "p-3" : "p-4")}>
+            <p className={compact ? "text-xs" : ""}>No new activity</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-200 dark:divide-gray-700">
+            <AnimatePresence>
+            {activities.map((activity) => (
+                <motion.div
+                  key={activity.type}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className={cn(
+                    "hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors",
+                    compact ? "p-2" : "p-4"
+                  )}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className={cn(
+                        "rounded-lg",
+                        compact ? "p-1.5" : "p-2",
+                        activity.color
+                      )}>
+                        <div className={compact ? "w-3 h-3" : "w-5 h-5"}>
+                          {activity.icon}
+                        </div>
+                      </div>
+                      <div>
+                        <span className={cn(
+                          "text-gray-900 dark:text-white font-medium",
+                          compact ? "text-xs" : "text-sm"
+                        )}>
+                          New {activity.type}
+                        </span>
+                        <div className={cn(
+                          "text-gray-500 dark:text-gray-400",
+                          compact ? "text-xs" : "text-sm"
+                        )}>
+                          {activity.count} {activity.count === 1 ? 'item' : 'items'}
+                        </div>
                       </div>
                     </div>
+                    <div className={cn(
+                      "flex items-center",
+                      activity.change > 0 
+                        ? 'text-green-500 dark:text-green-400' 
+                        : activity.change < 0 
+                          ? 'text-red-500 dark:text-red-400'
+                          : 'text-gray-400 dark:text-gray-500'
+                    )}>
+                      {activity.change > 0 ? (
+                        <TrendingUp className={cn(compact ? "w-3 h-3 mr-0.5" : "w-4 h-4 mr-1")} />
+                      ) : (
+                        <TrendingDown className={cn(compact ? "w-3 h-3 mr-0.5" : "w-4 h-4 mr-1")} />
+                      )}
+                      <span className={cn(
+                        "font-medium",
+                        compact ? "text-xs" : "text-sm"
+                      )}>
+                        {activity.change > 0 ? '+' : ''}{activity.change}%
+                      </span>
+                    </div>
                   </div>
-                <div className={`flex items-center ${
-                  activity.change > 0 
-                    ? 'text-green-500 dark:text-green-400' 
-                    : activity.change < 0 
-                      ? 'text-red-500 dark:text-red-400'
-                      : 'text-gray-400 dark:text-gray-500'
-                }`}>
-                  {activity.change > 0 ? (
-                    <TrendingUp className="w-4 h-4 mr-1" />
-                  ) : (
-                    <TrendingDown className="w-4 h-4 mr-1" />
-                  )}
-                  <span className="text-sm font-medium">
-                    {activity.change > 0 ? '+' : ''}{activity.change}%
-                  </span>
-              </div>
-            </div>
-              </motion.div>
-          ))}
-          </AnimatePresence>
-        </div>
-      )}
+                </motion.div>
+            ))}
+            </AnimatePresence>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

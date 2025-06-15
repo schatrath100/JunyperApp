@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import Greeting from '../components/Greeting';
-import RecentActivity from '../components/RecentActivity';
 import KPICard from '../components/KPICard';
 import { SectionCards } from '../components/SectionCards';
 import ExpensesChart from '../components/ExpensesChart';
@@ -48,28 +47,88 @@ const Dashboard: React.FC = () => {
       if (userError) throw userError;
       if (!user) throw new Error('No authenticated user');
 
-      // Get this month's sales
-      const { data: currentSales, error: salesError } = await supabase
-        .from('SalesInvoice')
-        .select('InvoiceAmount')
-        .eq('user_id', user.id)
-        .neq('Status', 'Cancelled')
-        .gte('InvoiceDate', startOfMonth.toISOString())
-        .lte('InvoiceDate', now.toISOString());
-        
-      if (salesError) throw salesError;
+      // Parallel execution of all queries for better performance
+      const [
+        currentSalesResult,
+        lastSalesResult,
+        currentBillsResult,
+        lastBillsResult,
+        currentCustomersResult,
+        lastCustomersResult,
+        transactionsResult
+      ] = await Promise.all([
+        // Current month sales - only select needed columns
+        supabase
+          .from('SalesInvoice')
+          .select('InvoiceAmount')
+          .eq('user_id', user.id)
+          .neq('Status', 'Cancelled')
+          .gte('InvoiceDate', startOfMonth.toISOString())
+          .lte('InvoiceDate', now.toISOString()),
+          
+        // Last month sales
+        supabase
+          .from('SalesInvoice')
+          .select('InvoiceAmount')
+          .eq('user_id', user.id)
+          .neq('Status', 'Cancelled')
+          .gte('InvoiceDate', startOfLastMonth.toISOString())
+          .lte('InvoiceDate', endOfLastMonth.toISOString()),
+          
+        // Current month bills - only select needed columns
+        supabase
+          .from('VendorInvoice')
+          .select('Amount')
+          .eq('user_id', user.id)
+          .neq('Status', 'Cancelled')
+          .gte('Date', startOfMonth.toISOString())
+          .lte('Date', now.toISOString()),
+          
+        // Last month bills
+        supabase
+          .from('VendorInvoice')
+          .select('Amount')
+          .eq('user_id', user.id)
+          .neq('Status', 'Cancelled')
+          .gte('Date', startOfLastMonth.toISOString())
+          .lte('Date', endOfLastMonth.toISOString()),
+          
+        // Current month customers - use count query for better performance
+        supabase
+          .from('Customer')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .gte('created_at', startOfMonth.toISOString())
+          .lte('created_at', now.toISOString()),
+          
+        // Last month customers
+        supabase
+          .from('Customer')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .gte('created_at', startOfLastMonth.toISOString())
+          .lte('created_at', endOfLastMonth.toISOString()),
+          
+                 // Bank transactions - only select needed columns
+         supabase
+           .from('bank_transactions')
+           .select('deposit, withdrawal, created_at')
+           .eq('user_id', user.id)
+           .eq('deleted', false)
+      ]);
 
-      // Get last month's sales
-      const { data: lastSales } = await supabase
-        .from('SalesInvoice')
-        .select('InvoiceAmount')
-        .eq('user_id', user.id)
-        .neq('Status', 'Cancelled')
-        .gte('InvoiceDate', startOfLastMonth.toISOString())
-        .lte('InvoiceDate', endOfLastMonth.toISOString());
+      // Handle errors from parallel queries
+      if (currentSalesResult.error) throw currentSalesResult.error;
+      if (lastSalesResult.error) throw lastSalesResult.error;
+      if (currentBillsResult.error) throw currentBillsResult.error;
+      if (lastBillsResult.error) throw lastBillsResult.error;
+      if (currentCustomersResult.error) throw currentCustomersResult.error;
+      if (lastCustomersResult.error) throw lastCustomersResult.error;
+      if (transactionsResult.error) throw transactionsResult.error;
 
-      const currentMonthSales = currentSales?.reduce((sum, inv) => sum + (Number(inv.InvoiceAmount) || 0), 0) || 0;
-      const lastMonthSales = lastSales?.reduce((sum, inv) => sum + (Number(inv.InvoiceAmount) || 0), 0) || 0;
+      // Process sales data
+      const currentMonthSales = currentSalesResult.data?.reduce((sum, inv) => sum + (Number(inv.InvoiceAmount) || 0), 0) || 0;
+      const lastMonthSales = lastSalesResult.data?.reduce((sum, inv) => sum + (Number(inv.InvoiceAmount) || 0), 0) || 0;
       const salesChange = lastMonthSales ? ((currentMonthSales - lastMonthSales) / lastMonthSales) * 100 : 0;
 
       setSalesKPI({
@@ -78,28 +137,9 @@ const Dashboard: React.FC = () => {
         trendData: [currentMonthSales]
       });
 
-      // Get this month's bills
-      const { data: currentBills, error: billsError } = await supabase
-        .from('VendorInvoice')
-        .select('Amount')
-        .eq('user_id', user.id)
-        .neq('Status', 'Cancelled')
-        .gte('Date', startOfMonth.toISOString())
-        .lte('Date', now.toISOString());
-
-      if (billsError) throw billsError;
-
-      // Get last month's bills
-      const { data: lastBills } = await supabase
-        .from('VendorInvoice')
-        .select('Amount')
-        .eq('user_id', user.id)
-        .neq('Status', 'Cancelled')
-        .gte('Date', startOfLastMonth.toISOString())
-        .lte('Date', endOfLastMonth.toISOString());
-
-      const currentMonthBills = currentBills?.reduce((sum, bill) => sum + (Number(bill.Amount) || 0), 0) || 0;
-      const lastMonthBills = lastBills?.reduce((sum, bill) => sum + (Number(bill.Amount) || 0), 0) || 0;
+      // Process bills data
+      const currentMonthBills = currentBillsResult.data?.reduce((sum, bill) => sum + (Number(bill.Amount) || 0), 0) || 0;
+      const lastMonthBills = lastBillsResult.data?.reduce((sum, bill) => sum + (Number(bill.Amount) || 0), 0) || 0;
       const billsChange = lastMonthBills ? ((currentMonthBills - lastMonthBills) / lastMonthBills) * 100 : 0;
 
       setBillsKPI({
@@ -108,26 +148,9 @@ const Dashboard: React.FC = () => {
         trendData: [currentMonthBills]
       });
 
-      // Get new customers this month
-      const { data: currentCustomers, error: customersError } = await supabase
-        .from('Customer')
-        .select('id')
-        .eq('user_id', user.id)
-        .gte('created_at', startOfMonth.toISOString())
-        .lte('created_at', now.toISOString());
-
-      if (customersError) throw customersError;
-
-      // Get new customers last month
-      const { data: lastCustomers } = await supabase
-        .from('Customer')
-        .select('id')
-        .eq('user_id', user.id)
-        .gte('created_at', startOfLastMonth.toISOString())
-        .lte('created_at', endOfLastMonth.toISOString());
-
-      const currentMonthCustomers = currentCustomers?.length || 0;
-      const lastMonthCustomers = lastCustomers?.length || 0;
+      // Process customers data
+      const currentMonthCustomers = currentCustomersResult.count || 0;
+      const lastMonthCustomers = lastCustomersResult.count || 0;
       const customersChange = lastMonthCustomers ? ((currentMonthCustomers - lastMonthCustomers) / lastMonthCustomers) * 100 : 0;
 
       setNewCustomersKPI({
@@ -136,27 +159,21 @@ const Dashboard: React.FC = () => {
         trendData: [currentMonthCustomers]
       });
 
-      // Get current cash balance
-      const { data: transactions, error: transactionsError } = await supabase
-        .from('bank_transactions')
-        .select('amount, credit_debit_indicator')
-        .eq('user_id', user.id);
-
-      if (transactionsError) throw transactionsError;
-
-      const currentBalance = transactions?.reduce((balance, trans) => {
-        const amount = Number(trans.amount) || 0;
-        return balance + (trans.credit_debit_indicator === 'credit' ? amount : -amount);
-      }, 0) || 0;
-
-      // Calculate month-to-date change in cash balance
-      const monthStartBalance = transactions?.reduce((balance, trans) => {
-        if (new Date(trans.created_at) < startOfMonth) {
-          const amount = Number(trans.amount) || 0;
-          return balance + (trans.credit_debit_indicator === 'credit' ? amount : -amount);
-        }
-        return balance;
-      }, 0) || 0;
+             // Process cash balance data - optimize calculation
+       let currentBalance = 0;
+       let monthStartBalance = 0;
+       
+       transactionsResult.data?.forEach(trans => {
+         const deposit = Number(trans.deposit) || 0;
+         const withdrawal = Number(trans.withdrawal) || 0;
+         const netAmount = deposit - withdrawal;
+         currentBalance += netAmount;
+         
+         // Only calculate month start balance if transaction is before current month
+         if (new Date(trans.created_at) < startOfMonth) {
+           monthStartBalance += netAmount;
+         }
+       });
 
       const cashChange = monthStartBalance ? ((currentBalance - monthStartBalance) / Math.abs(monthStartBalance)) * 100 : 0;
 
@@ -203,10 +220,6 @@ const Dashboard: React.FC = () => {
         <div className="animate-fade-in [animation-delay:100ms]">
           <ExpensesChart />
         </div>
-      </div>
-      
-      <div className="max-w-sm">
-        <RecentActivity />
       </div>
     </div>
   );
