@@ -88,6 +88,6 @@ BEGIN
   IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'check_account_exists') THEN
     RAISE NOTICE 'check_account_exists function is available and ready to use';
   ELSE
-    RAISE ERROR 'check_account_exists function is missing - this will cause constraint violations';
+    RAISE EXCEPTION 'check_account_exists function is missing - this will cause constraint violations';
   END IF;
 END $$; 
