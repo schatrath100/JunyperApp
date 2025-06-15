@@ -66,7 +66,7 @@ const PlaidLinkButton = ({ onAlert }: { onAlert?: (message: string, type: Alert[
     try {
       setIsInitializing(true);
       console.log('Creating link token...');
-      const response = await fetch('http://localhost:3001/api/create_link_token', {
+      const response = await fetch('/.netlify/functions/create-link-token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -131,7 +131,7 @@ const PlaidLinkButton = ({ onAlert }: { onAlert?: (message: string, type: Alert[
         }
 
         // Exchange the public token
-        const response = await fetch('http://localhost:3001/api/exchange_public_token', {
+        const response = await fetch('/.netlify/functions/exchange-public-token', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
