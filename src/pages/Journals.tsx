@@ -241,42 +241,53 @@ const Journals: React.FC = () => {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      {/* Enhanced Header Section */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8 space-y-4 sm:space-y-0">
         <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Journals</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Journal Entries</h1>
           <button
             onClick={fetchTransactions}
-            className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800"
+            className="p-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-all duration-200"
             disabled={loading}
-            title="Refresh"
+            title="Refresh journal entries"
           >
             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
           </button>
-        </div>
-        <div className="flex items-center space-x-4">
-          <div className="relative">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
+          {sortedTransactions.length > 0 && (
+            <div className="hidden sm:flex items-center px-3 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium">
+              {sortedTransactions.length} entr{sortedTransactions.length !== 1 ? 'ies' : 'y'}
             </div>
+          )}
+        </div>
+        
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by Account, Description, or Status..."
-              className="pl-10 pr-4 py-2 w-80 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent"
+              placeholder="Search by account, description, or status..."
+              className="w-full sm:w-80 h-11 pl-10 pr-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-700 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 transition-all duration-200"
             />
+            {loading && (
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                <RefreshCw className="w-4 h-4 animate-spin text-gray-400" />
+              </div>
+            )}
           </div>
-          <div className="flex items-center space-x-3">
+          
+          <div className="flex items-center space-x-2">
             <button
               onClick={exportToPDF}
-              className="p-2 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 transition-colors rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+              className="h-11 w-11 flex items-center justify-center text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-all duration-200"
               title="Export to PDF"
             >
               <FileText className="w-5 h-5" />
             </button>
             <button
               onClick={exportToExcel}
-              className="p-2 text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 transition-colors rounded-lg hover:bg-green-50 dark:hover:bg-green-900/20"
+              className="h-11 w-11 flex items-center justify-center text-green-500 dark:text-green-400 hover:text-green-600 dark:hover:text-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-all duration-200"
               title="Export to Excel"
             >
               <FileSpreadsheet className="w-5 h-5" />
@@ -285,147 +296,281 @@ const Journals: React.FC = () => {
         </div>
       </div>
 
+      {/* Error Message */}
       {error && (
         <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/50 border border-red-200 dark:border-red-700 rounded-lg text-red-700 dark:text-red-400">
           {error}
         </div>
       )}
 
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
+      {/* Enhanced Table */}
+      <div className="bg-white dark:bg-gray-900 rounded-xl shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead onClick={() => requestSort('id')} className="cursor-pointer">
-                  ID
+              <TableRow className="bg-gray-50 dark:bg-gray-800/50">
+                <TableHead 
+                  onClick={() => requestSort('id')} 
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors w-20 text-center font-semibold"
+                >
+                  <div className="flex items-center justify-center space-x-2">
+                    <span>ID</span>
+                    {sortConfig?.key === 'id' && (
+                      <span className="text-blue-600 dark:text-blue-400">
+                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead onClick={() => requestSort('transaction_date')} className="cursor-pointer">
-                  Date
+                <TableHead 
+                  onClick={() => requestSort('transaction_date')} 
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors w-48 text-left font-semibold"
+                >
+                  <div className="flex items-center space-x-2">
+                    <span>Date</span>
+                    {sortConfig?.key === 'transaction_date' && (
+                      <span className="text-blue-600 dark:text-blue-400">
+                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead onClick={() => requestSort('account_name')} className="cursor-pointer">
-                  Account
+                <TableHead 
+                  onClick={() => requestSort('account_name')} 
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors w-40 text-left font-semibold"
+                >
+                  <div className="flex items-center space-x-2">
+                    <span>Account</span>
+                    {sortConfig?.key === 'account_name' && (
+                      <span className="text-blue-600 dark:text-blue-400">
+                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead onClick={() => requestSort('description')} className="cursor-pointer">
-                  Description
+                <TableHead 
+                  onClick={() => requestSort('description')} 
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors w-64 text-left font-semibold"
+                >
+                  <div className="flex items-center space-x-2">
+                    <span>Description</span>
+                    {sortConfig?.key === 'description' && (
+                      <span className="text-blue-600 dark:text-blue-400">
+                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead onClick={() => requestSort('Status')} className="cursor-pointer">
-                  Status
+                <TableHead 
+                  onClick={() => requestSort('Status')} 
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors w-28 text-center font-semibold"
+                >
+                  <div className="flex items-center justify-center space-x-2">
+                    <span>Status</span>
+                    {sortConfig?.key === 'Status' && (
+                      <span className="text-blue-600 dark:text-blue-400">
+                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead onClick={() => requestSort('debit_amount')} className="cursor-pointer text-right">
-                  Debit
+                <TableHead 
+                  onClick={() => requestSort('debit_amount')} 
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors w-32 text-right font-semibold"
+                >
+                  <div className="flex items-center justify-end space-x-2">
+                    <span>Debit</span>
+                    {sortConfig?.key === 'debit_amount' && (
+                      <span className="text-blue-600 dark:text-blue-400">
+                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead onClick={() => requestSort('credit_amount')} className="cursor-pointer text-right">
-                  Credit
+                <TableHead 
+                  onClick={() => requestSort('credit_amount')} 
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors w-32 text-right font-semibold"
+                >
+                  <div className="flex items-center justify-end space-x-2">
+                    <span>Credit</span>
+                    {sortConfig?.key === 'credit_amount' && (
+                      <span className="text-blue-600 dark:text-blue-400">
+                        {sortConfig.direction === 'asc' ? '↑' : '↓'}
+                      </span>
+                    )}
+                  </div>
                 </TableHead>
-                <TableHead>Invoice #</TableHead>
-                <TableHead>Row #</TableHead>
+                <TableHead className="w-24 text-center font-semibold">Invoice #</TableHead>
+                <TableHead className="w-20 text-center font-semibold">Row #</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentTransactions.map((transaction) => (
-                <TableRow key={transaction.id}>
-                  <TableCell>
-                    #{transaction.id}
-                  </TableCell>
-                  <TableCell>
-                    {new Date(transaction.transaction_date).toLocaleString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      second: '2-digit',
-                      hour12: true,
-                      timeZone: 'UTC'
-                    })}
-                  </TableCell>
-                  <TableCell>
-                    {transaction.account_name}
-                  </TableCell>
-                  <TableCell>
-                    {transaction.description}
-                  </TableCell>
-                  <TableCell>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      transaction.Status === 'Paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400' :
-                      transaction.Status === 'Overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400' :
-                      transaction.Status === 'Cancelled' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400' :
-                      transaction.Status === 'Partially Paid' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400' :
-                      'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-                    }`}>
-                      {transaction.Status || 'Pending'}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {transaction.debit_amount ? new Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: 'USD'
-                    }).format(transaction.debit_amount) : '-'}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {transaction.credit_amount ? new Intl.NumberFormat('en-US', {
-                      style: 'currency',
-                      currency: 'USD'
-                    }).format(transaction.credit_amount) : '-'}
-                  </TableCell>
-                  <TableCell>
-                    {transaction.invoice_id ? `#${transaction.invoice_id}` : '-'}
-                  </TableCell>
-                  <TableCell>
-                    {transaction.row_num || '-'}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {transactions.length === 0 && !loading && (
+              {loading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center">
-                    No transactions found
+                  <TableCell colSpan={9} className="text-center py-12">
+                    <div className="flex flex-col items-center space-y-3">
+                      <div className="animate-spin rounded-full h-8 w-8 border-4 border-gray-300 border-t-blue-600"></div>
+                      <p className="text-gray-500 dark:text-gray-400">Loading journal entries...</p>
+                    </div>
                   </TableCell>
                 </TableRow>
+              ) : currentTransactions.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-12">
+                    <div className="flex flex-col items-center space-y-3">
+                      <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+                        <Search className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-gray-900 dark:text-gray-100 font-medium">No journal entries found</p>
+                        <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                          {searchQuery ? 'Try adjusting your search terms' : 'Journal entries will appear here when transactions are created'}
+                        </p>
+                      </div>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                currentTransactions.map((transaction) => (
+                  <TableRow 
+                    key={transaction.id}
+                    className="hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-150"
+                  >
+                    <TableCell className="font-medium text-gray-900 dark:text-gray-100 w-20 text-center">
+                      #{transaction.id}
+                    </TableCell>
+                    <TableCell className="text-gray-600 dark:text-gray-300 w-48">
+                      <div className="text-sm">
+                        {new Date(transaction.transaction_date).toLocaleString('en-US', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: true,
+                          timeZone: 'UTC'
+                        })}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-gray-600 dark:text-gray-300 w-40">
+                      <div className="truncate" title={transaction.account_name}>
+                        {transaction.account_name}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-gray-600 dark:text-gray-300 w-64">
+                      <div className="truncate" title={transaction.description}>
+                        {transaction.description}
+                      </div>
+                    </TableCell>
+                    <TableCell className="w-28 text-center">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        transaction.Status === 'Paid' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-400' :
+                        transaction.Status === 'Overdue' ? 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-400' :
+                        transaction.Status === 'Cancelled' ? 'bg-gray-100 text-gray-800 dark:bg-gray-900/50 dark:text-gray-400' :
+                        transaction.Status === 'Partially Paid' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-400' :
+                        'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-400'
+                      }`}>
+                        {transaction.Status || 'Pending'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right text-gray-600 dark:text-gray-300 w-32">
+                      {transaction.debit_amount ? (
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                          {new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD'
+                          }).format(transaction.debit_amount)}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right text-gray-600 dark:text-gray-300 w-32">
+                      {transaction.credit_amount ? (
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                          {new Intl.NumberFormat('en-US', {
+                            style: 'currency',
+                            currency: 'USD'
+                          }).format(transaction.credit_amount)}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center text-gray-600 dark:text-gray-300 w-24">
+                      {transaction.invoice_id ? (
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                          #{transaction.invoice_id}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center text-gray-600 dark:text-gray-300 w-20">
+                      {transaction.row_num ? (
+                        <span className="font-medium text-gray-900 dark:text-gray-100">
+                          {transaction.row_num}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>
         </div>
 
-        {/* Pagination Controls */}
+        {/* Enhanced Pagination */}
         {transactions.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex items-center text-sm text-gray-700 dark:text-gray-300">
-              Showing {startIndex + 1} to {Math.min(endIndex, sortedTransactions.length)} of {sortedTransactions.length} entries
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="px-3 py-1 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Previous
-              </button>
-              <div className="flex items-center space-x-1">
-                {getPageNumbers().map((page, index) => (
-                  <button
-                    key={index}
-                    onClick={() => typeof page === 'number' ? setCurrentPage(page) : null}
-                    disabled={typeof page !== 'number'}
-                    className={`px-3 py-1 rounded-md text-sm font-medium ${
-                      currentPage === page
-                        ? 'bg-blue-600 text-white'
-                        : typeof page === 'number'
-                        ? 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
-                        : 'text-gray-400 dark:text-gray-500 cursor-default'
-                    }`}
-                  >
-                    {page}
-                  </button>
-                ))}
+          <div className="px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+              <div className="text-sm text-gray-600 dark:text-gray-400">
+                Showing <span className="font-medium text-gray-900 dark:text-gray-100">
+                  {startIndex + 1}
+                </span> to <span className="font-medium text-gray-900 dark:text-gray-100">
+                  {Math.min(endIndex, sortedTransactions.length)}
+                </span> of <span className="font-medium text-gray-900 dark:text-gray-100">
+                  {sortedTransactions.length}
+                </span> entries
               </div>
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="px-3 py-1 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next
-              </button>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 text-sm"
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center space-x-1">
+                  {getPageNumbers().map((page, index) => (
+                    <button
+                      key={index}
+                      onClick={() => typeof page === 'number' ? setCurrentPage(page) : null}
+                      disabled={typeof page !== 'number'}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        currentPage === page
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : typeof page === 'number'
+                          ? 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700'
+                          : 'text-gray-400 dark:text-gray-500 cursor-default'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 text-sm"
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           </div>
         )}
