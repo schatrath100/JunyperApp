@@ -219,6 +219,17 @@ const Settings: React.FC = () => {
   }, [navigate]);
 
   const validateAccounts = () => {
+    console.log('Validating accounts...');
+    console.log('Current settings:', {
+      sales_revenue_account: settings.sales_revenue_account,
+      purchases_account: settings.purchases_account,
+      accounts_receivable_account: settings.accounts_receivable_account,
+      accounts_payable_account: settings.accounts_payable_account,
+      taxes_payable_account: settings.taxes_payable_account,
+      cash_account: settings.cash_account
+    });
+    console.log('Available accounts:', accounts.length);
+    
     const errors: string[] = [];
 
     // Required account fields with their display names
@@ -234,13 +245,17 @@ const Settings: React.FC = () => {
 
     // Check each required field
     for (const [field, displayName] of Object.entries(requiredFields)) {
-      if (!settings[field as keyof AccountingSettings]) {
+      const fieldValue = settings[field as keyof AccountingSettings];
+      console.log(`Checking ${field}:`, fieldValue);
+      
+      if (!fieldValue) {
         errors.push(`${displayName} is required`);
-      } else if (!accounts.some(acc => acc.id === settings[field as keyof AccountingSettings])) {
+      } else if (!accounts.some(acc => acc.id === fieldValue)) {
         errors.push(`Selected ${displayName} is invalid or no longer exists`);
       }
     }
 
+    console.log('Validation errors:', errors);
     if (errors.length > 0) {
       throw new Error(errors.join('\n'));
     }
@@ -460,11 +475,30 @@ const Settings: React.FC = () => {
       }
     } catch (error: any) {
       console.error('Error saving settings:', error);
+      console.error('Error details:', {
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint,
+        full: error
+      });
+      
+      let errorMessage = "Failed to save settings. Please try again.";
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error?.details) {
+        errorMessage = error.details;
+      }
+      
       toast({
         title: "Error",
-        description: error.message || "Failed to save settings. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
