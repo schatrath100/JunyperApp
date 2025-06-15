@@ -24,6 +24,7 @@ interface BankTransaction {
   amount: number;
   account_number: number;
   credit_debit_indicator: 'credit' | 'debit';
+  transaction_source?: string;
   created_at: string;
   updated_at?: string;
 }
@@ -65,6 +66,33 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     type: ''
   });
 
+  const formatTransactionSource = (source?: string) => {
+    if (!source) return 'Unknown';
+    switch (source) {
+      case 'manual':
+        return 'Manual';
+      case 'upload':
+        return 'Upload';
+      case 'plaid_fetch':
+        return 'Plaid';
+      default:
+        return source;
+    }
+  };
+
+  const getSourceColor = (source?: string) => {
+    switch (source) {
+      case 'manual':
+        return 'text-blue-600 dark:text-blue-400';
+      case 'upload':
+        return 'text-green-600 dark:text-green-400';
+      case 'plaid_fetch':
+        return 'text-purple-600 dark:text-purple-400';
+      default:
+        return 'text-gray-600 dark:text-gray-400';
+    }
+  };
+
   const exportToPDF = () => {
     const doc = new jsPDF();
     doc.text('Bank Transactions', 14, 15);
@@ -79,11 +107,12 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
       transaction.description,
       transaction.deposit > 0 ? `$${transaction.deposit.toFixed(2)}` : '-',
       transaction.withdrawal > 0 ? `$${transaction.withdrawal.toFixed(2)}` : '-',
-      transaction.account_number.toString()
+      transaction.account_number.toString(),
+      formatTransactionSource(transaction.transaction_source)
     ]);
 
     autoTable(doc, {
-      head: [['Date', 'Bank Name', 'Description', 'Deposit', 'Withdrawal', 'Account Number']],
+      head: [['Date', 'Bank Name', 'Description', 'Deposit', 'Withdrawal', 'Account Number', 'Source']],
       body: tableData,
       startY: 20,
     });
@@ -102,7 +131,8 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
       Description: transaction.description,
       Deposit: transaction.deposit,
       Withdrawal: transaction.withdrawal,
-      'Account Number': transaction.account_number
+      'Account Number': transaction.account_number,
+      'Transaction Source': formatTransactionSource(transaction.transaction_source)
     }));
 
     const ws = XLSX.utils.json_to_sheet(data);
@@ -131,7 +161,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
 
       // Apply search query to database
       if (debouncedSearchQuery.trim()) {
-        query = query.or(`description.ilike.%${debouncedSearchQuery}%,bank_name.ilike.%${debouncedSearchQuery}%`);
+        query = query.or(`description.ilike.%${debouncedSearchQuery}%,bank_name.ilike.%${debouncedSearchQuery}%,transaction_source.ilike.%${debouncedSearchQuery}%`);
       }
 
       // Apply filters
@@ -180,8 +210,6 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     setSelectedTransaction(transaction);
     setShowEditModal(true);
   };
-
-
 
   // Since search is now handled at database level, we don't need client-side filtering
   const filteredTransactions = transactions;
@@ -404,7 +432,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <input
               type="text"
-              placeholder="Search transactions..."
+              placeholder="Search by description, bank, or source..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full h-10 pl-10 pr-4 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
@@ -453,25 +481,28 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
           <Table>
             <TableHeader>
               <TableRow>
-                <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                <th className="px-3 py-3 bg-gray-50 dark:bg-gray-800 text-left w-24">
                   <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Date</span>
                 </th>
-                <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                <th className="px-3 py-3 bg-gray-50 dark:bg-gray-800 text-left w-32">
                   <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Bank Name</span>
                 </th>
-                <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                <th className="px-3 py-3 bg-gray-50 dark:bg-gray-800 text-left w-48">
                   <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Description</span>
                 </th>
-                <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                <th className="px-3 py-3 bg-gray-50 dark:bg-gray-800 text-left w-24">
                   <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Deposit</span>
                 </th>
-                <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                <th className="px-3 py-3 bg-gray-50 dark:bg-gray-800 text-left w-24">
                   <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Withdrawal</span>
                 </th>
-                <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
-                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Account Number</span>
+                <th className="px-3 py-3 bg-gray-50 dark:bg-gray-800 text-left w-20">
+                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Account</span>
                 </th>
-                <th className="px-4 py-3 bg-gray-50 dark:bg-gray-800 text-left">
+                <th className="px-3 py-3 bg-gray-50 dark:bg-gray-800 text-left w-20">
+                  <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Source</span>
+                </th>
+                <th className="px-3 py-3 bg-gray-50 dark:bg-gray-800 text-left w-20">
                   <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Actions</span>
                 </th>
               </TableRow>
@@ -479,7 +510,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
             <TableBody>
               {filteredTransactions.map((transaction) => (
                 <TableRow key={transaction.id}>
-                  <TableCell>
+                  <TableCell className="px-3 py-2">
                     <span className="text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
                       {new Date(transaction.date).toLocaleDateString('en-US', { 
                         month: 'short', 
@@ -488,27 +519,47 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
                       })}
                     </span>
                   </TableCell>
-                  <TableCell>{transaction.bank_name}</TableCell>
-                  <TableCell>{transaction.description}</TableCell>
-                  <TableCell>
-                    <span className={transaction.deposit > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}>
+                  <TableCell className="px-3 py-2">
+                    <span className="text-sm text-gray-900 dark:text-gray-100 truncate max-w-32">
+                      {transaction.bank_name}
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    <span 
+                      className="text-sm text-gray-900 dark:text-gray-100 block truncate max-w-48" 
+                      title={transaction.description}
+                    >
+                      {transaction.description}
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    <span className={`text-sm ${transaction.deposit > 0 ? 'text-green-600 dark:text-green-400' : 'text-gray-400'}`}>
                       {transaction.deposit > 0 ? new Intl.NumberFormat('en-US', {
                         style: 'currency',
                         currency: 'USD'
                       }).format(transaction.deposit) : '-'}
                     </span>
                   </TableCell>
-                  <TableCell>
-                    <span className={transaction.withdrawal > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}>
+                  <TableCell className="px-3 py-2">
+                    <span className={`text-sm ${transaction.withdrawal > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-400'}`}>
                       {transaction.withdrawal > 0 ? new Intl.NumberFormat('en-US', {
                         style: 'currency',
                         currency: 'USD'
                       }).format(transaction.withdrawal) : '-'}
                     </span>
                   </TableCell>
-                  <TableCell>{transaction.account_number}</TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
+                  <TableCell className="px-3 py-2">
+                    <span className="text-sm text-gray-900 dark:text-gray-100">
+                      {transaction.account_number}
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    <span className={`text-sm font-medium ${getSourceColor(transaction.transaction_source)}`}>
+                      {formatTransactionSource(transaction.transaction_source)}
+                    </span>
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    <div className="flex space-x-1">
                       <div className="relative">
                         <button
                           onMouseEnter={() => setHoveredTransaction(transaction.id)}
@@ -590,6 +641,13 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
                                 <div className="flex justify-between">
                                   <span className="text-gray-600 dark:text-gray-400">Account:</span>
                                   <span className="font-medium text-gray-900 dark:text-white">{transaction.account_number}</span>
+                                </div>
+                                
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600 dark:text-gray-400">Source:</span>
+                                  <span className={`font-medium ${getSourceColor(transaction.transaction_source)}`}>
+                                    {formatTransactionSource(transaction.transaction_source)}
+                                  </span>
                                 </div>
                                 
                                 <div className="pt-2 border-t border-gray-200 dark:border-gray-700">

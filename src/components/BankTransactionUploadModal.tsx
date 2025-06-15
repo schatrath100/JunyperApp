@@ -8,7 +8,7 @@ interface BankTransactionUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  onAlert?: (message: string, type: Alert['type']) => void;
+  onAlert?: (message: string, type: 'info' | 'warning' | 'error' | 'success') => void;
 }
 
 interface TransactionRow {
@@ -262,11 +262,11 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
 
         // Validate that both deposit and withdrawal are not present
         if (deposit > 0 && withdrawal > 0) {
-          throw new Error(`Row with date ${row[dateCol]} has both deposit and withdrawal amounts. Please specify only one.`);
+          throw new Error(`Row with date ${dateCol ? row[dateCol] : 'unknown'} has both deposit and withdrawal amounts. Please specify only one.`);
         }
 
         // Parse and format the date
-        let dateValue = row[dateCol];
+        let dateValue = dateCol ? row[dateCol] : null;
         if (!dateValue) {
           throw new Error('Date is required for each transaction');
         }
@@ -292,7 +292,8 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
           account_number: Number(accountCol ? row[accountCol] : 0),
           bank_name: bankCol ? String(row[bankCol]).trim() : '',
           description: descCol ? String(row[descCol]).trim() : '',
-          user_id: user.id
+          user_id: user.id,
+          transaction_source: 'upload'
         };
       });
 
@@ -472,12 +473,12 @@ const BankTransactionUploadModal: React.FC<BankTransactionUploadModalProps> = ({
               Cancel
             </Button>
             <Button
-              variant="primary"
+              variant="default"
               className="bg-black hover:bg-black/90 text-white"
               onClick={handleSubmit}
               disabled={!file || loading}
-              icon={<Upload className="w-4 h-4" />}
             >
+              <Upload className="w-4 h-4" />
               {loading ? 'Uploading...' : 'Upload'}
             </Button>
           </div>
