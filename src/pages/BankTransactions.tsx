@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
-import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet, Search, Pencil, Eye, Trash2, Info } from 'lucide-react';
+import { RefreshCw, Plus, Upload, FileText, FileSpreadsheet, Search, Pencil, Eye, Info } from 'lucide-react';
 import Button from '../components/Button';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -181,21 +181,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
     setShowEditModal(true);
   };
 
-  const handleDeleteTransaction = async (transactionId: string) => {
-    try {
-      const { error } = await supabase.rpc('soft_delete_bank_transaction', {
-        transaction_id: transactionId
-      });
 
-      if (error) throw error;
-
-      onAlert?.('Transaction deleted successfully', 'success');
-      fetchTransactions(); // Refresh the list
-    } catch (err) {
-      console.error('Error deleting transaction:', err);
-      onAlert?.('Failed to delete transaction', 'error');
-    }
-  };
 
   // Since search is now handled at database level, we don't need client-side filtering
   const filteredTransactions = transactions;
@@ -394,13 +380,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
               </div>
             )}
           </div>
-          <button
-            onClick={() => handleDeleteTransaction(row.id)}
-            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all duration-200"
-            title="Delete Transaction"
-          >
-            <Trash2 className="w-4 h-4 text-red-500" />
-          </button>
+
         </div>
       )
     }
@@ -633,13 +613,7 @@ const BankTransactions: React.FC<BankTransactionsProps> = ({ onAlert }) => {
                           </div>
                         )}
                       </div>
-                      <button
-                        onClick={() => handleDeleteTransaction(transaction.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all duration-200"
-                        title="Delete Transaction"
-                      >
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </button>
+
                     </div>
                   </TableCell>
                 </TableRow>

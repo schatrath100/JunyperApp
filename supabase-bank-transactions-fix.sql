@@ -1,6 +1,6 @@
 -- =====================================================
 -- ENHANCE BANK_TRANSACTIONS TABLE FOR PLAID INTEGRATION
--- Run this SQL in your Supabase SQL Editor
+-- FIXED VERSION - Run this SQL in your Supabase SQL Editor
 -- =====================================================
 
 -- Add new columns to bank_transactions table for Plaid data
@@ -40,21 +40,13 @@ BEGIN
     END IF;
 END $$;
 
--- Create unique constraint for Plaid transactions to prevent duplicates
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.table_constraints 
-        WHERE constraint_name = 'unique_plaid_transaction'
-    ) THEN
-        ALTER TABLE bank_transactions 
-        ADD CONSTRAINT unique_plaid_transaction 
-        UNIQUE (plaid_transaction_id) 
-        WHERE plaid_transaction_id IS NOT NULL;
-    END IF;
-END $$;
+-- Create partial unique index for Plaid transactions to prevent duplicates
+-- This is the correct way to handle unique constraints with WHERE clauses in PostgreSQL
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_plaid_transaction 
+ON bank_transactions(plaid_transaction_id) 
+WHERE plaid_transaction_id IS NOT NULL;
 
--- Create indexes for performance
+-- Create other performance indexes
 CREATE INDEX IF NOT EXISTS idx_bank_transactions_plaid_transaction_id 
 ON bank_transactions(plaid_transaction_id) WHERE plaid_transaction_id IS NOT NULL;
 
@@ -93,11 +85,11 @@ CREATE OR REPLACE FUNCTION upsert_plaid_transaction(
     p_plaid_account_id TEXT,
     p_plaid_item_id TEXT,
     p_date DATE,
-    p_authorized_date DATE DEFAULT NULL,
     p_description TEXT,
+    p_amount DECIMAL,
+    p_authorized_date DATE DEFAULT NULL,
     p_merchant_name TEXT DEFAULT NULL,
     p_original_description TEXT DEFAULT NULL,
-    p_amount DECIMAL,
     p_category_primary TEXT DEFAULT NULL,
     p_category_detailed TEXT DEFAULT NULL,
     p_payment_channel TEXT DEFAULT NULL,
@@ -129,7 +121,7 @@ BEGIN
         deposit_amount := ABS(p_amount);
     END IF;
 
-    -- Upsert transaction
+    -- Upsert transaction using the unique index on plaid_transaction_id
     INSERT INTO bank_transactions (
         user_id,
         plaid_transaction_id,
@@ -247,13 +239,6 @@ GRANT EXECUTE ON FUNCTION upsert_plaid_transaction TO authenticated;
 GRANT EXECUTE ON FUNCTION get_transaction_stats_by_source TO authenticated;
 
 -- =====================================================
--- UPDATE RLS POLICIES (if needed)
--- =====================================================
-
--- Ensure RLS policies work with new columns
--- The existing policies should already cover the new columns since they're part of the same table
-
--- =====================================================
 -- COMMENTS FOR DOCUMENTATION
 -- =====================================================
 
@@ -290,4 +275,4 @@ WHERE table_name = 'bank_transactions'
 SELECT indexname, indexdef 
 FROM pg_indexes 
 WHERE tablename = 'bank_transactions' 
-  AND indexname LIKE '%plaid%' OR indexname LIKE '%source%'; 
+  AND (indexname LIKE '%plaid%' OR indexname LIKE '%source%'); 
