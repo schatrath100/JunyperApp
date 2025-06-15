@@ -564,27 +564,27 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
   // Handle rule deletion (soft delete)
   const handleDeleteRule = async (ruleId: string, ruleName: string) => {
     const performDelete = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error('No authenticated user');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
 
-        const { data, error } = await supabase.rpc('soft_delete_transaction_rule', {
-          p_rule_id: ruleId,
-          p_user_id: user.id
-        });
-        
-        if (error) throw error;
-        
-        if (data) {
-          onAlert?.('Transaction rule deleted successfully', 'success');
-          fetchTransactionRules();
-        } else {
-          onAlert?.('Rule not found or already deleted', 'warning');
-        }
-      } catch (err) {
-        console.error('Error deleting transaction rule:', err);
-        onAlert?.('Failed to delete transaction rule', 'error');
+      const { data, error } = await supabase.rpc('soft_delete_transaction_rule', {
+        p_rule_id: ruleId,
+        p_user_id: user.id
+      });
+      
+      if (error) throw error;
+      
+      if (data) {
+        onAlert?.('Transaction rule deleted successfully', 'success');
+        fetchTransactionRules();
+      } else {
+        onAlert?.('Rule not found or already deleted', 'warning');
       }
+    } catch (err) {
+      console.error('Error deleting transaction rule:', err);
+      onAlert?.('Failed to delete transaction rule', 'error');
+    }
     };
 
     showConfirmation(
@@ -644,24 +644,24 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
         {/* Section 1: Bank Integration - Left Card */}
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 h-fit">
           <div className="space-y-6">
-            <div className="text-center">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center justify-center gap-2">
-                <Landmark className="w-5 h-5" />
-                Bank Integration
-              </h2>
-              <p className="mt-2 text-gray-600 dark:text-gray-400">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center justify-center gap-2">
+              <Landmark className="w-5 h-5" />
+              Bank Integration
+            </h2>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
                 Securely connect banks via Plaid for automatic transaction sync.
-              </p>
-            </div>
+            </p>
+          </div>
 
-            {/* Connect New Bank Button */}
-            <div className="flex justify-center">
-              <PlaidLinkButton onAlert={onAlert} />
-            </div>
+          {/* Connect New Bank Button */}
+          <div className="flex justify-center">
+            <PlaidLinkButton onAlert={onAlert} />
+          </div>
 
-            {/* Connected Banks Section */}
-            {connectedBanks.length > 0 && (
-              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
+          {/* Connected Banks Section */}
+          {connectedBanks.length > 0 && (
+            <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium text-gray-900 dark:text-white">Connected Banks</h3>
                   {loadingAccounts && (
@@ -672,9 +672,9 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                   )}
                 </div>
                 <div className="space-y-6">
-                  {connectedBanks.map((bank) => (
-                    <div
-                      key={bank.id}
+                {connectedBanks.map((bank) => (
+                  <div
+                    key={bank.id}
                       className="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden"
                     >
                       {/* Bank Header - Clickable */}
@@ -683,8 +683,8 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                           expandedBanks.has(bank.id) ? 'border-b border-gray-200 dark:border-gray-600' : ''
                         }`}
                         onClick={() => toggleBankExpansion(bank.id)}
-                      >
-                        <div className="flex items-center space-x-4">
+                  >
+                    <div className="flex items-center space-x-4">
                           <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden" 
                                style={{ backgroundColor: bank.institution?.primary_color || '#3B82F6' }}>
                             {bank.institution?.logo ? (
@@ -699,8 +699,8 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                               />
                             ) : null}
                             <Landmark className={`w-6 h-6 text-white ${bank.institution?.logo ? 'hidden' : ''}`} />
-                          </div>
-                          <div>
+                      </div>
+                      <div>
                             <div className="flex items-center gap-2">
                               <h4 className="font-semibold text-gray-900 dark:text-white">
                                 {bank.institution?.name || bank.institution_name}
@@ -711,16 +711,16 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                                 </span>
                               )}
                             </div>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">
-                              Connected on {new Date(bank.created_at).toLocaleDateString()}
-                            </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          Connected on {new Date(bank.created_at).toLocaleDateString()}
+                        </p>
                             <p className="text-xs text-gray-400 dark:text-gray-500">
                               Last sync: {formatLastSync(bank.last_sync)}
                             </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <button
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <button
                             onClick={(e) => {
                               e.stopPropagation();
                               refreshBankAccounts(bank.id);
@@ -743,20 +743,20 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                               e.stopPropagation();
                               
                               const performDisconnect = async () => {
-                                try {
-                                  const { error } = await supabase
-                                    .from('connected_banks')
-                                    .delete()
-                                    .eq('id', bank.id);
-                                  
-                                  if (error) throw error;
-                                  
-                                  await fetchConnectedBanks();
-                                  onAlert?.('Bank account disconnected successfully', 'success');
-                                } catch (err) {
-                                  console.error('Error disconnecting bank:', err);
-                                  onAlert?.('Failed to disconnect bank account', 'error');
-                                }
+                          try {
+                            const { error } = await supabase
+                              .from('connected_banks')
+                              .delete()
+                              .eq('id', bank.id);
+                            
+                            if (error) throw error;
+                            
+                            await fetchConnectedBanks();
+                            onAlert?.('Bank account disconnected successfully', 'success');
+                          } catch (err) {
+                            console.error('Error disconnecting bank:', err);
+                            onAlert?.('Failed to disconnect bank account', 'error');
+                          }
                               };
 
                               showConfirmation(
@@ -765,11 +765,11 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                                 `Are you sure you want to disconnect ${bank.institution_name}? This will remove all account data and cannot be undone.`,
                                 performDisconnect
                               );
-                            }}
-                            className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                            title="Disconnect Bank"
-                          >
-                            <Trash2 className="w-4 h-4" />
+                        }}
+                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                        title="Disconnect Bank"
+                      >
+                        <Trash2 className="w-4 h-4" />
                           </button>
                           {expandedBanks.has(bank.id) ? (
                             <ChevronUp className="w-5 h-5 text-gray-400" />
@@ -838,12 +838,12 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                                             Fetch
                                           </>
                                         )}
-                                      </button>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
                           ) : (
                             <div className="p-4 text-center text-gray-500 dark:text-gray-400">
                               {bank.error ? (
@@ -862,43 +862,43 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                   ))}
                 </div>
               </div>
-            )}
-          </div>
+          )}
         </div>
+      </div>
 
         {/* Section 2: Transaction Rules - Right Card */}
-        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="text-left">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
-                  Transaction Rules
-                </h2>
-                <p className="mt-1 text-gray-600 dark:text-gray-400">
-                  Create rules to automatically process incoming bank transactions.
-                </p>
-              </div>
-              <Button
-                onClick={() => {
-                  setShowRuleForm(true);
-                  setEditingRule(null);
-                  setRuleForm({
-                    name: '',
-                    amount_min: '',
-                    amount_max: '',
-                    description_contains: '',
-                    bank_name: '',
-                    action: 'reconcile',
-                    account_mapping: ''
-                  });
-                }}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Rule
-              </Button>
+      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="text-left">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <Settings className="w-5 h-5" />
+                Transaction Rules
+              </h2>
+              <p className="mt-1 text-gray-600 dark:text-gray-400">
+                Create rules to automatically process incoming bank transactions.
+              </p>
             </div>
+            <Button
+              onClick={() => {
+                setShowRuleForm(true);
+                setEditingRule(null);
+                setRuleForm({
+                  name: '',
+                  amount_min: '',
+                  amount_max: '',
+                  description_contains: '',
+                  bank_name: '',
+                  action: 'reconcile',
+                  account_mapping: ''
+                });
+              }}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Add Rule
+            </Button>
+          </div>
 
             {/* Rules List */}
             {transactionRules.length > 0 && (
@@ -1013,22 +1013,22 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
       </div>
 
       {/* Rule Form - Full Width Modal */}
-      {showRuleForm && (
+          {showRuleForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xl overflow-hidden max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="px-6 py-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
-                  <Settings className="w-5 h-5 text-white" />
-                </div>
+              <div className="px-6 py-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
+                    <Settings className="w-5 h-5 text-white" />
+                  </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    {editingRule ? 'Edit Transaction Rule' : 'Create New Transaction Rule'}
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    {editingRule ? 'Modify the rule criteria and actions' : 'Set up automated rules for incoming bank transactions'}
-                  </p>
-                </div>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                      {editingRule ? 'Edit Transaction Rule' : 'Create New Transaction Rule'}
+                    </h3>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      {editingRule ? 'Modify the rule criteria and actions' : 'Set up automated rules for incoming bank transactions'}
+                    </p>
+                  </div>
                 {editingRule && (
                   <div className="text-right text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
                     <div className="space-y-0.5">
@@ -1043,11 +1043,11 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                     </div>
                   </div>
                 )}
+                </div>
               </div>
-            </div>
-            
-            <form onSubmit={handleRuleSubmit} className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              <form onSubmit={handleRuleSubmit} className="p-6 space-y-6">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
                     Rule Name *
@@ -1169,10 +1169,10 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                   {editingRule ? 'Update Rule' : 'Save Rule'}
                 </Button>
               </div>
-            </form>
+              </form>
           </div>
-        </div>
-      )}
+            </div>
+          )}
 
       {/* Confirmation Modal */}
       {showConfirmModal && confirmAction && (
@@ -1184,20 +1184,20 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                   confirmAction.type === 'deleteBank' ? 'bg-red-100 dark:bg-red-900/20' : 'bg-red-100 dark:bg-red-900/20'
                 }`}>
                   <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
-                </div>
+                        </div>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                     {confirmAction.title}
                   </h3>
-                </div>
-              </div>
+                            </div>
+                            </div>
               
               <p className="text-gray-600 dark:text-gray-300 mb-6">
                 {confirmAction.message}
               </p>
               
               <div className="flex justify-end gap-3">
-                <button
+                        <button
                   onClick={() => {
                     setShowConfirmModal(false);
                     setConfirmAction(null);
@@ -1205,8 +1205,8 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                   className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors"
                 >
                   Cancel
-                </button>
-                <button
+                        </button>
+                        <button
                   onClick={() => {
                     confirmAction.onConfirm();
                     setShowConfirmModal(false);
@@ -1215,12 +1215,12 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                   className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
                 >
                   {confirmAction.type === 'deleteBank' ? 'Disconnect' : 'Delete'}
-                </button>
+                        </button>
+                      </div>
+                    </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          )}
     </div>
   );
 };
