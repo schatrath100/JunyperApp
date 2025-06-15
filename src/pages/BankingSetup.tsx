@@ -17,6 +17,30 @@ interface ConnectedBank {
   institution_name: string;
   created_at: string;
   updated_at: string;
+  accounts?: PlaidAccount[];
+  institution?: {
+    name: string;
+    logo: string | null;
+    primary_color: string | null;
+    url: string | null;
+  };
+  last_sync?: string;
+  error?: string;
+}
+
+interface PlaidAccount {
+  account_id: string;
+  name: string;
+  official_name: string | null;
+  type: string;
+  subtype: string | null;
+  mask: string | null;
+  balances: {
+    available: number | null;
+    current: number | null;
+    limit: number | null;
+    iso_currency_code: string | null;
+  };
 }
 
 interface TransactionRule {
@@ -229,6 +253,8 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
   const [showRuleForm, setShowRuleForm] = useState(false);
   const [editingRule, setEditingRule] = useState<TransactionRule | null>(null);
   const [hoveredRule, setHoveredRule] = useState<string | null>(null);
+  const [refreshingBanks, setRefreshingBanks] = useState<Set<string>>(new Set());
+  const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [ruleForm, setRuleForm] = useState({
     name: '',
     amount_min: '',
@@ -240,6 +266,36 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
   });
   
   const { createNotification } = useNotifications();
+
+  // Helper function to format account type
+  const formatAccountType = (type: string, subtype: string | null) => {
+    if (subtype) {
+      return `${type.charAt(0).toUpperCase() + type.slice(1)} - ${subtype.charAt(0).toUpperCase() + subtype.slice(1)}`;
+    }
+    return type.charAt(0).toUpperCase() + type.slice(1);
+  };
+
+  // Helper function to format currency
+  const formatCurrency = (amount: number | null, currency: string | null = 'USD') => {
+    if (amount === null) return 'N/A';
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
+    }).format(amount);
+  };
+
+  // Helper function to format last sync time
+  const formatLastSync = (dateString: string | undefined) => {
+    if (!dateString) return 'Never';
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes} minutes ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} hours ago`;
+    return date.toLocaleDateString() + ' at ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
 
   // Function to fetch connected banks
   const fetchConnectedBanks = async () => {
@@ -258,6 +314,55 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
     } catch (err) {
       console.error('Error fetching connected banks:', err);
       onAlert?.('Failed to fetch connected banks', 'error');
+    }
+  };
+
+  // Function to fetch account details for connected banks
+  const fetchAccountDetails = async (bankId?: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      setLoadingAccounts(true);
+      
+      const response = await fetch('/.netlify/functions/fetch-accounts', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: user.id, bankId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch account details');
+      }
+
+      const data = await response.json();
+      setConnectedBanks(data.banks || []);
+    } catch (err) {
+      console.error('Error fetching account details:', err);
+      onAlert?.('Failed to fetch account details', 'error');
+    } finally {
+      setLoadingAccounts(false);
+    }
+  };
+
+  // Function to refresh a specific bank's account data
+  const refreshBankAccounts = async (bankId: string) => {
+    try {
+      setRefreshingBanks(prev => new Set(prev).add(bankId));
+      await fetchAccountDetails(bankId);
+      onAlert?.('Bank accounts refreshed successfully', 'success');
+    } catch (err) {
+      console.error('Error refreshing bank accounts:', err);
+      onAlert?.('Failed to refresh bank accounts', 'error');
+    } finally {
+      setRefreshingBanks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(bankId);
+        return newSet;
+      });
     }
   };
 
@@ -403,15 +508,19 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
   useEffect(() => {
     const initializeData = async () => {
       setLoading(true);
-      await Promise.all([fetchConnectedBanks(), fetchTransactionRules()]);
+      await fetchConnectedBanks();
+      await fetchTransactionRules();
+      // Fetch account details after getting connected banks
+      await fetchAccountDetails();
       setLoading(false);
     };
 
     initializeData();
 
     // Listen for bank connection events
-    const handleBankConnected = () => {
-      fetchConnectedBanks();
+    const handleBankConnected = async () => {
+      await fetchConnectedBanks();
+      await fetchAccountDetails();
     };
 
     window.addEventListener('bankConnected', handleBankConnected);
@@ -455,48 +564,140 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
             {/* Connected Banks Section */}
             {connectedBanks.length > 0 && (
               <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Connected Banks</h3>
-                <div className="space-y-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Connected Banks</h3>
+                  {loadingAccounts && (
+                    <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                      Loading accounts...
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-6">
                   {connectedBanks.map((bank) => (
                     <div
                       key={bank.id}
-                      className="flex items-center justify-between p-4 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600"
+                      className="bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 overflow-hidden"
                     >
-                      <div className="flex items-center space-x-4">
-                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                          <Landmark className="w-5 h-5 text-blue-600 dark:text-blue-300" />
+                      {/* Bank Header */}
+                      <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-600">
+                        <div className="flex items-center space-x-4">
+                          <div className="w-12 h-12 rounded-lg flex items-center justify-center overflow-hidden" 
+                               style={{ backgroundColor: bank.institution?.primary_color || '#3B82F6' }}>
+                            {bank.institution?.logo ? (
+                              <img 
+                                src={`data:image/png;base64,${bank.institution.logo}`} 
+                                alt={bank.institution.name}
+                                className="w-8 h-8 object-contain"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = 'none';
+                                  e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                                }}
+                              />
+                            ) : null}
+                            <Landmark className={`w-6 h-6 text-white ${bank.institution?.logo ? 'hidden' : ''}`} />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-gray-900 dark:text-white">
+                              {bank.institution?.name || bank.institution_name}
+                            </h4>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              Connected on {new Date(bank.created_at).toLocaleDateString()}
+                            </p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500">
+                              Last sync: {formatLastSync(bank.last_sync)}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-medium text-gray-900 dark:text-white">{bank.institution_name}</h4>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Connected on {new Date(bank.created_at).toLocaleDateString()}
-                          </p>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => refreshBankAccounts(bank.id)}
+                            disabled={refreshingBanks.has(bank.id)}
+                            className="p-2 text-gray-400 hover:text-blue-500 transition-colors disabled:opacity-50"
+                            title="Refresh Accounts"
+                          >
+                            <RefreshCw className={`w-4 h-4 ${refreshingBanks.has(bank.id) ? 'animate-spin' : ''}`} />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              try {
+                                const { error } = await supabase
+                                  .from('connected_banks')
+                                  .delete()
+                                  .eq('id', bank.id);
+                                
+                                if (error) throw error;
+                                
+                                await fetchConnectedBanks();
+                                onAlert?.('Bank account disconnected successfully', 'success');
+                              } catch (err) {
+                                console.error('Error disconnecting bank:', err);
+                                onAlert?.('Failed to disconnect bank account', 'error');
+                              }
+                            }}
+                            className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                            title="Disconnect Bank"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={async () => {
-                            try {
-                              const { error } = await supabase
-                                .from('connected_banks')
-                                .delete()
-                                .eq('id', bank.id);
-                              
-                              if (error) throw error;
-                              
-                              await fetchConnectedBanks();
-                              onAlert?.('Bank account disconnected successfully', 'success');
-                            } catch (err) {
-                              console.error('Error disconnecting bank:', err);
-                              onAlert?.('Failed to disconnect bank account', 'error');
-                            }
-                          }}
-                          className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                          title="Disconnect Bank"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+
+                      {/* Accounts List */}
+                      {bank.accounts && bank.accounts.length > 0 ? (
+                        <div className="p-4">
+                          <div className="space-y-3">
+                            {bank.accounts.map((account) => (
+                              <div
+                                key={account.account_id}
+                                className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
+                              >
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-1">
+                                    <h5 className="font-medium text-gray-900 dark:text-white">
+                                      {account.official_name || account.name}
+                                    </h5>
+                                    {account.mask && (
+                                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                                        ••••{account.mask}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                                    {formatAccountType(account.type, account.subtype)}
+                                  </p>
+                                </div>
+                                <div className="text-right">
+                                  <div className="font-semibold text-gray-900 dark:text-white">
+                                    {formatCurrency(account.balances.current, account.balances.iso_currency_code)}
+                                  </div>
+                                  {account.balances.available !== null && account.balances.available !== account.balances.current && (
+                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                      Available: {formatCurrency(account.balances.available, account.balances.iso_currency_code)}
+                                    </div>
+                                  )}
+                                  {account.balances.limit && (
+                                    <div className="text-xs text-gray-400 dark:text-gray-500">
+                                      Limit: {formatCurrency(account.balances.limit, account.balances.iso_currency_code)}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+                          {bank.error ? (
+                            <div className="text-red-500 dark:text-red-400">
+                              <p className="font-medium">Error loading accounts</p>
+                              <p className="text-sm">{bank.error}</p>
+                            </div>
+                          ) : (
+                            <p>No account details available</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
