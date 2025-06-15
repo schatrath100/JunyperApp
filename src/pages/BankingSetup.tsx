@@ -60,12 +60,14 @@ const PlaidLinkButton = ({ onAlert }: { onAlert?: (message: string, type: Alert[
 
   const initializePlaid = async () => {
     if (isInitializing || !mounted.current || !user) {
+      console.log('Skipping Plaid initialization:', { isInitializing, mounted: mounted.current, user: !!user });
       return;
     }
 
     try {
       setIsInitializing(true);
       console.log('Creating link token...');
+      console.log('Fetching from:', '/.netlify/functions/create-link-token');
       const response = await fetch('/.netlify/functions/create-link-token', {
         method: 'POST',
         headers: {
@@ -74,18 +76,24 @@ const PlaidLinkButton = ({ onAlert }: { onAlert?: (message: string, type: Alert[
         body: JSON.stringify({ userId: user.id }),
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
       if (!response.ok) {
-        throw new Error('Failed to create link token');
+        const errorText = await response.text();
+        console.error('Response error:', errorText);
+        throw new Error(`Failed to create link token: ${response.status} ${errorText}`);
       }
 
       const data = await response.json();
-      console.log('Link token created:', { success: !!data.link_token });
+      console.log('Link token created:', { success: !!data.link_token, data });
       
       if (mounted.current) {
         linkTokenRef.current = data.link_token;
         setLinkToken(data.link_token);
         plaidInitialized.current = true;
         tokenExpirationRef.current = Date.now() + 30 * 60 * 1000;
+        console.log('Link token set successfully');
       }
     } catch (err) {
       console.error('Error creating link token:', err);
@@ -173,7 +181,19 @@ const PlaidLinkButton = ({ onAlert }: { onAlert?: (message: string, type: Alert[
     },
   });
 
+  // Debug logging for ready state
+  useEffect(() => {
+    console.log('Plaid Link state:', { 
+      ready, 
+      isInitializing, 
+      linkToken: !!linkToken, 
+      user: !!user,
+      error 
+    });
+  }, [ready, isInitializing, linkToken, user, error]);
+
   const handleClick = async () => {
+    console.log('Button clicked, ready:', ready);
     if (!ready) {
       console.log('Plaid Link not ready');
       return;
@@ -187,10 +207,13 @@ const PlaidLinkButton = ({ onAlert }: { onAlert?: (message: string, type: Alert[
     }
   };
 
+  const isDisabled = !ready || isInitializing;
+  console.log('Button disabled:', isDisabled, { ready, isInitializing });
+
   return (
     <Button
       onClick={handleClick}
-      disabled={!ready || isInitializing}
+      disabled={isDisabled}
       className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
     >
       <Plus className="h-4 w-4" />

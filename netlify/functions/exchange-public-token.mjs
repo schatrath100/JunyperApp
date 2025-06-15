@@ -1,5 +1,5 @@
-const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
-const { createClient } = require('@supabase/supabase-js');
+import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid';
+import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
@@ -43,7 +43,7 @@ const exchangePublicToken = async (publicToken) => {
   }
 };
 
-exports.handler = async (event, context) => {
+export const handler = async (event, context) => {
   // Set CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',

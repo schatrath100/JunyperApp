@@ -1,4 +1,4 @@
-const { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode } = require('plaid');
+import { Configuration, PlaidApi, PlaidEnvironments, Products, CountryCode } from 'plaid';
 
 // Initialize Plaid client
 const plaidConfig = new Configuration({
@@ -38,7 +38,7 @@ const createLinkToken = async (userId) => {
   }
 };
 
-exports.handler = async (event, context) => {
+export const handler = async (event, context) => {
   // Set CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
