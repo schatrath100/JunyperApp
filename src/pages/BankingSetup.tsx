@@ -409,132 +409,261 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Banking Setup</h1>
       </div>
 
-      {/* Section 1: Bank Integration */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
-          <div className="text-center">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center justify-center gap-2">
-              <Landmark className="w-5 h-5" />
-              Bank Integration
-            </h2>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Connect your bank accounts securely using Plaid to automatically sync transactions.
-            </p>
-          </div>
-
-          {/* Connect New Bank Button */}
-          <div className="flex justify-center">
-            <PlaidLinkButton onAlert={onAlert} />
-          </div>
-
-          {/* Connected Banks Section */}
-          {connectedBanks.length > 0 && (
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Connected Banks</h3>
-              <div className="space-y-4">
-                {connectedBanks.map((bank) => (
-                  <div
-                    key={bank.id}
-                    className="flex items-center justify-between p-4 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600"
-                  >
-                    <div className="flex items-center space-x-4">
-                      <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
-                        <Landmark className="w-5 h-5 text-blue-600 dark:text-blue-300" />
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-gray-900 dark:text-white">{bank.institution_name}</h4>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          Connected on {new Date(bank.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={async () => {
-                          try {
-                            const { error } = await supabase
-                              .from('connected_banks')
-                              .delete()
-                              .eq('id', bank.id);
-                            
-                            if (error) throw error;
-                            
-                            await fetchConnectedBanks();
-                            onAlert?.('Bank account disconnected successfully', 'success');
-                          } catch (err) {
-                            console.error('Error disconnecting bank:', err);
-                            onAlert?.('Failed to disconnect bank account', 'error');
-                          }
-                        }}
-                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                        title="Disconnect Bank"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+      {/* Two Column Layout - Vertical Cards */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+        {/* Section 1: Bank Integration - Left Card */}
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 h-fit">
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center justify-center gap-2">
+                <Landmark className="w-5 h-5" />
+                Bank Integration
+              </h2>
+              <p className="mt-2 text-gray-600 dark:text-gray-400">
+                Connect your bank accounts securely using Plaid to automatically sync transactions.
+              </p>
             </div>
-          )}
+
+            {/* Connect New Bank Button */}
+            <div className="flex justify-center">
+              <PlaidLinkButton onAlert={onAlert} />
+            </div>
+
+            {/* Connected Banks Section */}
+            {connectedBanks.length > 0 && (
+              <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-6">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Connected Banks</h3>
+                <div className="space-y-4">
+                  {connectedBanks.map((bank) => (
+                    <div
+                      key={bank.id}
+                      className="flex items-center justify-between p-4 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                          <Landmark className="w-5 h-5 text-blue-600 dark:text-blue-300" />
+                        </div>
+                        <div>
+                          <h4 className="font-medium text-gray-900 dark:text-white">{bank.institution_name}</h4>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Connected on {new Date(bank.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          onClick={async () => {
+                            try {
+                              const { error } = await supabase
+                                .from('connected_banks')
+                                .delete()
+                                .eq('id', bank.id);
+                              
+                              if (error) throw error;
+                              
+                              await fetchConnectedBanks();
+                              onAlert?.('Bank account disconnected successfully', 'success');
+                            } catch (err) {
+                              console.error('Error disconnecting bank:', err);
+                              onAlert?.('Failed to disconnect bank account', 'error');
+                            }
+                          }}
+                          className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                          title="Disconnect Bank"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Section 2: Transaction Rules - Right Card */}
+        <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div className="text-left">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  Transaction Rules
+                </h2>
+                <p className="mt-1 text-gray-600 dark:text-gray-400">
+                  Create rules to automatically process incoming bank transactions.
+                </p>
+              </div>
+              <Button
+                onClick={() => {
+                  setShowRuleForm(true);
+                  setEditingRule(null);
+                  setRuleForm({
+                    name: '',
+                    amount_min: '',
+                    amount_max: '',
+                    description_contains: '',
+                    bank_name: '',
+                    action: 'reconcile',
+                    account_mapping: ''
+                  });
+                }}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Rule
+              </Button>
+            </div>
+
+            {/* Rules List */}
+            {transactionRules.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-start gap-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Active Rules</h3>
+                  <span className="px-3 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full">
+                    {transactionRules.length} {transactionRules.length === 1 ? 'Rule' : 'Rules'}
+                  </span>
+                </div>
+                
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {transactionRules.map((rule, index) => (
+                    <div
+                      key={rule.id}
+                      className="group flex items-center justify-between py-2 px-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 hover:bg-gray-50 dark:hover:bg-gray-750 transition-all duration-200"
+                    >
+                      {/* Left side - Rule info */}
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="flex items-center justify-center w-5 h-5 bg-gradient-to-br from-blue-500 to-blue-600 rounded text-white text-xs font-semibold flex-shrink-0">
+                          {index + 1}
+                        </div>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-medium text-sm text-gray-900 dark:text-white text-left truncate">
+                              {rule.name}
+                            </h4>
+                            <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium flex-shrink-0 ${
+                              rule.action === 'reconcile' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                              rule.action === 'categorize' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                              rule.action === 'flag' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                              'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
+                            }`}>
+                              {rule.action === 'reconcile' ? 'Reconcile' :
+                               rule.action === 'categorize' ? 'Categorize' :
+                               rule.action === 'flag' ? 'Flag' :
+                               rule.action}
+                            </span>
+                          </div>
+                          
+                          {/* Rule Criteria - Compact 2-line layout with bullet points */}
+                          <div className="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                            {/* Line 1: Amount and Description criteria */}
+                            <div className="flex items-center gap-3 flex-wrap">
+                              {rule.amount_min && (
+                                <span className="flex items-center gap-1">
+                                  <span>•</span>
+                                  <span>Min: ${rule.amount_min.toLocaleString()}</span>
+                                </span>
+                              )}
+                              {rule.amount_max && (
+                                <span className="flex items-center gap-1">
+                                  <span>•</span>
+                                  <span>Max: ${rule.amount_max.toLocaleString()}</span>
+                                </span>
+                              )}
+                              {rule.description_contains && (
+                                <span className="flex items-center gap-1">
+                                  <span>•</span>
+                                  <span>Contains: "{rule.description_contains}"</span>
+                                </span>
+                              )}
+                            </div>
+                            
+                            {/* Line 2: Bank and Account criteria */}
+                            {(rule.bank_name || rule.account_mapping) && (
+                              <div className="flex items-center gap-3 flex-wrap">
+                                {rule.bank_name && (
+                                  <span className="flex items-center gap-1">
+                                    <span>•</span>
+                                    <span>Bank: {rule.bank_name}</span>
+                                  </span>
+                                )}
+                                {rule.account_mapping && (
+                                  <span className="flex items-center gap-1">
+                                    <span>•</span>
+                                    <span>Account: {rule.account_mapping}</span>
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Right side - Action buttons */}
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex-shrink-0">
+                        <button
+                          onClick={() => handleEditRule(rule)}
+                          className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-all duration-200"
+                          title="Edit Rule"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        
+                        <button
+                          onClick={() => handleDeleteRule(rule.id)}
+                          className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all duration-200"
+                          title="Delete Rule"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Section 2: Transaction Rules */}
-      <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="text-left">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <Settings className="w-5 h-5" />
-                Transaction Rules
-              </h2>
-              <p className="mt-1 text-gray-600 dark:text-gray-400">
-                Create rules to automatically process incoming bank transactions.
-              </p>
-            </div>
-            <Button
-              onClick={() => {
-                setShowRuleForm(true);
-                setEditingRule(null);
-                setRuleForm({
-                  name: '',
-                  amount_min: '',
-                  amount_max: '',
-                  description_contains: '',
-                  bank_name: '',
-                  action: 'reconcile',
-                  account_mapping: ''
-                });
-              }}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Rule
-            </Button>
-          </div>
-
-          {/* Rule Form */}
-          {showRuleForm && (
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
-              <div className="px-6 py-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
-                    <Settings className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {editingRule ? 'Edit Transaction Rule' : 'Create New Transaction Rule'}
-                    </h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
-                      {editingRule ? 'Modify the rule criteria and actions' : 'Set up automated rules for incoming bank transactions'}
-                    </p>
-                  </div>
+      {/* Rule Form - Full Width Modal */}
+      {showRuleForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xl overflow-hidden max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="px-6 py-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg">
+                  <Settings className="w-5 h-5 text-white" />
                 </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {editingRule ? 'Edit Transaction Rule' : 'Create New Transaction Rule'}
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {editingRule ? 'Modify the rule criteria and actions' : 'Set up automated rules for incoming bank transactions'}
+                  </p>
+                </div>
+                {editingRule && (
+                  <div className="text-right text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+                    <div className="space-y-0.5">
+                      <div>
+                        <span className="font-medium">Created:</span> {new Date(editingRule.created_at).toLocaleDateString()} {new Date(editingRule.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                      {editingRule.updated_at !== editingRule.created_at && (
+                        <div>
+                          <span className="font-medium">Updated:</span> {new Date(editingRule.updated_at).toLocaleDateString()} {new Date(editingRule.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
-              
-              <form onSubmit={handleRuleSubmit} className="p-6 space-y-6">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            </div>
+            
+            <form onSubmit={handleRuleSubmit} className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
                     Rule Name *
@@ -656,139 +785,10 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                   {editingRule ? 'Update Rule' : 'Save Rule'}
                 </Button>
               </div>
-              </form>
-            </div>
-          )}
-
-          {/* Rules List */}
-          {transactionRules.length > 0 && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-start gap-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Active Rules</h3>
-                <span className="px-3 py-1 text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full">
-                  {transactionRules.length} {transactionRules.length === 1 ? 'Rule' : 'Rules'}
-                </span>
-              </div>
-              
-              <div className="space-y-2">
-                {transactionRules.map((rule, index) => (
-                  <div
-                    key={rule.id}
-                    className="group flex items-center justify-between py-3 px-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 hover:bg-gray-50 dark:hover:bg-gray-750 transition-all duration-200"
-                  >
-                    {/* Left side - Rule info */}
-                    <div className="flex items-center gap-4 flex-1 min-w-0">
-                      <div className="flex items-center justify-center w-6 h-6 bg-gradient-to-br from-blue-500 to-blue-600 rounded text-white text-xs font-semibold flex-shrink-0">
-                        {index + 1}
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-1">
-                          <h4 className="font-semibold text-gray-900 dark:text-white text-left truncate">
-                            {rule.name}
-                          </h4>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 ${
-                            rule.action === 'reconcile' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
-                            rule.action === 'categorize' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
-                            rule.action === 'flag' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
-                            'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
-                          }`}>
-                            {rule.action === 'reconcile' ? 'Auto Reconcile' :
-                             rule.action === 'categorize' ? 'Auto Categorize' :
-                             rule.action === 'flag' ? 'Flag for Review' :
-                             rule.action}
-                          </span>
-                        </div>
-                        
-                        {/* Rule Criteria - Horizontal layout */}
-                        <div className="flex items-center gap-4 text-sm text-left flex-wrap">
-                          {rule.amount_min && (
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></div>
-                              <span className="text-gray-600 dark:text-gray-400">Min:</span>
-                              <span className="font-medium text-gray-900 dark:text-white">
-                                ${rule.amount_min.toLocaleString()}
-                              </span>
-                            </div>
-                          )}
-                          
-                          {rule.amount_max && (
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-1.5 h-1.5 bg-red-500 rounded-full"></div>
-                              <span className="text-gray-600 dark:text-gray-400">Max:</span>
-                              <span className="font-medium text-gray-900 dark:text-white">
-                                ${rule.amount_max.toLocaleString()}
-                              </span>
-                            </div>
-                          )}
-                          
-                          {rule.description_contains && (
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-1.5 h-1.5 bg-purple-500 rounded-full"></div>
-                              <span className="text-gray-600 dark:text-gray-400">Contains:</span>
-                              <span className="font-medium text-gray-900 dark:text-white font-mono text-xs bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded">
-                                "{rule.description_contains}"
-                              </span>
-                            </div>
-                          )}
-                          
-                          {rule.bank_name && (
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                              <span className="text-gray-600 dark:text-gray-400">Bank:</span>
-                              <span className="font-medium text-gray-900 dark:text-white">
-                                {rule.bank_name}
-                              </span>
-                            </div>
-                          )}
-                          
-                          {rule.account_mapping && (
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-1.5 h-1.5 bg-orange-500 rounded-full"></div>
-                              <span className="text-gray-600 dark:text-gray-400">Account:</span>
-                              <span className="font-medium text-gray-900 dark:text-white">
-                                {rule.account_mapping}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Right side - Action buttons and date */}
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <div className="text-xs text-gray-500 dark:text-gray-400 text-right">
-                        <div>Created {new Date(rule.created_at).toLocaleString()}</div>
-                        {rule.updated_at !== rule.created_at && (
-                          <div>Updated {new Date(rule.updated_at).toLocaleString()}</div>
-                        )}
-                      </div>
-                      
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <button
-                          onClick={() => handleEditRule(rule)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-all duration-200"
-                          title="Edit Rule"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                        
-                        <button
-                          onClick={() => handleDeleteRule(rule.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all duration-200"
-                          title="Delete Rule"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+            </form>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
