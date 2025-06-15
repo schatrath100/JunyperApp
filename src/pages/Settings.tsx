@@ -247,6 +247,12 @@ const Settings: React.FC = () => {
     return true;
   };
 
+  // Helper function to check if a field is required and empty
+  const isFieldRequired = (fieldName: keyof AccountingSettings): boolean => {
+    const requiredAccountFields = ['sales_revenue_account', 'purchases_account', 'accounts_receivable_account', 'accounts_payable_account', 'taxes_payable_account', 'cash_account'];
+    return requiredAccountFields.includes(fieldName) && !settings[fieldName];
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -356,6 +362,21 @@ const Settings: React.FC = () => {
           toast({
             title: "Validation Error",
             description: "Company Legal Name and Display Name are required.",
+            variant: "destructive",
+          });
+          setIsSaving(false);
+          return;
+        }
+      }
+
+      // Validate Chart of Accounts if saving accounts card
+      if (cardType === 'accounts') {
+        try {
+          validateAccounts();
+        } catch (err) {
+          toast({
+            title: "Validation Error",
+            description: err instanceof Error ? err.message : "All Chart of Accounts fields are required.",
             variant: "destructive",
           });
           setIsSaving(false);
@@ -838,7 +859,7 @@ const Settings: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Sales Revenue Account
+                    Sales Revenue Account <span className="text-red-500">*</span>
                   </label>
                   <AccountSelect
                     accounts={accounts}
@@ -848,14 +869,18 @@ const Settings: React.FC = () => {
                     disabled={editingCard !== 'accounts' || isSaving}
                     accountType="Revenue"
                     className={cn(
-                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
+                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700",
+                      isFieldRequired('sales_revenue_account') && editingCard === 'accounts' && "border-red-300 dark:border-red-600"
                     )}
                   />
+                  {isFieldRequired('sales_revenue_account') && editingCard === 'accounts' && (
+                    <p className="mt-1 text-sm text-red-500">Sales Revenue Account is required</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Purchases Account
+                    Purchases Account <span className="text-red-500">*</span>
                   </label>
                   <AccountSelect
                     accounts={accounts}
@@ -865,14 +890,18 @@ const Settings: React.FC = () => {
                     disabled={editingCard !== 'accounts' || isSaving}
                     accountType="Expense"
                     className={cn(
-                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
+                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700",
+                      isFieldRequired('purchases_account') && editingCard === 'accounts' && "border-red-300 dark:border-red-600"
                     )}
                   />
+                  {isFieldRequired('purchases_account') && editingCard === 'accounts' && (
+                    <p className="mt-1 text-sm text-red-500">Purchases Account is required</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Accounts Receivable
+                    Accounts Receivable <span className="text-red-500">*</span>
                   </label>
                   <AccountSelect
                     accounts={accounts}
@@ -882,14 +911,18 @@ const Settings: React.FC = () => {
                     disabled={editingCard !== 'accounts' || isSaving}
                     accountType="Asset"
                     className={cn(
-                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
+                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700",
+                      isFieldRequired('accounts_receivable_account') && editingCard === 'accounts' && "border-red-300 dark:border-red-600"
                     )}
                   />
+                  {isFieldRequired('accounts_receivable_account') && editingCard === 'accounts' && (
+                    <p className="mt-1 text-sm text-red-500">Accounts Receivable is required</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Accounts Payable
+                    Accounts Payable <span className="text-red-500">*</span>
                   </label>
                   <AccountSelect
                     accounts={accounts}
@@ -899,14 +932,18 @@ const Settings: React.FC = () => {
                     disabled={editingCard !== 'accounts' || isSaving}
                     accountType="Liability"
                     className={cn(
-                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
+                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700",
+                      isFieldRequired('accounts_payable_account') && editingCard === 'accounts' && "border-red-300 dark:border-red-600"
                     )}
                   />
+                  {isFieldRequired('accounts_payable_account') && editingCard === 'accounts' && (
+                    <p className="mt-1 text-sm text-red-500">Accounts Payable is required</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Taxes Payable
+                    Taxes Payable <span className="text-red-500">*</span>
                   </label>
                   <AccountSelect
                     accounts={accounts}
@@ -916,14 +953,18 @@ const Settings: React.FC = () => {
                     disabled={editingCard !== 'accounts' || isSaving}
                     accountType="Liability"
                     className={cn(
-                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
+                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700",
+                      isFieldRequired('taxes_payable_account') && editingCard === 'accounts' && "border-red-300 dark:border-red-600"
                     )}
                   />
+                  {isFieldRequired('taxes_payable_account') && editingCard === 'accounts' && (
+                    <p className="mt-1 text-sm text-red-500">Taxes Payable is required</p>
+                  )}
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Cash Account
+                    Cash Account <span className="text-red-500">*</span>
                   </label>
                   <AccountSelect
                     accounts={accounts}
@@ -934,9 +975,13 @@ const Settings: React.FC = () => {
                     accountType="Asset"
                     filterCondition={(account) => account.account_name.toLowerCase().includes('cash')}
                     className={cn(
-                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700"
+                      (editingCard !== 'accounts' || isSaving) && "bg-gray-50 dark:bg-gray-700",
+                      isFieldRequired('cash_account') && editingCard === 'accounts' && "border-red-300 dark:border-red-600"
                     )}
                   />
+                  {isFieldRequired('cash_account') && editingCard === 'accounts' && (
+                    <p className="mt-1 text-sm text-red-500">Cash Account is required</p>
+                  )}
                 </div>
               </div>
             </div>

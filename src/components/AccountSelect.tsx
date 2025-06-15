@@ -89,11 +89,6 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
     setIsOpen(false);
   };
 
-  const handleClear = () => {
-    onChange(null);
-    setIsOpen(false);
-  };
-
   return (
     <div className="relative" ref={dropdownRef}>
       <div
@@ -136,15 +131,6 @@ const AccountSelect: React.FC<AccountSelectProps> = ({
                width: dropdownPosition.width
              }}>
           <div className="max-h-60 overflow-y-auto">
-            {value && (
-              <div
-                className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-700"
-                onClick={handleClear}
-              >
-                Clear selection
-              </div>
-            )}
-            
             {filteredAccounts.length === 0 ? (
               <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
                 No accounts found
