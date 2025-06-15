@@ -133,7 +133,8 @@ export const handler = async (event, context) => {
                   current: account.current_balance,
                   limit: account.credit_limit,
                   iso_currency_code: account.currency_code,
-                }
+                },
+                last_plaid_sync: account.last_plaid_sync
               }));
             }
           }
@@ -152,7 +153,8 @@ export const handler = async (event, context) => {
 
               // Update database with fresh data
               for (const account of accountsResponse.data.accounts) {
-                const { error: syncError } = await supabase.rpc('sync_plaid_account_data', {
+                console.log(`Syncing account ${account.account_id} to database...`);
+                const { data: syncResult, error: syncError } = await supabase.rpc('sync_plaid_account_data', {
                   p_connected_bank_id: bank.id,
                   p_user_id: userId,
                   p_plaid_account_id: account.account_id,
@@ -170,6 +172,8 @@ export const handler = async (event, context) => {
 
                 if (syncError) {
                   console.error(`Error syncing account ${account.account_id}:`, syncError);
+                } else {
+                  console.log(`Successfully synced account ${account.account_id}, result:`, syncResult);
                 }
               }
 
@@ -186,7 +190,8 @@ export const handler = async (event, context) => {
                   current: account.balances.current,
                   limit: account.balances.limit,
                   iso_currency_code: account.balances.iso_currency_code,
-                }
+                },
+                last_plaid_sync: new Date().toISOString()
               }));
 
               // Fetch institution details for logo
@@ -214,7 +219,10 @@ export const handler = async (event, context) => {
               // Update last sync time in database
               await supabase
                 .from('connected_banks')
-                .update({ updated_at: new Date().toISOString() })
+                .update({ 
+                  updated_at: new Date().toISOString(),
+                  last_sync: new Date().toISOString()
+                })
                 .eq('id', bank.id);
 
             } catch (plaidError) {
@@ -234,7 +242,8 @@ export const handler = async (event, context) => {
                     current: account.current_balance,
                     limit: account.credit_limit,
                     iso_currency_code: account.currency_code,
-                  }
+                  },
+                  last_plaid_sync: account.last_plaid_sync
                 }));
               }
             }
@@ -244,7 +253,7 @@ export const handler = async (event, context) => {
             ...bank,
             accounts,
             institution,
-            last_sync: new Date().toISOString(),
+            last_sync: shouldRefreshFromPlaid ? new Date().toISOString() : bank.last_sync,
             data_source: shouldRefreshFromPlaid ? 'plaid_fresh' : 'database_cached'
           };
         } catch (error) {

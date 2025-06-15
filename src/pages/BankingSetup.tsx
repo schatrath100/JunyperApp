@@ -41,7 +41,7 @@ interface PlaidAccount {
     limit: number | null;
     iso_currency_code: string | null;
   };
-  last_fetch_date?: string;
+  last_plaid_sync?: string;
 }
 
 interface TransactionRule {
@@ -429,16 +429,17 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
               institution_name: bank.institution_name, // Preserve original institution_name
               accounts: refreshedBank.accounts || bank.accounts, // Use refreshed accounts or fallback
               institution: refreshedBank.institution || bank.institution, // Use refreshed institution or fallback
-              last_sync: new Date().toISOString() // Update sync time
+              last_sync: syncTime // Update sync time
             } : bank
           )
         );
       }
       
       // Update the last_sync timestamp for this bank
+      const syncTime = new Date().toISOString();
       await supabase
         .from('connected_banks')
-        .update({ last_sync: new Date().toISOString() })
+        .update({ last_sync: syncTime })
         .eq('id', bankId);
       
       onAlert?.('Bank account balances refreshed successfully', 'success');
@@ -455,7 +456,7 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
   };
 
   // Function to fetch transactions for a specific account
-  const fetchAccountTransactions = async (accountId: string, accountName: string) => {
+  const fetchAccountTransactions = async (accountId: string, accountName: string, forceRefresh: boolean = false) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No authenticated user');
@@ -470,25 +471,45 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
         body: JSON.stringify({
           plaid_account_id: accountId,
           user_id: user.id,
-          days_to_fetch: 30
+          days_to_fetch: 30,
+          force_refresh: forceRefresh
         }),
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch transactions');
+        let errorMessage = 'Failed to fetch transactions';
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (jsonError) {
+          // If response is not JSON, try to get text
+          try {
+            const errorText = await response.text();
+            errorMessage = errorText || errorMessage;
+          } catch (textError) {
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+          }
+        }
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (jsonError) {
+        const responseText = await response.text();
+        console.error('Invalid JSON response:', responseText);
+        throw new Error(`Invalid response format: ${responseText.substring(0, 100)}...`);
+      }
       
-      // Update the last_fetch_date for this account in the plaidAccount table
+      // Update the last_plaid_sync for this account in the plaidAccount table
       await supabase
         .from('plaidAccount')
-        .update({ last_fetch_date: new Date().toISOString() })
-        .eq('account_id', accountId);
+        .update({ last_plaid_sync: new Date().toISOString() })
+        .eq('plaid_account_id', accountId);
       
       onAlert?.(
-        `Successfully fetched ${data.transactions_count} transactions for ${accountName}`, 
+        `Successfully fetched ${data.transactions_count} transactions for ${accountName} (${data.fetch_strategy})`, 
         'success'
       );
 
@@ -499,8 +520,8 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
         type: 'success'
       });
 
-      // Refresh the connected banks to show updated last fetch date
-      await fetchConnectedBanks();
+      // Refresh the account details to show updated last fetch date
+      await fetchAccountDetails();
 
     } catch (err) {
       console.error('Error fetching transactions:', err);
@@ -872,7 +893,7 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                                         {formatAccountType(account.type, account.subtype)}
                                       </p>
                                       <p className="text-xs text-gray-400 dark:text-gray-500">
-                                        {formatLastFetch(account.last_fetch_date)}
+                                        {formatLastFetch(account.last_plaid_sync)}
                                       </p>
                                     </div>
                                     <div className="flex items-center gap-3">
@@ -891,24 +912,35 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                                           </div>
                                         )}
                                       </div>
-                                      <button
-                                        onClick={() => fetchAccountTransactions(account.account_id, account.official_name || account.name)}
-                                        disabled={fetchingTransactions.has(account.account_id)}
-                                        className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 border border-blue-600 dark:border-blue-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
-                                        title="Fetch & Store Transactions (Last 30 days)"
-                                      >
-                                        {fetchingTransactions.has(account.account_id) ? (
-                                          <>
-                                            <RefreshCw className="w-4 h-4 animate-spin" />
-                                            Fetching...
-                                          </>
-                                        ) : (
-                                          <>
-                                            <CreditCard className="w-4 h-4" />
-                                            Fetch
-                                          </>
-                                        )}
-                      </button>
+                                      <div className="flex items-center gap-2">
+                                        <button
+                                          onClick={() => fetchAccountTransactions(account.account_id, account.official_name || account.name, false)}
+                                          disabled={fetchingTransactions.has(account.account_id)}
+                                          className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 border border-blue-600 dark:border-blue-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                                          title="Fetch New Transactions (Incremental)"
+                                        >
+                                          {fetchingTransactions.has(account.account_id) ? (
+                                            <>
+                                              <RefreshCw className="w-4 h-4 animate-spin" />
+                                              Fetching...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <CreditCard className="w-4 h-4" />
+                                              Fetch New
+                                            </>
+                                          )}
+                                        </button>
+                                        <button
+                                          onClick={() => fetchAccountTransactions(account.account_id, account.official_name || account.name, true)}
+                                          disabled={fetchingTransactions.has(account.account_id)}
+                                          className="px-2 py-1.5 text-sm font-medium text-blue-600 bg-white hover:bg-blue-50 dark:bg-gray-800 dark:text-blue-400 dark:hover:bg-gray-700 border border-blue-600 dark:border-blue-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                                          title="Force Full Refresh (Last 30 days)"
+                                        >
+                                          <RefreshCw className="w-3 h-3" />
+                                          Full
+                                        </button>
+                                      </div>
                     </div>
                   </div>
                 ))}
