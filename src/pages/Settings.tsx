@@ -32,6 +32,7 @@ interface AccountingSettings {
   accounts_payable_account: number | null;
   taxes_payable_account: number | null;
   cash_account: number | null;
+  retained_earnings_account: number | null;
   bank_name: string;
   branch_name: string;
   account_number: string;
@@ -79,6 +80,7 @@ const DEFAULT_SETTINGS: AccountingSettings = {
   accounts_payable_account: null,
   taxes_payable_account: null,
   cash_account: null,
+  retained_earnings_account: null,
   bank_name: '',
   branch_name: '',
   account_number: '',
@@ -364,6 +366,8 @@ const Settings: React.FC = () => {
   const handleSaveCard = async (cardType: string) => {
     console.log('Starting save for card:', cardType);
     setIsSaving(true);
+    let updateData: Partial<AccountingSettings> = {};
+    
     try {
       // Get the current user's session
       const { data: { session } } = await supabase.auth.getSession();
@@ -388,7 +392,52 @@ const Settings: React.FC = () => {
       if (cardType === 'accounts') {
         try {
           validateAccounts();
+          
+          // Additional validation: check that all account IDs are valid numbers and exist
+          const accountFields = [
+            'sales_revenue_account',
+            'purchases_account', 
+            'accounts_receivable_account',
+            'accounts_payable_account',
+            'taxes_payable_account',
+            'cash_account'
+          ] as const;
+          
+          for (const field of accountFields) {
+            const value = settings[field];
+            if (value !== null) {
+              if (isNaN(Number(value)) || Number(value) <= 0) {
+                throw new Error(`Invalid account ID for ${field.replace(/_/g, ' ')}: ${value}`);
+              }
+              // Check if the account actually exists
+              if (!accounts.some(acc => acc.id === value)) {
+                throw new Error(`Account ID ${value} for ${field.replace(/_/g, ' ')} does not exist in available accounts`);
+              }
+            }
+          }
+          
+          // Also check retained_earnings_account if it has a value
+          if (settings.retained_earnings_account !== null) {
+            if (!accounts.some(acc => acc.id === settings.retained_earnings_account)) {
+              console.warn('Invalid retained_earnings_account detected:', settings.retained_earnings_account);
+              console.warn('This will be set to null to avoid constraint violation');
+            }
+          }
+          
+          console.log('Account validation passed. Account values:', {
+            sales_revenue_account: settings.sales_revenue_account,
+            purchases_account: settings.purchases_account,
+            accounts_receivable_account: settings.accounts_receivable_account,
+            accounts_payable_account: settings.accounts_payable_account,
+            taxes_payable_account: settings.taxes_payable_account,
+            cash_account: settings.cash_account,
+            retained_earnings_account: settings.retained_earnings_account
+          });
+          
+          console.log('Available account IDs:', accounts.map(acc => acc.id));
+          
         } catch (err) {
+          console.error('Account validation failed:', err);
           toast({
             title: "Validation Error",
             description: err instanceof Error ? err.message : "All Chart of Accounts fields are required.",
@@ -399,7 +448,7 @@ const Settings: React.FC = () => {
         }
       }
 
-      const updateData: Partial<AccountingSettings> = {
+      updateData = {
         user_id: session.user.id,
       };
 
@@ -427,6 +476,8 @@ const Settings: React.FC = () => {
         updateData.accounts_payable_account = settings.accounts_payable_account;
         updateData.taxes_payable_account = settings.taxes_payable_account;
         updateData.cash_account = settings.cash_account;
+        // Explicitly set this to null to avoid constraint violations
+        updateData.retained_earnings_account = null;
       } else if (cardType === 'bank') {
         updateData.bank_name = settings.bank_name;
         updateData.branch_name = settings.branch_name;
@@ -480,10 +531,21 @@ const Settings: React.FC = () => {
         code: error?.code,
         details: error?.details,
         hint: error?.hint,
+        status: error?.status,
+        statusText: error?.statusText,
+        response: error?.response,
         full: error
       });
       
+      // Log the data that was being saved when the error occurred
+      console.error('Data being saved when error occurred:', updateData);
+      console.error('Card type being saved:', cardType);
+      console.error('Settings state:', settings);
+      
+      // Try to extract more meaningful error information
       let errorMessage = "Failed to save settings. Please try again.";
+      let errorDetails = "";
+      
       if (error?.message) {
         errorMessage = error.message;
       } else if (typeof error === 'string') {
@@ -492,9 +554,35 @@ const Settings: React.FC = () => {
         errorMessage = error.details;
       }
       
+      // Add status code information if available
+      if (error?.status || error?.code) {
+        errorDetails = `Status: ${error?.status || error?.code}`;
+      }
+      
+      // If it's a constraint violation, provide more helpful message
+      if (error?.code === '23503' || error?.message?.includes('violates foreign key constraint')) {
+        errorMessage = "One or more selected accounts are invalid. Please check your Chart of Accounts selections.";
+        errorDetails = "Foreign key constraint violation";
+      } else if (error?.code === '23514' || error?.message?.includes('violates check constraint')) {
+        // Check constraint violation - likely an invalid account ID
+        if (error?.message?.includes('retained_earnings_account_check')) {
+          errorMessage = "The retained earnings account is invalid or doesn't exist. Please contact support to fix this issue.";
+          errorDetails = "Invalid retained earnings account";
+        } else {
+          errorMessage = "One or more account selections are invalid. Please verify all Chart of Accounts selections.";
+          errorDetails = "Check constraint violation";
+        }
+      } else if (error?.code === '23505' || error?.message?.includes('duplicate key')) {
+        errorMessage = "A record with this information already exists.";
+        errorDetails = "Duplicate key violation";
+      } else if (error?.status === 400) {
+        errorMessage = "Invalid data provided. Please check all required fields.";
+        errorDetails = "HTTP 400 - Bad Request";
+      }
+      
       toast({
         title: "Error",
-        description: errorMessage,
+        description: errorDetails ? `${errorMessage} (${errorDetails})` : errorMessage,
         variant: "destructive",
       });
     } finally {
