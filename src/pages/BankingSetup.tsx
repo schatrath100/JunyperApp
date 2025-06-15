@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { Plus, Trash2, Landmark, RefreshCw, Download, Calendar, Settings, Save, Edit2, Search, Eye, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Landmark, RefreshCw, Download, Calendar, Settings, Save, Edit2, Search, Eye, Info, ChevronDown, ChevronUp, CreditCard } from 'lucide-react';
 import Button from '../components/Button';
 import { cn } from '../lib/utils';
 import type { Alert } from '../components/Alert';
@@ -256,6 +256,7 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
   const [refreshingBanks, setRefreshingBanks] = useState<Set<string>>(new Set());
   const [loadingAccounts, setLoadingAccounts] = useState(false);
   const [expandedBanks, setExpandedBanks] = useState<Set<string>>(new Set());
+  const [fetchingTransactions, setFetchingTransactions] = useState<Set<string>>(new Set());
   const [ruleForm, setRuleForm] = useState({
     name: '',
     amount_min: '',
@@ -390,6 +391,57 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
       setRefreshingBanks(prev => {
         const newSet = new Set(prev);
         newSet.delete(bankId);
+        return newSet;
+      });
+    }
+  };
+
+  // Function to fetch transactions for a specific account
+  const fetchAccountTransactions = async (accountId: string, accountName: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user');
+
+      setFetchingTransactions(prev => new Set(prev).add(accountId));
+      
+      const response = await fetch('/.netlify/functions/fetch-transactions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          plaid_account_id: accountId,
+          user_id: user.id,
+          days_to_fetch: 30
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to fetch transactions');
+      }
+
+      const data = await response.json();
+      
+      onAlert?.(
+        `Successfully fetched ${data.transactions_count} transactions for ${accountName}`, 
+        'success'
+      );
+
+      // Create notification for transaction fetch
+      await createNotification({
+        title: 'Transactions Fetched',
+        message: `Successfully fetched ${data.transactions_count} transactions from ${accountName} (${data.institution_name})`,
+        type: 'success'
+      });
+
+    } catch (err) {
+      console.error('Error fetching transactions:', err);
+      onAlert?.(`Failed to fetch transactions for ${accountName}`, 'error');
+    } finally {
+      setFetchingTransactions(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(accountId);
         return newSet;
       });
     }
@@ -753,20 +805,40 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                                         {formatAccountType(account.type, account.subtype)}
                                       </p>
                                     </div>
-                                    <div className="text-right">
-                                      <div className="font-semibold text-gray-900 dark:text-white">
-                                        {formatCurrency(account.balances.current, account.balances.iso_currency_code)}
+                                    <div className="flex items-center gap-3">
+                                      <div className="text-right">
+                                        <div className="font-semibold text-gray-900 dark:text-white">
+                                          {formatCurrency(account.balances.current, account.balances.iso_currency_code)}
+                                        </div>
+                                        {account.balances.available !== null && account.balances.available !== account.balances.current && (
+                                          <div className="text-sm text-gray-500 dark:text-gray-400">
+                                            Available: {formatCurrency(account.balances.available, account.balances.iso_currency_code)}
+                                          </div>
+                                        )}
+                                        {account.balances.limit && (
+                                          <div className="text-xs text-gray-400 dark:text-gray-500">
+                                            Limit: {formatCurrency(account.balances.limit, account.balances.iso_currency_code)}
+                                          </div>
+                                        )}
                                       </div>
-                                      {account.balances.available !== null && account.balances.available !== account.balances.current && (
-                                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                                          Available: {formatCurrency(account.balances.available, account.balances.iso_currency_code)}
-                                        </div>
-                                      )}
-                                      {account.balances.limit && (
-                                        <div className="text-xs text-gray-400 dark:text-gray-500">
-                                          Limit: {formatCurrency(account.balances.limit, account.balances.iso_currency_code)}
-                                        </div>
-                                      )}
+                                      <button
+                                        onClick={() => fetchAccountTransactions(account.account_id, account.official_name || account.name)}
+                                        disabled={fetchingTransactions.has(account.account_id)}
+                                        className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-700 border border-blue-600 dark:border-blue-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                                        title="Fetch Transactions (Last 30 days)"
+                                      >
+                                        {fetchingTransactions.has(account.account_id) ? (
+                                          <>
+                                            <RefreshCw className="w-4 h-4 animate-spin" />
+                                            Fetching...
+                                          </>
+                                        ) : (
+                                          <>
+                                            <CreditCard className="w-4 h-4" />
+                                            Fetch
+                                          </>
+                                        )}
+                                      </button>
                                     </div>
                                   </div>
                                 ))}
