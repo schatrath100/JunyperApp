@@ -266,7 +266,22 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
     account_mapping: ''
   });
   
+  // Confirmation modal state
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{
+    type: 'deleteBank' | 'deleteRule';
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
+  
   const { createNotification } = useNotifications();
+
+  // Helper function to show confirmation modal
+  const showConfirmation = (type: 'deleteBank' | 'deleteRule', title: string, message: string, onConfirm: () => void) => {
+    setConfirmAction({ type, title, message, onConfirm });
+    setShowConfirmModal(true);
+  };
 
   // Helper function to format account type
   const formatAccountType = (type: string, subtype: string | null) => {
@@ -495,28 +510,37 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
   };
 
   // Handle rule deletion (soft delete)
-  const handleDeleteRule = async (ruleId: string) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No authenticated user');
+  const handleDeleteRule = async (ruleId: string, ruleName: string) => {
+    const performDelete = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('No authenticated user');
 
-      const { data, error } = await supabase.rpc('soft_delete_transaction_rule', {
-        p_rule_id: ruleId,
-        p_user_id: user.id
-      });
-      
-      if (error) throw error;
-      
-      if (data) {
-        onAlert?.('Transaction rule deleted successfully', 'success');
-        fetchTransactionRules();
-      } else {
-        onAlert?.('Rule not found or already deleted', 'warning');
+        const { data, error } = await supabase.rpc('soft_delete_transaction_rule', {
+          p_rule_id: ruleId,
+          p_user_id: user.id
+        });
+        
+        if (error) throw error;
+        
+        if (data) {
+          onAlert?.('Transaction rule deleted successfully', 'success');
+          fetchTransactionRules();
+        } else {
+          onAlert?.('Rule not found or already deleted', 'warning');
+        }
+      } catch (err) {
+        console.error('Error deleting transaction rule:', err);
+        onAlert?.('Failed to delete transaction rule', 'error');
       }
-    } catch (err) {
-      console.error('Error deleting transaction rule:', err);
-      onAlert?.('Failed to delete transaction rule', 'error');
-    }
+    };
+
+    showConfirmation(
+      'deleteRule',
+      'Delete Transaction Rule',
+      `Are you sure you want to delete the rule "${ruleName}"? This action cannot be undone.`,
+      performDelete
+    );
   };
 
   useEffect(() => {
@@ -650,28 +674,45 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                               refreshBankAccounts(bank.id);
                             }}
                             disabled={refreshingBanks.has(bank.id)}
-                            className="p-2 text-gray-400 hover:text-blue-500 transition-colors disabled:opacity-50"
+                            className="px-3 py-1.5 text-sm font-medium text-white hover:text-white bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700 border border-green-600 dark:border-green-600 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             title="Refresh Accounts"
                           >
-                            <RefreshCw className={`w-4 h-4 ${refreshingBanks.has(bank.id) ? 'animate-spin' : ''}`} />
+                            {refreshingBanks.has(bank.id) ? (
+                              <span className="flex items-center gap-1.5">
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                Refreshing...
+                              </span>
+                            ) : (
+                              'Refresh'
+                            )}
                           </button>
                           <button
-                            onClick={async (e) => {
+                            onClick={(e) => {
                               e.stopPropagation();
-                              try {
-                                const { error } = await supabase
-                                  .from('connected_banks')
-                                  .delete()
-                                  .eq('id', bank.id);
-                                
-                                if (error) throw error;
-                                
-                                await fetchConnectedBanks();
-                                onAlert?.('Bank account disconnected successfully', 'success');
-                              } catch (err) {
-                                console.error('Error disconnecting bank:', err);
-                                onAlert?.('Failed to disconnect bank account', 'error');
-                              }
+                              
+                              const performDisconnect = async () => {
+                                try {
+                                  const { error } = await supabase
+                                    .from('connected_banks')
+                                    .delete()
+                                    .eq('id', bank.id);
+                                  
+                                  if (error) throw error;
+                                  
+                                  await fetchConnectedBanks();
+                                  onAlert?.('Bank account disconnected successfully', 'success');
+                                } catch (err) {
+                                  console.error('Error disconnecting bank:', err);
+                                  onAlert?.('Failed to disconnect bank account', 'error');
+                                }
+                              };
+
+                              showConfirmation(
+                                'deleteBank',
+                                'Disconnect Bank Account',
+                                `Are you sure you want to disconnect ${bank.institution_name}? This will remove all account data and cannot be undone.`,
+                                performDisconnect
+                              );
                             }}
                             className="p-2 text-gray-400 hover:text-red-500 transition-colors"
                             title="Disconnect Bank"
@@ -883,7 +924,7 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                         </button>
                         
                         <button
-                          onClick={() => handleDeleteRule(rule.id)}
+                          onClick={() => handleDeleteRule(rule.id, rule.name)}
                           className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all duration-200"
                           title="Delete Rule"
                         >
@@ -1057,6 +1098,54 @@ const BankingSetup: React.FC<BankingSetupProps> = ({ onAlert }) => {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && confirmAction && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-2xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className={`flex items-center justify-center w-12 h-12 rounded-full ${
+                  confirmAction.type === 'deleteBank' ? 'bg-red-100 dark:bg-red-900/20' : 'bg-red-100 dark:bg-red-900/20'
+                }`}>
+                  <Trash2 className="w-6 h-6 text-red-600 dark:text-red-400" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {confirmAction.title}
+                  </h3>
+                </div>
+              </div>
+              
+              <p className="text-gray-600 dark:text-gray-300 mb-6">
+                {confirmAction.message}
+              </p>
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    setConfirmAction(null);
+                  }}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    confirmAction.onConfirm();
+                    setShowConfirmModal(false);
+                    setConfirmAction(null);
+                  }}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+                >
+                  {confirmAction.type === 'deleteBank' ? 'Disconnect' : 'Delete'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
