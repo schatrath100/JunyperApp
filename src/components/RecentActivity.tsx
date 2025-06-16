@@ -312,14 +312,14 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ compact = false }) => {
                   exit={{ opacity: 0, y: -20 }}
                   className={cn(
                     "hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors",
-                    compact ? "p-2" : "p-4"
+                    compact ? "p-1.5" : "p-4"
                   )}
                 >
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-1.5">
                       <div className={cn(
                         "rounded-lg",
-                        compact ? "p-1.5" : "p-2",
+                        compact ? "p-1" : "p-2",
                         activity.color
                       )}>
                         <div className={compact ? "w-3 h-3" : "w-5 h-5"}>
@@ -331,11 +331,11 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ compact = false }) => {
                           "text-gray-900 dark:text-white font-medium",
                           compact ? "text-xs" : "text-sm"
                         )}>
-                          New {activity.type}
+                          {activity.type}
                         </span>
                         <div className={cn(
                           "text-gray-500 dark:text-gray-400",
-                          compact ? "text-xs" : "text-sm"
+                          compact ? "text-xs leading-tight" : "text-sm"
                         )}>
                           {activity.count} {activity.count === 1 ? 'item' : 'items'}
                         </div>
@@ -350,9 +350,9 @@ const RecentActivity: React.FC<RecentActivityProps> = ({ compact = false }) => {
                           : 'text-gray-400 dark:text-gray-500'
                     )}>
                       {activity.change > 0 ? (
-                        <TrendingUp className={cn(compact ? "w-3 h-3 mr-0.5" : "w-4 h-4 mr-1")} />
+                        <TrendingUp className={cn(compact ? "w-2.5 h-2.5 mr-0.5" : "w-4 h-4 mr-1")} />
                       ) : (
-                        <TrendingDown className={cn(compact ? "w-3 h-3 mr-0.5" : "w-4 h-4 mr-1")} />
+                        <TrendingDown className={cn(compact ? "w-2.5 h-2.5 mr-0.5" : "w-4 h-4 mr-1")} />
                       )}
                       <span className={cn(
                         "font-medium",

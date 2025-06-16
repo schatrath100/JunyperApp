@@ -210,20 +210,6 @@ const SlideInPanel: React.FC<SlideInPanelProps> = ({ className }) => {
       );
     }
 
-    if (!hasAIConfig) {
-      return (
-        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-          <div className="flex items-center text-amber-800">
-            <Lock className="h-4 w-4 mr-2" />
-            <span className="text-sm font-medium">AI Access Not Configured</span>
-          </div>
-          <p className="text-xs text-amber-600 mt-1">
-            Please contact your administrator to set up AI access for your account.
-          </p>
-        </div>
-      );
-    }
-
     return null;
   };
 
@@ -233,7 +219,7 @@ const SlideInPanel: React.FC<SlideInPanelProps> = ({ className }) => {
       <div className={cn(
         "fixed right-0 top-0 h-full bg-white shadow-2xl transform transition-transform duration-300 ease-in-out z-50",
         isOpen ? "translate-x-0" : "translate-x-full",
-        "w-80",
+        "w-96",
         className
       )}>
         <div className="flex flex-col h-full">
@@ -323,7 +309,7 @@ const SlideInPanel: React.FC<SlideInPanelProps> = ({ className }) => {
                       value={userQuestion}
                       onChange={(e) => setUserQuestion(e.target.value)}
                       onKeyPress={handleKeyPress}
-                      placeholder={hasAIConfig || isAdmin ? "Ask Sydney about your finances..." : "AI access not configured"}
+                      placeholder={hasAIConfig || isAdmin ? "Ask Sydney about your finances..." : "AI access not configured - Please contact your administrator"}
                       disabled={!hasAIConfig && !isAdmin}
                       className="flex-1 p-2 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                       rows={2}
@@ -342,34 +328,63 @@ const SlideInPanel: React.FC<SlideInPanelProps> = ({ className }) => {
                 </div>
               </div>
             ) : (
-              <div className="p-4 space-y-6">
-                {/* Sydney AI Ribbon */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">AI Assistant</h3>
-                  <button
-                    onClick={() => setShowAIChat(true)}
-                    className="w-full p-4 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg text-white hover:from-purple-600 hover:to-pink-600 transition-all duration-200 group"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mr-3">
-                          <Brain className="h-5 w-5 text-white" />
-                          <Sparkles className="h-3 w-3 text-white/80 absolute animate-pulse" />
-                        </div>
-                        <div className="text-left">
-                          <div className="font-medium">Sydney AI</div>
-                          <div className="text-xs opacity-90">Financial Assistant</div>
-                        </div>
+              <div className="flex flex-col h-full">
+                {/* Sydney AI Section - 70% */}
+                <div className="flex-[7] p-4 border-b border-gray-200">
+                  <div className="w-full p-4 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg text-white mb-4">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center mr-3">
+                        <Brain className="h-5 w-5 text-white" />
+                        <Sparkles className="h-3 w-3 text-white/80 absolute animate-pulse" />
                       </div>
-                      <ChevronRight className="h-5 w-5 text-white/80 group-hover:translate-x-1 transition-transform" />
+                      <div className="text-left">
+                        <div className="font-medium">Sydney AI</div>
+                        <div className="text-xs opacity-90">Accounting AI Agent</div>
+                      </div>
                     </div>
-                  </button>
+                  </div>
+
+                  {renderAIConfigStatus()}
+
+                  {/* AI Input Section */}
+                  <div className="space-y-3">
+                    <textarea
+                      value={userQuestion}
+                      onChange={(e) => setUserQuestion(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder={hasAIConfig || isAdmin ? "Ask Sydney about your finances..." : "AI access not configured - Please contact your administrator"}
+                      disabled={!hasAIConfig && !isAdmin}
+                      className="w-full p-3 border border-gray-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+                      rows={4}
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        onClick={handleAISubmit}
+                        disabled={isLoading || !userQuestion.trim() || (!hasAIConfig && !isAdmin)}
+                        className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <span>Thinking...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Send className="h-4 w-4" />
+                            <span>Ask Sydney</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    {error && (
+                      <p className="text-xs text-red-500">{error}</p>
+                    )}
+                  </div>
                 </div>
 
-                {/* Recent Activity */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-3">Recent Activity</h3>
-                  <RecentActivity />
+                {/* Recent Activity Section - 30% */}
+                <div className="flex-[3] p-4 overflow-y-auto">
+                  <RecentActivity compact={true} />
                 </div>
               </div>
             )}
@@ -386,17 +401,27 @@ const SlideInPanel: React.FC<SlideInPanelProps> = ({ className }) => {
         </div>
       )}
 
-      {/* Toggle Button */}
-      <button
+      {/* Toggle Tab */}
+      <div
         onClick={() => setIsOpen(true)}
         className={cn(
-          "fixed right-4 top-1/2 transform -translate-y-1/2 bg-blue-600 text-white rounded-l-lg shadow-lg hover:bg-blue-700 transition-all duration-200 z-40",
-          "px-3 py-4",
+          "fixed right-0 top-1/2 transform -translate-y-1/2 text-white shadow-lg transition-all duration-200 z-40 cursor-pointer",
+          "rounded-l-lg w-8 py-28",
+          "bg-gradient-to-b from-indigo-500 via-purple-500 to-pink-500",
+          "animate-gradient-x bg-[length:200%_200%]",
+          "hover:shadow-xl hover:scale-105",
           isOpen && "translate-x-full opacity-0"
         )}
+        style={{
+          background: 'linear-gradient(-45deg, #6366f1, #8b5cf6, #ec4899, #f97316, #06b6d4)',
+          backgroundSize: '400% 400%',
+          animation: 'gradientShift 4s ease infinite'
+        }}
       >
-        <ChevronRight className="h-5 w-5 rotate-180" />
-      </button>
+        <div className="flex flex-col items-center justify-center h-full">
+          <Brain className="h-6 w-6 text-white/90 drop-shadow-sm" />
+        </div>
+      </div>
     </>
   );
 };
