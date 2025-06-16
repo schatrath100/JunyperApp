@@ -1,25 +1,30 @@
-// Security Configuration
+// Security configuration for the application
+const isDevelopment = process.env.NODE_ENV === 'development' || import.meta.env?.DEV;
+
 export const SECURITY_CONFIG = {
-  // Session timeout settings
-  SESSION_TIMEOUT: {
-    // Total session duration before timeout (10 minutes in production, 2 minutes in development)
-    DURATION: process.env.NODE_ENV === 'development' ? 2 * 60 * 1000 : 10 * 60 * 1000,
+  // Session timeout configuration
+  sessionTimeout: {
+    // Enable/disable session timeout feature
+    enabled: true,
     
-    // Warning duration before timeout (2 minutes in production, 30 seconds in development)
-    WARNING_DURATION: process.env.NODE_ENV === 'development' ? 30 * 1000 : 2 * 60 * 1000,
+    // Total session timeout in seconds (10 minutes for both dev and prod)
+    totalTimeoutSeconds: 10 * 60, // 10 minutes
     
-    // Activity throttle (minimum time between activity resets)
-    ACTIVITY_THROTTLE: 1000,
+    // Warning time in seconds (show warning 2 minutes before timeout)
+    warningTimeSeconds: 2 * 60, // 2 minutes
+    
+    // Activity throttle interval (prevent excessive timeout resets)
+    activityThrottleMs: 1000, // 1 second
     
     // Events that count as user activity
-    ACTIVITY_EVENTS: [
+    activityEvents: [
       'mousedown',
       'mousemove', 
       'keypress',
       'scroll',
       'touchstart',
       'click'
-    ]
+    ] as const
   },
 
   // Authentication settings
@@ -53,16 +58,27 @@ export const SECURITY_CONFIG = {
   }
 } as const;
 
-// Helper functions
-export const getSessionTimeoutDuration = () => SECURITY_CONFIG.SESSION_TIMEOUT.DURATION;
-export const getWarningDuration = () => SECURITY_CONFIG.SESSION_TIMEOUT.WARNING_DURATION;
+// Helper to get timeout configuration
+export const getTimeoutConfig = () => {
+  const config = SECURITY_CONFIG.sessionTimeout;
+  
+  return {
+    totalTimeout: config.totalTimeoutSeconds * 1000, // Convert to milliseconds
+    warningDelay: (config.totalTimeoutSeconds - config.warningTimeSeconds) * 1000, // When to show warning
+    warningDuration: config.warningTimeSeconds * 1000, // How long warning is shown
+    activityThrottle: config.activityThrottleMs,
+    activityEvents: config.activityEvents,
+    enabled: config.enabled
+  };
+};
+
 export const isSessionTimeoutEnabled = () => SECURITY_CONFIG.FEATURES.ENABLE_SESSION_TIMEOUT;
 export const isActivityTrackingEnabled = () => SECURITY_CONFIG.FEATURES.ENABLE_ACTIVITY_TRACKING;
 
 // Development helpers
-export const isDevelopmentMode = () => process.env.NODE_ENV === 'development';
+export const isDevelopmentMode = () => process.env.NODE_ENV === 'development' || import.meta.env?.DEV;
 export const getTimeoutSettings = () => ({
-  timeout: getSessionTimeoutDuration(),
-  warning: getWarningDuration(),
+  timeout: getTimeoutConfig().totalTimeout,
+  warning: getTimeoutConfig().warningDuration,
   isDev: isDevelopmentMode()
 }); 

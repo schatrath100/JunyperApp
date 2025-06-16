@@ -1,23 +1,50 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { getTimeoutConfig } from '../config/security';
 import { AlertTriangle, Clock, LogOut, RefreshCw } from 'lucide-react';
 
 interface SessionTimeoutWarningProps {
   isOpen: boolean;
-  timeRemaining: string;
   onExtendSession: () => void;
-  onLogout: () => void;
+  onLogoutNow: () => void;
 }
 
-const SessionTimeoutWarning: React.FC<SessionTimeoutWarningProps> = ({
+export const SessionTimeoutWarning: React.FC<SessionTimeoutWarningProps> = ({
   isOpen,
-  timeRemaining,
   onExtendSession,
-  onLogout
+  onLogoutNow
 }) => {
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const config = getTimeoutConfig();
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Initialize countdown with warning duration
+    setTimeRemaining(config.warningDuration);
+
+    const interval = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1000) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1000;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [isOpen, config.warningDuration]);
+
+  const formatTime = (ms: number) => {
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ zIndex: 9999 }}>
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm" />
       
@@ -33,7 +60,7 @@ const SessionTimeoutWarning: React.FC<SessionTimeoutWarningProps> = ({
               Session Timeout Warning
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Your session will expire due to inactivity
+              Your session will expire in <span className="font-semibold text-red-600">{formatTime(timeRemaining)}</span> due to inactivity
             </p>
           </div>
         </div>
@@ -43,7 +70,7 @@ const SessionTimeoutWarning: React.FC<SessionTimeoutWarningProps> = ({
           <div className="flex items-center gap-2 justify-center">
             <Clock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
             <span className="text-lg font-mono font-bold text-amber-700 dark:text-amber-300">
-              {timeRemaining}
+              {formatTime(timeRemaining)}
             </span>
           </div>
           <p className="text-center text-sm text-amber-600 dark:text-amber-400 mt-1">
@@ -70,7 +97,7 @@ const SessionTimeoutWarning: React.FC<SessionTimeoutWarningProps> = ({
           </button>
           
           <button
-            onClick={onLogout}
+            onClick={onLogoutNow}
             className="flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 px-4 py-2.5 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
           >
             <LogOut className="w-4 h-4" />
