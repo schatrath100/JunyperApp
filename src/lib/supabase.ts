@@ -17,15 +17,19 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    storage: window.localStorage
+    storage: window.localStorage,
+    // Additional security settings
+    storageKey: 'junyper-auth-token',
+    debug: false
   }
 });
 
 // Set up auth state change listener
 supabase.auth.onAuthStateChange((event, session) => {
-  if (event === 'SIGNED_OUT' || event === 'USER_DELETED') {
+  if (event === 'SIGNED_OUT') {
     // Clear any cached data
     localStorage.removeItem('supabase.auth.token');
+    localStorage.removeItem('junyper-auth-token');
   } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
     // Ensure we have the latest session
     if (session) {

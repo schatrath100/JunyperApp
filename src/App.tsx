@@ -23,6 +23,10 @@ import { Alert } from './components/Alert';
 import SydneyAI from './pages/SydneyAI';
 import { ToastProvider, ToastViewport } from './components/ui/toast';
 import { useNotifications } from './hooks/useNotifications';
+import { useSessionTimeout } from './hooks/useSessionTimeout';
+import SessionTimeoutWarning from './components/SessionTimeoutWarning';
+import SessionTimeoutTest from './components/SessionTimeoutTest';
+import { getSessionTimeoutDuration, getWarningDuration, isSessionTimeoutEnabled } from './config/security';
 
 function App() {
   const mainRef = React.useRef<HTMLDivElement>(null);
@@ -40,6 +44,27 @@ function App() {
     markAllAsRead,
     createTestNotification
   } = useNotifications();
+
+  // Session timeout management (only if enabled)
+  const {
+    isWarningShown,
+    timeRemaining,
+    extendSession,
+    resetTimeout
+  } = useSessionTimeout(isSessionTimeoutEnabled() ? {
+    timeoutDuration: getSessionTimeoutDuration(),
+    warningDuration: getWarningDuration(),
+    onWarning: () => {
+      console.log('🔒 Session timeout warning displayed');
+    },
+    onTimeout: () => {
+      console.log('🔒 Session timed out due to inactivity');
+      addAlert('Session expired due to inactivity. Please log in again.', 'warning');
+    }
+  } : {
+    timeoutDuration: 0, // Disabled
+    warningDuration: 0
+  });
 
   // Expose test function to window for debugging
   React.useEffect(() => {
@@ -135,6 +160,32 @@ function App() {
             </div>
             <SlideInPanel />
           </div>
+        )}
+        
+        {/* Session Timeout Warning Modal */}
+        {isSessionTimeoutEnabled() && (
+          <SessionTimeoutWarning
+            isOpen={isWarningShown}
+            timeRemaining={timeRemaining}
+            onExtendSession={extendSession}
+            onLogout={async () => {
+              try {
+                await supabase.auth.signOut();
+              } catch (error) {
+                console.error('Error during manual logout:', error);
+              }
+            }}
+          />
+        )}
+
+        {/* Development Test Component */}
+        {process.env.NODE_ENV === 'development' && isSessionTimeoutEnabled() && session && (
+          <SessionTimeoutTest
+            isWarningShown={isWarningShown}
+            timeRemaining={timeRemaining}
+            onExtendSession={extendSession}
+            onResetTimeout={resetTimeout}
+          />
         )}
       </BrowserRouter>
       <ToastViewport />
